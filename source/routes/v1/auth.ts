@@ -1,0 +1,12 @@
+import express, { Router, Request, Response } from "express";
+import AuthController from "../../controllers/auth/AuthController";
+import { loginApiValidator, resendOTPApiValidator, signUpApiValidator, verifyEmailApiValidator } from "../../validation/rules/api-validation";
+import { validateRequest } from "../../middleware/api-request-validator";
+const AuthEndpoint: Router = express.Router();
+AuthEndpoint.post('/signup', signUpApiValidator, validateRequest, AuthController.signUp);
+AuthEndpoint.post('/login', loginApiValidator, validateRequest, AuthController.login);
+AuthEndpoint.post("/email-verify", verifyEmailApiValidator, validateRequest, AuthController.verifyEmail);
+AuthEndpoint.post("/resend-otp", resendOTPApiValidator, validateRequest, AuthController.resendOTP);
+AuthEndpoint.post("/logout", AuthController.logout);
+AuthEndpoint.post("/refresh-token", AuthController.refreshToken);
+export default AuthEndpoint;

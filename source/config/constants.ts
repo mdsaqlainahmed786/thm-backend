@@ -1,0 +1,68 @@
+import * as dotenv from "dotenv";
+import { CookieOptions } from "express";
+dotenv.config();
+export abstract class AppConfig {
+    static readonly APP_NAME: string = process.env.APP_NAME ?? "The Hotel Media";
+    static readonly PORT: any = process.env.PORT ?? 3000;
+    static readonly DB_CONNECTION: string = process.env.DB_CONNECTION!;
+
+    //API Version
+    static readonly API_VERSION: string = "/api/v1";
+
+    //Authentication token configurations for user side 
+    static readonly APP_ACCESS_TOKEN_SECRET: string = process.env.APP_ACCESS_TOKEN_SECRET!;
+    static readonly APP_REFRESH_TOKEN_SECRET: string = process.env.APP_REFRESH_TOKEN_SECRET!;
+
+
+
+    static readonly ACCESS_TOKEN_EXPIRES_IN: string = process.env.ACCESS_TOKEN_EXPIRES_IN ?? "3m";
+    static readonly REFRESH_TOKEN_EXPIRES_IN: string = process.env.REFRESH_TOKEN_EXPIRES_IN ?? "10d";
+    static readonly USER_AUTH_TOKEN_COOKIE_KEY = 'SessionToken';
+    static readonly USER_DEVICE_ID_COOKIE_KEY = "UserDeviceID";
+
+    static readonly ADMIN_AUTH_TOKEN_COOKIE_KEY = 'JwtToken';
+    static readonly ADMIN_DEVICE_ID_COOKIE_KEY = "DeviceID";
+    static readonly USER_AUTH_TOKEN_KEY = 'X-Access-Token';
+
+    //Aws S3 Configurations
+    static readonly AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAME!;
+    static readonly AWS_ACCESS_KEY: string = process.env.AWS_ACCESS_KEY!;
+    static readonly AWS_SECRET_KEY: string = process.env.AWS_SECRET_KEY!;
+    static readonly AWS_S3_BUCKET_ARN: string = process.env.AWS_S3_BUCKET_ARN!;
+    static readonly AWS_REGION: string = process.env.AWS_REGION!;
+
+
+    //Timezone Configurations 
+    static readonly DEFAULT_TIMEZONE: string = 'Asia/Kolkata';
+
+    //Firebase notification configuration
+    static readonly FIREBASE = {
+        PROJECT_ID: process.env.FIREBASE_PROJECT_ID!,
+        PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY!,
+        CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL!,
+    }
+}
+
+
+
+
+export const CookiePolicy: CookieOptions = { httpOnly: true, sameSite: "none" };
+
+export abstract class AwsS3AccessEndpoints {
+    static readonly USERS: string = AwsS3AccessEndpoints.getEndpoint("users/");
+    private static getEndpoint(path: string): string {
+        const environment = process.env.APP_ENV;
+        if (environment === "dev") {
+            return "dev-" + path;
+        } else if (environment === "production") {
+            return path;
+        } else {
+            throw new Error("Unsupported environment");
+        }
+    }
+}
+
+export abstract class GeoLocation {
+    static readonly EARTH_RADIUS_IN_KM: number = 6378;
+    // static readonly
+}
