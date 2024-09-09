@@ -1,3 +1,4 @@
+import { Business } from './../../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, httpConflict, httpForbidden } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
@@ -14,6 +15,7 @@ import { verify } from "jsonwebtoken";
 import BusinessType from "../../database/models/businessType.model";
 import BusinessSubType from "../../database/models/businessSubType.model";
 import BusinessProfile, { GeoCoordinate } from "../../database/models/businessProfile.model";
+import BusinessDocument from '../../database/models/businessDocument.model';
 
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -35,6 +37,13 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (user.isDeleted) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
         }
+        let isDocumentUploaded = false;
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            const businessDocument = await BusinessDocument.find({ businessProfileID: user.businessProfileID });
+            if (businessDocument && businessDocument.length !== 0) {
+                isDocumentUploaded = true;
+            }
+        }
         const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
@@ -44,7 +53,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (deviceID) {
             response.cookie(AppConfig.ADMIN_DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
         }
-        return response.send(httpOk({ ...user.hideSensitiveData(), accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

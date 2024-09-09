@@ -20,7 +20,7 @@ export interface IAddress extends Address {
 }
 
 
-export interface IBusinessProfile {
+export interface IBusinessProfile extends Document {
     profilePic: IProfilePic;
     businessTypeID: Types.ObjectId | string;
     businessSubTypeID: Types.ObjectId | string;
@@ -32,6 +32,7 @@ export interface IBusinessProfile {
     website: string;
     gstn: string;
     description: string;
+    amenities: (Types.ObjectId | string)[];
 }
 const AddressSchema = new Schema<IAddress>(
     {
@@ -67,11 +68,18 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
         },
         name: { type: String, required: true },
         address: AddressSchema,
-        email: { type: String, lowercase: true, index: true, required: true, unique: true, match: [/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, "email is invalid."], },
+        email: { type: String, lowercase: true, required: true, match: [/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, "email is invalid."], },
+        // email: { type: String, lowercase: true, index: true, required: true, unique: true, match: [/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, "email is invalid."], },
         phoneNumber: { type: String },
         dialCode: { type: String },
         website: { type: String, default: '' },
         gstn: { type: String, default: '' },
+        amenities: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "BusinessQuestion"
+            }
+        ],
     },
     {
         timestamps: true
@@ -86,3 +94,31 @@ BusinessProfileSchema.index({ 'address.geoCoordinate': '2dsphere' });
 
 const BusinessProfile = model<IBusinessProfile>('BusinessProfile', BusinessProfileSchema);
 export default BusinessProfile;
+
+/**
+ * 
+ * @returns Returns business profile's amenities lookup
+ */
+export function addAmenitiesInBusinessProfile() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businessquestions',
+            'let': { 'amenitiesIDs': '$amenities' },
+            'pipeline': [
+                { '$match': { '$expr': { '$in': ['$_id', '$$amenitiesIDs'] } } },
+                {
+                    '$project': {
+                        'question': 0,
+                        'businessTypeID': 0,
+                        'businessSubtypeID': 0,
+                        'createdAt': 0,
+                        'updatedAt': 0,
+                        '__v': 0,
+                    }
+                }
+            ],
+            'as': 'amenitiesRef'
+        }
+    };
+    return { lookup }
+}

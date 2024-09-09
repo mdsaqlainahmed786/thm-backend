@@ -1,6 +1,7 @@
+import { addBusinessProfileInUser, Business } from './../database/models/user.model';
 import path from "path";
 import { Request, Response, NextFunction, response } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404 } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import sharp from "sharp";
 import fs from "fs/promises"
 import { PUBLIC_DIR } from "../middleware/file-uploading";
@@ -11,6 +12,8 @@ import { ObjectId } from "mongodb";
 import { getS3Object, putS3Object } from "../middleware/file-uploading";
 import { addStringBeforeExtension } from "../utils/helper/basic";
 import BusinessProfile from "../database/models/businessProfile.model";
+import BusinessDocument from '../database/models/businessDocument.model';
+import BusinessQuestion from '../database/models/businessQuestion.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { fullName, dialCode, phoneNumber, bio } = request.body;
@@ -30,89 +33,145 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
     }
 }
 const profile = async (request: Request, response: Response, next: NextFunction) => {
-    const { id } = request.user;
-    const user = await User.aggregate(
-        [
-            {
-                $match: {
-                    _id: new ObjectId(id)
+    try {
+        const { id } = request.user;
+        const user = await User.aggregate(
+            [
+                {
+                    $match: {
+                        _id: new ObjectId(id)
+                    }
+                },
+                addBusinessProfileInUser().lookup,
+                addBusinessProfileInUser().unwindLookup,
+                {
+                    $limit: 1,
+                },
+                {
+                    $project: {
+                        otp: 0,
+                        password: 0,
+                        createdAt: 0,
+                        updatedAt: 0,
+                        __v: 0,
+                    }
                 }
-            },
-            {
-                '$lookup': {
-                    'from': 'businessprofiles',
-                    'let': { 'businessProfileID': '$businessProfileID' },
-                    'pipeline': [
-                        { '$match': { '$expr': { '$eq': ['$_id', '$$businessProfileID'] } } },
-                        {
-                            $project: {
-                                createdAt: 0,
-                                updatedAt: 0,
-                                __v: 0,
-                            }
-                        }
-                    ],
-                    'as': 'businessProfilesRef'
-                }
-            },
-            {
-                '$unwind': {
-                    'path': '$businessProfilesRef',
-                    'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                }
-            },
-            {
-                $limit: 1,
-            },
-            {
-                $project: {
-                    otp: 0,
-                    password: 0,
-                    createdAt: 0,
-                    updatedAt: 0,
-                    __v: 0,
-                }
-            }
-        ]
-    )
-    if (user.length === 0) {
-        return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+            ]
+        )
+        if (user.length === 0) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+        }
+        return response.send(httpOk(user[0], 'User profile fetched'))
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
-    return response.send(httpOk(user[0], 'User profile fetched'))
+
 }
 const changeProfilePic = async (request: Request, response: Response, next: NextFunction) => {
-    const { id, accountType } = request.user;
 
-    const user = await User.findOne({ _id: id });
-    if (!user) {
-        return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-    }
-    const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-    const images = files.profilePic as Express.Multer.S3File[];
-    if (images && images && images.length !== 0) {
-        const image = images[0];
-        const smallThumb = await generateThumbnail(image, "image", 200, 200);
-        const mediumThumb = await generateThumbnail(image, "image", 480, 480);
-        if (accountType === AccountType.BUSINESS && smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
-            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
-            if (!businessProfile) {
-                return response.send(httpOk(ErrorMessage.invalidRequest("Business profile not found"), 'Business profile not found'))
+    try {
+        const { id, accountType } = request.user;
+
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const images = files && files.profilePic as Express.Multer.S3File[];
+        if (images && images && images.length !== 0) {
+            const image = images[0];
+            const smallThumb = await generateThumbnail(image, "image", 200, 200);
+            const mediumThumb = await generateThumbnail(image, "image", 480, 480);
+            if (accountType === AccountType.BUSINESS && smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
+                const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (!businessProfile) {
+                    return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+                }
+                businessProfile.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location };
+                const savedBusinessProfile = await businessProfile.save();
+                user.hasProfilePicture = true;
+                const savedUser = await user.save();
+                return response.send(httpOk(savedBusinessProfile, "Profile picture changed successfully"))
             }
-            businessProfile.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location };
-            const savedBusinessProfile = await businessProfile.save();
-            user.hasProfilePicture = true;
-            const savedUser = await user.save();
-            return response.send(httpOk(savedBusinessProfile, "Profile picture changed successfully"))
+            if (smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
+                user.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location }
+                user.hasProfilePicture = true;
+                const savedUser = await user.save();
+                return response.send(httpOk(savedUser, "Profile picture changed successfully"))
+            }
+            return response.send({ image, smallThumb, mediumThumb });
         }
-        if (smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
-            user.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location }
-            user.hasProfilePicture = true;
-            const savedUser = await user.save();
-            return response.send(httpOk(savedUser, "Profile picture changed successfully"))
+        else {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload profile image"), "Please upload profile image"))
         }
-        return response.send({ image, smallThumb, mediumThumb });
-    } else {
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload profile image"), "Please upload profile image"))
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+
+
+}
+
+const businessDocumentUpload = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (user.accountType !== AccountType.BUSINESS) {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
+        }
+        if (!user.businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const businessRegistration = files && files.businessRegistration as Express.Multer.S3File[];
+        const addressProof = files && files.addressProof as Express.Multer.S3File[];
+        if (!(businessRegistration && files && businessRegistration.length !== 0)) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload business registration certificate"), "Please upload business registration certificate"));
+        }
+        if (!(addressProof && files && addressProof.length !== 0)) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload address proof"), "Please upload address proof"));
+        }
+        const newBusinessDocument = new BusinessDocument();
+        newBusinessDocument.businessProfileID = user.businessProfileID;
+        newBusinessDocument.businessRegistration = businessRegistration[0].location;
+        newBusinessDocument.addressProof = addressProof[0].location;
+        const savedBusinessProfile = await newBusinessDocument.save();
+        return response.send(httpOk(savedBusinessProfile, 'Business document uploaded.'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const businessQuestionAnswer = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const { questionsIDs } = request.body;
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (user.accountType !== AccountType.BUSINESS) {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
+        }
+        if (!user.businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+        if (!businessProfile) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const [businessQuestionAnswerIDs] = await Promise.all([
+            BusinessQuestion.distinct('_id', {
+                _id: { $in: questionsIDs },
+                businessTypeID: { $in: [businessProfile.businessTypeID] }, businessSubtypeID: { $in: [businessProfile.businessSubTypeID] }
+            }),
+        ]);
+        businessProfile.amenities = businessQuestionAnswerIDs as string[];
+        const savedAmenity = await businessProfile.save();
+        return response.send(httpOk(savedAmenity, "Business answer saved successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
@@ -163,4 +222,4 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
     // }
     // return { width, height, sizeArray };
 }
-export default { editProfile, profile, changeProfilePic };
+export default { editProfile, profile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer };

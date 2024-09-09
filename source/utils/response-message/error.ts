@@ -3,6 +3,7 @@ export class ErrorMessage {
     static readonly NOT_FOUND = 'Not found';
     static readonly INTERNAL_SERVER_ERROR = 'Internal server error';
     static readonly USER_NOT_FOUND = "Unable to find this user, please try again";
+    static readonly BUSINESS_PROFILE_NOT_FOUND = "Unable to find business profile, please try again";
     static readonly INVALID_OR_INCORRECT_PASSWORD = 'Invalid or incorrect password. Please try again';
     static readonly UNVERIFIED_ACCOUNT = "Sorry! Your account is not verified. Please try again";
     static readonly INACTIVE_ACCOUNT = "Sorry! Your account is inactive. Please contact support";

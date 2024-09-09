@@ -70,6 +70,9 @@ export const uploadMedia = (endPoint: string) => multer({
                     const userID = request.user?.id ?? 'anonymous';
                     cb(null, `${endPoint}${file.fieldname}/${v4() + '-' + userID}${path.extname(file.originalname)}`);
                     break;
+                case AwsS3AccessEndpoints.BUSINESS_DOCUMENTS:
+                    cb(null, `${endPoint}${file.fieldname}/${v4()}${path.extname(file.originalname)}`);
+                    break;
                 default:
                     cb(null, `${endPoint}${v4()}${path.extname(file.originalname)}`);
                     break;

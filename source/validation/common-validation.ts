@@ -60,3 +60,6 @@ export const lngValidationRule = body("lng", `Location data (lng) is a required 
 
 export const businessSubtypeIDValidationRule = body("businessSubtypeID", `Business Subtype ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Subtype ID');
 export const businessTypeIDValidationRule = body("businessTypeID", `Business Type ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Type ID');
+
+
+export const questionsIDsValidationRule = body("questionsIDs", `Question id's is a required field.`).exists().bail().notEmpty().bail().isArray().withMessage('Question id\'s is a array field like ["66d8543e96535f73da1498de","66d8543e96535f73da1498de"]');

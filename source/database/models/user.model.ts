@@ -1,5 +1,6 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { genSalt, hash, compare } from 'bcrypt';
+import { addAmenitiesInBusinessProfile } from "./businessProfile.model";
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -163,3 +164,55 @@ UserSchema.methods.hideSensitiveData = function () {
 
 const User = model<IUserModel>('User', UserSchema);
 export default User;
+
+/**
+ * 
+ * @returns Return user business profile along with amenities reference
+ */
+export function addBusinessProfileInUser() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businessprofiles',
+            'let': { 'businessProfileID': '$businessProfileID' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$businessProfileID'] } } },
+                // addAmenitiesInBusinessProfile().lookup,
+                {
+                    '$lookup': {
+                        'from': 'businessquestions',
+                        'let': { 'amenitiesIDs': '$amenities' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$in': ['$_id', '$$amenitiesIDs'] } } },
+                            {
+                                '$project': {
+                                    'question': 0,
+                                    'businessTypeID': 0,
+                                    'businessSubtypeID': 0,
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'amenitiesRef'
+                    }
+                },
+                {
+                    '$project': {
+                        'createdAt': 0,
+                        'updatedAt': 0,
+                        '__v': 0,
+                    }
+                }
+            ],
+            'as': 'businessProfilesRef'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$businessProfilesRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
+}
