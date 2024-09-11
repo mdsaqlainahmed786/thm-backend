@@ -53,6 +53,6 @@ export async function generateRefreshToken(user: AuthenticateUser, deviceID: str
 }
 
 
-export async function generateAccessToken(user: AuthenticateUser) {
-    return sign(user, AppConfig.APP_ACCESS_TOKEN_SECRET, { expiresIn: AppConfig.ACCESS_TOKEN_EXPIRES_IN });
+export async function generateAccessToken(user: AuthenticateUser, expiresIn?: string) {
+    return sign(user, AppConfig.APP_ACCESS_TOKEN_SECRET, { expiresIn: expiresIn ?? AppConfig.ACCESS_TOKEN_EXPIRES_IN });
 }

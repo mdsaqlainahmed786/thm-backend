@@ -37,23 +37,43 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (user.isDeleted) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
         }
-        let isDocumentUploaded = false;
+
+        await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+        if (deviceID) {
+            response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+        }
+        let isDocumentUploaded = true;
+        let hasAmenities = true;
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
-            const businessDocument = await BusinessDocument.find({ businessProfileID: user.businessProfileID });
-            if (businessDocument && businessDocument.length !== 0) {
-                isDocumentUploaded = true;
+            const [businessDocument, businessProfile] = await Promise.all(
+                [
+                    BusinessDocument.find({ businessProfileID: user.businessProfileID }),
+                    BusinessProfile.findOne({ _id: user.businessProfileID })
+                ]
+            )
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const accessToken = await generateAccessToken(authenticateUser, "15m");
+            response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+            if (!businessDocument || businessDocument.length === 0) {
+                isDocumentUploaded = false;
+
             }
+            if (!businessProfile || !businessProfile.amenities || businessProfile.amenities.length === 0) {
+                hasAmenities = false;
+            }
+            if (!isDocumentUploaded || !hasAmenities) {
+                return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, accessToken }, "Your profile is incomplete. Please take a moment to complete it."));
+            }
+        }
+        if (!user.isApproved) {
+            return response.status(200).send(httpForbidden(null, "Your account is currently under review. We will notify you once it has been verified."))
         }
         const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
         response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
-        await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
-        if (deviceID) {
-            response.cookie(AppConfig.ADMIN_DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
-        }
-        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -98,6 +118,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newUser.phoneNumber = phoneNumber;
             newUser.password = password;
             newUser.isActivated = true;
+            newUser.isApproved = false;
             newUser.businessProfileID = savedBusinessProfile.id;
             newUser.otp = generateOTP();
             const savedUser = await newUser.save();
@@ -138,16 +159,24 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
         user.isVerified = true;
         user.otp = generateOTP();
         const savedUser = await user.save();
-        const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
-        const accessToken = await generateAccessToken(authenticateUser);
-        const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-        response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-        response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
         await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
         if (deviceID) {
-            response.cookie(AppConfig.ADMIN_DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+            response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
         }
-        return response.send(httpOk({ ...savedUser.hideSensitiveData(), accessToken, refreshToken }, SuccessMessage.OTP_VERIFIED));
+        //Check the account and send response based on their profile 
+        if (savedUser.accountType === AccountType.BUSINESS) {
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const accessToken = await generateAccessToken(authenticateUser, "15m");
+            response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+            return response.send(httpOk({ ...savedUser.hideSensitiveData(), accessToken }, SuccessMessage.OTP_VERIFIED));
+        } else {
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const accessToken = await generateAccessToken(authenticateUser);
+            const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
+            response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+            response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+            return response.send(httpOk({ ...user.hideSensitiveData(), accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+        }
     } catch (error: any) {
         return response.send(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -177,14 +206,14 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
             return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));
         }
         let authTokenFindQuery = { refreshToken: refreshToken }
-        const deviceID = cookies[AppConfig.USER_DEVICE_ID_COOKIE_KEY];
+        const deviceID = cookies[AppConfig.DEVICE_ID_COOKIE_KEY];
         if (deviceID !== undefined && deviceID !== "") {
             Object.assign(authTokenFindQuery, { deviceID: deviceID });
         }
         const authToken = await AuthToken.findOne(authTokenFindQuery);
         if (!authToken) {
             response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
-            response.clearCookie(AppConfig.USER_DEVICE_ID_COOKIE_KEY, CookiePolicy);
+            response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
             response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
             return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_MISMATCH), ErrorMessage.TOKEN_MISMATCH));
         }
@@ -193,7 +222,7 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
         }
         await authToken.deleteOne();
         response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_DEVICE_ID_COOKIE_KEY, CookiePolicy);
+        response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
         response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
         return response.send(httpOk(null, SuccessMessage.LOGOUT_SUCCESS))
     } catch (error: any) {
@@ -203,11 +232,17 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
 const refreshToken = async (request: Request, response: Response, next: NextFunction) => {
     const cookies = request?.cookies;
     const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
-    const deviceID = cookies[AppConfig.USER_DEVICE_ID_COOKIE_KEY];
+    const deviceID = cookies[AppConfig.DEVICE_ID_COOKIE_KEY];
     if (!refreshToken) {
         return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));
     }
-    const authToken = await AuthToken.findOne({ refreshToken: refreshToken });
+    let authTokenFindQuery = { refreshToken: refreshToken }
+    if (deviceID !== undefined && deviceID !== "") {
+        Object.assign(authTokenFindQuery, { deviceID: deviceID });
+    }
+
+
+    const authToken = await AuthToken.findOne(authTokenFindQuery);
     if (!authToken) {
         return response.status(403).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_MISMATCH), ErrorMessage.TOKEN_MISMATCH));
     }
@@ -219,9 +254,8 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
                 const userWithRole: AuthenticateUser = { id: userData?.id, accountType: authToken?.accountType }
                 const accessToken = await generateAccessToken(userWithRole);
                 const refreshToken = await generateRefreshToken(userWithRole, deviceID);
-                await authToken.deleteOne();
                 response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-                response.cookie(AppConfig.USER_DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+                response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
                 response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
                 return response.status(200).send(httpOk({ accessToken, refreshToken }, `Token Refreshed`));
             } else {

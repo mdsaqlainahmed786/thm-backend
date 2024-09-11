@@ -23,6 +23,7 @@ export interface Individual {
     isVerified: boolean;//for otp verification
     isActivated: boolean;//block or disable account 
     isDeleted: boolean;//soft delete 
+    isApproved: boolean;//business account 
     otp: number;
     hasProfilePicture: boolean;
     bio: string;
@@ -94,6 +95,9 @@ const UserSchema: Schema = new Schema<IUser>(
         // },
         isVerified: {
             type: Boolean, default: false
+        },
+        isApproved: {
+            type: Boolean, default: true,
         },
         isActivated: {
             type: Boolean, default: false

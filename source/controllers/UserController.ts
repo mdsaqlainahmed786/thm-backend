@@ -22,12 +22,16 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        user.fullName = fullName ?? user.fullName;
-        user.dialCode = dialCode ?? user.dialCode;
-        user.phoneNumber = phoneNumber ?? user.phoneNumber;
-        user.bio = bio ?? user.bio;
+        if (user.accountType === AccountType.BUSINESS) {
+
+        } else {
+            user.fullName = fullName ?? user.fullName;
+            user.dialCode = dialCode ?? user.dialCode;
+            user.phoneNumber = phoneNumber ?? user.phoneNumber;
+            user.bio = bio ?? user.bio;
+        }
         const savedUser = await user.save();
-        return response.send(httpOk(savedUser, "Profile updated successfully"));
+        return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

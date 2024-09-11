@@ -43,7 +43,7 @@ export interface IDevicesConfigModel extends Model<IDevicesConfig> {
 const DevicesConfig = mongoose.model<IDevicesConfig, IDevicesConfigModel>('DevicesConfig', DevicesConfigSchema);
 export default DevicesConfig;
 
-/*** Add a new user device config or FCM token */
+/*** This function store device config to handle notification and other staff */
 export async function addUserDevicesConfig(deviceID: string, devicePlatform: DevicePlatform, notificationToken: string, userID: Types.ObjectId | string, accountType: AccountType | undefined): Promise<IDevicesConfig> {
     try {
         const devicesConfig = await DevicesConfig.findOne({ userID: userID, accountType: accountType, deviceID: deviceID, devicePlatform: devicePlatform });
