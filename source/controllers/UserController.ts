@@ -14,6 +14,7 @@ import { addStringBeforeExtension } from "../utils/helper/basic";
 import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessDocument from '../database/models/businessDocument.model';
 import BusinessQuestion from '../database/models/businessQuestion.model';
+import Subscription from '../database/models/subscription.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { fullName, dialCode, phoneNumber, bio } = request.body;
@@ -226,4 +227,4 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
     // }
     // return { width, height, sizeArray };
 }
-export default { editProfile, profile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer };
+export default { editProfile, profile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, };

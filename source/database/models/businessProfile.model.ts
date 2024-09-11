@@ -58,6 +58,7 @@ const AddressSchema = new Schema<IAddress>(
 const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
     {
         profilePic: ProfileSchema,
+        description: { type: String },
         businessTypeID: {
             type: Schema.Types.ObjectId,
             ref: "BusinessType"

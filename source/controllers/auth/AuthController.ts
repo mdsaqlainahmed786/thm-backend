@@ -16,6 +16,7 @@ import BusinessType from "../../database/models/businessType.model";
 import BusinessSubType from "../../database/models/businessSubType.model";
 import BusinessProfile, { GeoCoordinate } from "../../database/models/businessProfile.model";
 import BusinessDocument from '../../database/models/businessDocument.model';
+import Subscription from '../../database/models/subscription.model';
 
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -44,11 +45,13 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         }
         let isDocumentUploaded = true;
         let hasAmenities = true;
+        let hasSubscription = true;
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
-            const [businessDocument, businessProfile] = await Promise.all(
+            const [businessDocument, businessProfile, subscription] = await Promise.all(
                 [
                     BusinessDocument.find({ businessProfileID: user.businessProfileID }),
-                    BusinessProfile.findOne({ _id: user.businessProfileID })
+                    BusinessProfile.findOne({ _id: user.businessProfileID }),
+                    Subscription.findOne({ businessProfileID: user.businessProfileID })
                 ]
             )
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
@@ -56,13 +59,15 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
             if (!businessDocument || businessDocument.length === 0) {
                 isDocumentUploaded = false;
-
             }
             if (!businessProfile || !businessProfile.amenities || businessProfile.amenities.length === 0) {
                 hasAmenities = false;
             }
-            if (!isDocumentUploaded || !hasAmenities) {
-                return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, accessToken }, "Your profile is incomplete. Please take a moment to complete it."));
+            if (!subscription) {
+                hasSubscription = false;
+            }
+            if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
             }
         }
         if (!user.isApproved) {
@@ -73,7 +78,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
         response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
-        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -100,6 +105,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
             newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
             newBusinessProfile.name = businessName;
+            newBusinessProfile.description = businessDescription;
             const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
             newBusinessProfile.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
             newBusinessProfile.email = businessEmail;
