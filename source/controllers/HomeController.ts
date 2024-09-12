@@ -78,7 +78,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
             }
             return isExits;
         }));
-
+        //TODO add order in question for better sorting
         const questions = [
             {
                 icon: hostAddress + '/public/files/pet-friendly.png',

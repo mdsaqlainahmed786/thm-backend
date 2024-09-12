@@ -30,7 +30,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             return response.status(200).send(httpUnauthorized(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }
         if (!user.isVerified) {
-            return response.status(200).send(httpForbidden(null, ErrorMessage.UNVERIFIED_ACCOUNT))
+            return response.status(200).send(httpForbidden({ accountType: user.accountType, email: user.email }, ErrorMessage.UNVERIFIED_ACCOUNT))
         }
         if (!user.isActivated) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT))

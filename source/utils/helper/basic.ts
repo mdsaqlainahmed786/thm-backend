@@ -1,5 +1,6 @@
 import { Types, Schema } from "mongoose";
 import crypto from 'crypto';
+import { AppConfig } from "../../config/constants";
 declare global {
     interface String {
         capitalize(): string;
@@ -18,8 +19,8 @@ export function enumKeys<O extends object, K extends keyof O = keyof O>(obj: O):
 
 // import moment from 'moment';
 export function generateOTP() {
-    var otp: number = Math.floor(10000 + Math.random() * 90000);
-    return otp;
+    const otp: number = Math.floor(10000 + Math.random() * 90000);
+    return (AppConfig.APP_ENV === "dev") ? 12345 : otp;
 }
 
 export function isNumeric(data: any) {

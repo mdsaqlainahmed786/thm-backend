@@ -5,7 +5,7 @@ export abstract class AppConfig {
     static readonly APP_NAME: string = process.env.APP_NAME ?? "The Hotel Media";
     static readonly PORT: any = process.env.PORT ?? 3000;
     static readonly DB_CONNECTION: string = process.env.DB_CONNECTION!;
-
+    static readonly APP_ENV: string = process.env.APP_ENV!;
     //API Version
     static readonly API_VERSION: string = "/api/v1";
 

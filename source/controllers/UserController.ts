@@ -17,7 +17,7 @@ import BusinessQuestion from '../database/models/businessQuestion.model';
 import Subscription from '../database/models/subscription.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { fullName, dialCode, phoneNumber, bio } = request.body;
+        const { fullName, dialCode, phoneNumber, bio, acceptedTerms } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -30,6 +30,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.dialCode = dialCode ?? user.dialCode;
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
+            user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
         }
         const savedUser = await user.save();
         return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));

@@ -34,7 +34,7 @@ const isStrongPassword = (value: string) => {
     return passwordRegex.test(value);
 };
 export const passwordValidationRule = body('password', 'Password is a required field.').exists().bail().notEmpty().bail();
-export const strongPasswordValidationRule = passwordValidationRule.custom(isStrongPassword).withMessage('Require at least 8 characters, one uppercase, one lowercase letter, and symbol and one digit.')
+export const strongPasswordValidationRule = body('password', 'Password is a required field.').exists().bail().notEmpty().bail().custom(isStrongPassword).withMessage('Require at least 8 characters, one uppercase, one lowercase letter, and symbol and one digit.')
 export const otpValidationRule = body("otp", "OTP is a required field.").exists().bail().notEmpty().bail().withMessage("OTP must be a an integer value.").bail();
 
 export const deviceIDValidationRule = body("deviceID", `Device ID is a required field.`).exists().bail().notEmpty().bail();
