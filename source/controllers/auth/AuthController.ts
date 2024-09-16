@@ -46,14 +46,16 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         let isDocumentUploaded = true;
         let hasAmenities = true;
         let hasSubscription = true;
+        let businessProfile = null;
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
-            const [businessDocument, businessProfile, subscription] = await Promise.all(
+            const [businessDocument, businessProfileData, subscription] = await Promise.all(
                 [
                     BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                     BusinessProfile.findOne({ _id: user.businessProfileID }),
                     Subscription.findOne({ businessProfileID: user.businessProfileID })
                 ]
             )
+            businessProfile = businessProfileData
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
@@ -67,7 +69,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 hasSubscription = false;
             }
             if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
-                return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+                return response.send(httpOk({ ...user.hideSensitiveData(), businessProfile, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
             }
         }
         if (!user.isApproved) {
@@ -78,7 +80,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
         response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
-        return response.send(httpOk({ ...user.hideSensitiveData(), isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+        return response.send(httpOk({ ...user.hideSensitiveData(), businessProfile, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -171,10 +173,11 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
         }
         //Check the account and send response based on their profile 
         if (savedUser.accountType === AccountType.BUSINESS) {
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
-            return response.send(httpOk({ ...savedUser.hideSensitiveData(), accessToken }, SuccessMessage.OTP_VERIFIED));
+            return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfile, accessToken }, SuccessMessage.OTP_VERIFIED));
         } else {
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
             const accessToken = await generateAccessToken(authenticateUser);

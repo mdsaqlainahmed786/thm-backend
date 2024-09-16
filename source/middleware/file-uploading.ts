@@ -29,15 +29,20 @@ const s3Client = new S3Client({
 });
 
 function sanitizeImage(request: Request, file: any, cb: any) {
-    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".gif", ".mp4"];
+    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".gif", ".mp4", ".pdf", ".doc", ".docx"];
 
     const isAllowedExt = fileExts.includes(
         path.extname(file.originalname.toLowerCase())
     );
     const isAllowedImageMimeType = file.mimetype.startsWith("image/");
     const isAllowedVideoMimeType = file.mimetype.startsWith("video/");
+    const isAllowedDocumentMimeType = file.mimetype.startsWith("application/");
 
-    if ((isAllowedExt && isAllowedImageMimeType) || (isAllowedExt && isAllowedVideoMimeType)) {
+
+    if ((isAllowedExt && isAllowedImageMimeType) ||
+        (isAllowedExt && isAllowedVideoMimeType) ||
+        (isAllowedExt && isAllowedDocumentMimeType)
+    ) {
         return cb(null, true);
     } else {
         const error: any = new Error('Error: File type not allowed!');
