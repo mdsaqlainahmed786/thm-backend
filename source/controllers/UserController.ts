@@ -26,7 +26,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         if (user.accountType === AccountType.BUSINESS) {
-
+            user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
         } else {
             user.fullName = fullName ?? user.fullName;
             user.dialCode = dialCode ?? user.dialCode;
