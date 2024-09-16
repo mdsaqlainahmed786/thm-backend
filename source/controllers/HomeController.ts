@@ -81,11 +81,44 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
         //TODO add order in question for better sorting
         const questions = [
             {
+                icon: hostAddress + '/public/files/airport.png',
+                name: 'Airport',
+                question: 'Airport?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star', '4 star', '5 star'],
+                order: 1,
+            },
+            {
+                icon: hostAddress + '/public/files/railway-station.png',
+                name: 'Railway Station',
+                question: 'Railway Station?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star', '4 star', '5 star'],
+                order: 2,
+            },
+            {
+                icon: hostAddress + '/public/files/bus.png',
+                name: 'Bus Stand',
+                question: 'Bus Stand?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star', '4 star', '5 star'],
+                order: 3,
+            },
+            {
+                icon: hostAddress + '/public/files/gov-hospital.png',
+                name: 'Gov Hospital',
+                question: 'Gov Hospital?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star', '4 star', '5 star'],
+                order: 4,
+            },
+            {
                 icon: hostAddress + '/public/files/pet-friendly.png',
                 name: 'Pet-friendly',
                 question: 'Pet friendly?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 5,
             },
             {
                 icon: hostAddress + '/public/files/baby-care.png',
@@ -93,6 +126,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Baby care?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 6,
             },
             {
                 icon: hostAddress + '/public/files/parking-facility.png',
@@ -100,6 +134,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Parking facility?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['3 star', '4 star', '5 star'],
+                order: 7,
             },
             {
                 icon: hostAddress + '/public/files/cab-facility.png',
@@ -107,6 +142,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Cab facility on call?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 8,
             },
             {
                 icon: hostAddress + '/public/files/room-service.png',
@@ -114,6 +150,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: '24x7 room service?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 9,
             },
             {
                 icon: hostAddress + '/public/files/personal-driver.png',
@@ -121,6 +158,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Personal driver room?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 10,
             },
             {
                 icon: hostAddress + '/public/files/check-in.png',
@@ -128,6 +166,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: '24hrs check-in?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 11,
             },
             {
                 icon: hostAddress + '/public/files/gym.png',
@@ -135,6 +174,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Gym?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 12,
             },
             {
                 icon: hostAddress + '/public/files/pet-friendly.png',
@@ -142,6 +182,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Swimming pool?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 13,
             },
             {
                 icon: hostAddress + '/public/files/conference-room.png',
@@ -149,6 +190,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Conference room?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 14,
             },
             {
                 icon: hostAddress + '/public/files/help-desk.png',
@@ -156,6 +198,81 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Travel help desk?',
                 businessTypeID: ["Hotel"],
                 businessSubtypeID: ['4 star', '5 star'],
+                order: 15,
+            },
+
+            //3 star
+            {
+                icon: hostAddress + '/public/files/non-ac-room.png',
+                name: 'Non-AC Rooms',
+                question: 'Non-AC rooms?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 1,
+            },
+            {
+                icon: hostAddress + '/public/files/local-id.png',
+                name: 'Local ID',
+                question: 'Do you accept local ID?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 2,
+            },
+            {
+                icon: hostAddress + '/public/files/wifi.png',
+                name: 'Wi-Fi',
+                question: 'Wi-Fi?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 3,
+            },
+            {
+                icon: hostAddress + '/public/files/laundry-service.png',
+                name: 'Laundry Service',
+                question: 'Laundry service?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 4,
+            },
+            {
+                icon: hostAddress + '/public/files/safety-locker.png',
+                name: 'Locker in the room',
+                question: 'Safety locker in the room?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 5,
+            },
+            {
+                icon: hostAddress + '/public/files/geyser.png',
+                name: 'Geyser',
+                question: 'Geyser in the washroom?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 6,
+            },
+            {
+                icon: hostAddress + '/public/files/kitchen.png',
+                name: 'Kitchen',
+                question: 'Hotel have a kitchen?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 7,
+            },
+            {
+                icon: hostAddress + '/public/files/extra-bed.png',
+                name: 'Extra Bed Facility',
+                question: 'Extra bed facility?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 8,
+            },
+            {
+                icon: hostAddress + '/public/files/couple-friendly.png',
+                name: 'Couple Friendly',
+                question: 'Couple friendly?',
+                businessTypeID: ["Hotel"],
+                businessSubtypeID: ['3 star'],
+                order: 9,
             },
             //Home Stays
             {
@@ -164,6 +281,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Caretaker on the property?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 1,
             },
             {
                 icon: hostAddress + '/public/files/parking-facility.png',
@@ -171,6 +289,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Dedicated car parking?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 2,
             },
             {
                 icon: hostAddress + '/public/files/open-kitchen-to-use.png',
@@ -178,6 +297,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Open kitchen to use?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 3,
             },
             {
                 icon: hostAddress + '/public/files/open-kitchen-to-use.png',
@@ -185,6 +305,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Garden area?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 4,
             },
             {
                 icon: hostAddress + '/public/files/pet-friendly.png',
@@ -192,6 +313,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Pet friendly?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 5,
             },
             {
                 icon: hostAddress + '/public/files/sos-helpline.png',
@@ -199,6 +321,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'SOS helpline?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 6,
             },
             {
                 icon: hostAddress + '/public/files/locker-facility.png',
@@ -206,6 +329,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Locker facility?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 7,
             },
             {
                 icon: hostAddress + '/public/files/check-in.png',
@@ -213,6 +337,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: '24hrs check-in?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 8,
             },
             {
                 icon: hostAddress + '/public/files/campfire-space.png',
@@ -220,6 +345,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Campfire space?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 9,
             },
             {
                 icon: hostAddress + '/public/files/pet-friendly.png',
@@ -227,6 +353,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Swimming pool?',
                 businessTypeID: ["Home Stays"],
                 businessSubtypeID: homeStays,
+                order: 10,
             },
             //Bar/ Night Club
             {
@@ -235,6 +362,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Do you have multiple floors?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 1,
             },
             {
                 icon: hostAddress + '/public/files/event-friendly.png',
@@ -242,6 +370,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Event friendly?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 2,
             },
             {
                 icon: hostAddress + '/public/files/valet-parking.png',
@@ -249,6 +378,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Valet parking?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 3,
             },
 
             {
@@ -257,6 +387,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Open roof sitting?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 4,
             },
             {
                 icon: hostAddress + '/public/files/rooftop-bar.png',
@@ -264,6 +395,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Rooftop bar?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 5,
             },
             {
                 icon: hostAddress + '/public/files/stag-entry.png',
@@ -271,6 +403,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Stag entry?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 6,
             },
             {
                 icon: hostAddress + '/public/files/emergency-escape-door.png',
@@ -278,6 +411,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Emergency escape door?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 7,
             },
             {
                 icon: hostAddress + '/public/files/valid-liquor-selling-license.png',
@@ -285,6 +419,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Valid liquor selling license?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 8,
             },
             {
                 icon: hostAddress + '/public/files/theme-based.png',
@@ -292,6 +427,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Theme based?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 9,
             },
             {
                 icon: hostAddress + '/public/files/live-dj.png',
@@ -299,6 +435,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Live DJ?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 10,
             },
             {
                 icon: hostAddress + '/public/files/band-performance.png',
@@ -306,6 +443,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Band performance?',
                 businessTypeID: ["Bars / Clubs"],
                 businessSubtypeID: barsClubs,
+                order: 11,
             },
             //Restaurant
             {
@@ -314,6 +452,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Open air/outside dining?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 1,
             },
             {
                 icon: hostAddress + '/public/files/update-your-menu.png',
@@ -321,6 +460,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Do you update your menu?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 2,
             },
             {
                 icon: hostAddress + '/public/files/self-delivery-system.png',
@@ -328,6 +468,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Do you have a self-delivery system?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 3,
             },
             {
                 icon: hostAddress + '/public/files/buffet-system.png',
@@ -335,6 +476,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Do you have a buffet system?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 4,
             },
             {
                 icon: hostAddress + '/public/files/reservation-facility.png',
@@ -342,6 +484,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Reservation facility?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 5,
             },
             {
                 icon: hostAddress + '/public/files/host-a-party.png',
@@ -349,6 +492,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Can host a party?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 6,
             },
             {
                 icon: hostAddress + '/public/files/recognized-café.png',
@@ -356,6 +500,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Are you a well-known recognized café?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 7,
             },
             {
                 icon: hostAddress + '/public/files/well-known-restaurant.png',
@@ -363,6 +508,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Are you a well-known restaurant?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 8,
             },
             {
                 icon: hostAddress + '/public/files/vegetarian.png',
@@ -370,6 +516,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Are you a pure Veg?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 9,
             },
             {
                 icon: hostAddress + '/public/files/vegan.png',
@@ -377,6 +524,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Are you a Vegan restaurant?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
+                order: 10,
             },
             //Marriage Banquets
             {
@@ -385,6 +533,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Parking space?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 1,
             },
             {
                 icon: hostAddress + '/public/files/elegant-décor.png',
@@ -392,6 +541,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Elegant décor?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 2,
             },
             {
                 icon: hostAddress + '/public/files/different-themes.png',
@@ -399,6 +549,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Different themes?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 3,
             },
             {
                 icon: hostAddress + '/public/files/event-planner.png',
@@ -406,6 +557,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Event planner?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 4,
             },
             {
                 icon: hostAddress + '/public/files/outside-catering.png',
@@ -413,6 +565,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Outside catering service?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 5,
             },
             {
                 icon: hostAddress + '/public/files/transportation-service.png',
@@ -420,6 +573,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Transportation service?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 6,
             },
             {
                 icon: hostAddress + '/public/files/audio-visual.png',
@@ -427,6 +581,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Audio-visual equipment?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 7,
             },
             {
                 icon: hostAddress + '/public/files/premium-bar-service.png',
@@ -434,6 +589,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Premium bar service?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 8,
             },
             {
                 icon: hostAddress + '/public/files/emergency-escape-door.png',
@@ -441,6 +597,7 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 question: 'Fire escape?',
                 businessTypeID: ["Marriage Banquets"],
                 businessSubtypeID: marriageBanquets,
+                order: 9,
             },
         ]
         const questionData = await Promise.all(
@@ -454,6 +611,8 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 newBusiness.name = question.name;
                 newBusiness.businessTypeID = businessTypeID;
                 newBusiness.businessSubtypeID = businessSubtypeID;
+                newBusiness.order = question.order;
+                newBusiness.answer = ['Yes', 'No']
                 const savedBusinessQuestion = await newBusiness.save();
                 console.log(businessTypeID);
                 console.log(businessSubtypeID);
@@ -486,7 +645,7 @@ const businessSubTypes = async (request: Request, response: Response, next: Next
 const businessQuestions = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { businessSubtypeID, businessTypeID } = request.body;
-        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question');
+        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer');
         return response.send(httpOk(businessQuestions, "Business questions fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

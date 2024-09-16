@@ -1,3 +1,4 @@
+import { body } from 'express-validator';
 import { addBusinessProfileInUser, Business } from './../database/models/user.model';
 import path from "path";
 import { Request, Response, NextFunction, response } from "express";
@@ -15,6 +16,7 @@ import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessDocument from '../database/models/businessDocument.model';
 import BusinessQuestion from '../database/models/businessQuestion.model';
 import Subscription from '../database/models/subscription.model';
+import { isArray } from '../utils/helper/basic';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { fullName, dialCode, phoneNumber, bio, acceptedTerms } = request.body;
@@ -152,30 +154,41 @@ const businessDocumentUpload = async (request: Request, response: Response, next
 const businessQuestionAnswer = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        const { questionsIDs } = request.body;
-        const user = await User.findOne({ _id: id });
-        if (!user) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        // const { questionsIDs } = request.body;
+        const body = request.body;
+        let questionIDs: string[] = [];
+        if (isArray(body)) {
+            body.map((answerData: any) => {
+                if (answerData.questionID && answerData.answer && answerData.answer.toLowerCase() === "yes") {
+                    questionIDs = answerData.questionID
+                }
+            })
+            const user = await User.findOne({ _id: id });
+            if (!user) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            }
+            if (user.accountType !== AccountType.BUSINESS) {
+                return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
+            }
+            if (!user.businessProfileID) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            }
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+            if (!businessProfile) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+            }
+            const [businessQuestionAnswerIDs] = await Promise.all([
+                BusinessQuestion.distinct('_id', {
+                    _id: { $in: questionIDs },
+                    businessTypeID: { $in: [businessProfile.businessTypeID] }, businessSubtypeID: { $in: [businessProfile.businessSubTypeID] }
+                }),
+            ]);
+            businessProfile.amenities = businessQuestionAnswerIDs as string[];
+            const savedAmenity = await businessProfile.save();
+            return response.send(httpOk(savedAmenity, "Business answer saved successfully"));
+        } else {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid request payload"), "Invalid request payload"))
         }
-        if (user.accountType !== AccountType.BUSINESS) {
-            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
-        }
-        if (!user.businessProfileID) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
-        }
-        const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
-        if (!businessProfile) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
-        }
-        const [businessQuestionAnswerIDs] = await Promise.all([
-            BusinessQuestion.distinct('_id', {
-                _id: { $in: questionsIDs },
-                businessTypeID: { $in: [businessProfile.businessTypeID] }, businessSubtypeID: { $in: [businessProfile.businessSubTypeID] }
-            }),
-        ]);
-        businessProfile.amenities = businessQuestionAnswerIDs as string[];
-        const savedAmenity = await businessProfile.save();
-        return response.send(httpOk(savedAmenity, "Business answer saved successfully"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

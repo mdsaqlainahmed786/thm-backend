@@ -6,6 +6,8 @@ export interface IBusinessQuestion extends Document {
     question: string;
     businessTypeID: (Types.ObjectId | string)[];
     businessSubtypeID: (Types.ObjectId | string)[];
+    answer: string[];
+    order: number;
 }
 const BusinessQuestionSchema: Schema = new Schema<IBusinessQuestion>(
     {
@@ -23,7 +25,9 @@ const BusinessQuestionSchema: Schema = new Schema<IBusinessQuestion>(
                 type: Schema.Types.ObjectId,
                 ref: "BusinessType"
             },
-        ]
+        ],
+        answer: [{ type: String }],
+        order: { type: Number }
     },
     {
         timestamps: true

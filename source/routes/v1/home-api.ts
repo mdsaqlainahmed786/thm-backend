@@ -10,5 +10,7 @@ HomeEndpoints.get('/home', HomeController.home);
 HomeEndpoints.get('/business-types', HomeController.businessTypes);
 HomeEndpoints.get('/business-subtypes/:id', HomeController.businessSubTypes);
 HomeEndpoints.post('/business-questions', businessQuestionsApiValidator, validateRequest, HomeController.businessQuestions);
-HomeEndpoints.post('/business-questions/answers', authenticateUser, businessQuestionAnswerApiValidator, validateRequest, UserController.businessQuestionAnswer);
+HomeEndpoints.post('/business-questions/answers', authenticateUser,
+    //businessQuestionAnswerApiValidator, validateRequest,
+    UserController.businessQuestionAnswer);
 export default HomeEndpoints;
