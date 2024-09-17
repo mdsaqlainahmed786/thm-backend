@@ -37,8 +37,6 @@ const subscription = async (request: Request, response: Response, next: NextFunc
         const allBusinessCategory = await BusinessType.find({});
         const subscriptions = await SubscriptionPlan.find({});
         const subscriptionLevelValues = Object.values(SubscriptionLevel);
-        console.log(subscriptionLevelValues);
-
         allBusinessCategory.map(async (businessCategory) => {
             subscriptionLevelValues.map(async (subscription: string) => {
                 const newSubscriptionPlan = new SubscriptionPlan();
@@ -53,6 +51,7 @@ const subscription = async (request: Request, response: Response, next: NextFunc
                 if (subscription === "premium") {
                     newSubscriptionPlan.price = 800;
                 }
+                newSubscriptionPlan.businessSubtypeID = businessCategory.id;
                 newSubscriptionPlan.duration = 30;
                 newSubscriptionPlan.level = subscription as SubscriptionLevel;
                 newSubscriptionPlan.currency = 'INR';

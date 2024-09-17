@@ -15,6 +15,8 @@ export interface ISubscriptionPlan extends Document {
     features: string[];
     level: SubscriptionLevel;
     image: string;
+    businessTypeID: (Types.ObjectId | string)[];
+    businessSubtypeID: (Types.ObjectId | string)[];
 }
 const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
     {
@@ -33,7 +35,19 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
         image: {
             type: String,
             required: true,
-        }
+        },
+        businessSubtypeID: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "BusinessSubType"
+            }
+        ],
+        businessTypeID: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "BusinessType"
+            },
+        ],
     },
     {
         timestamps: true
