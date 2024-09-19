@@ -63,3 +63,5 @@ export const businessTypeIDValidationRule = body("businessTypeID", `Business Typ
 
 
 export const questionsIDsValidationRule = body("questionsIDs", `Question id's is a required field.`).exists().bail().notEmpty().bail().isArray().withMessage('Question id\'s is a array field like ["66d8543e96535f73da1498de","66d8543e96535f73da1498de"]');
+
+export const subscriptionPlanIDValidationRule = body("subscriptionPlanID", `Subscription Plan ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Type ID');

@@ -5,13 +5,19 @@ export enum SubscriptionLevel {
     STANDARD = "standard",
     PREMIUM = "premium"
 }
+export enum SubscriptionDuration {
+    MONTHLY = "monthly",
+    QUARTERLY = "quarterly",
+    YEARLY = "yearly",
+    HALF_YEARLY = "half-yearly",
+}
 
 export interface ISubscriptionPlan extends Document {
     name: string;
     description: string;
     price: number;
     currency: string;
-    duration: number;// Duration in months, for example in days
+    duration: SubscriptionDuration;// Duration in months, for example in days
     features: string[];
     level: SubscriptionLevel;
     image: string;
@@ -24,7 +30,7 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
         description: { type: String, required: true },
         price: { type: Number, required: true },
         currency: { type: String, required: true },
-        duration: { type: Number, required: true },// Duration in months, for example
+        duration: { type: String, required: true },// Duration in months, for example
         features: [{ type: String, required: true }],
         // isPopular: { type: Boolean, default: false },
         level: {

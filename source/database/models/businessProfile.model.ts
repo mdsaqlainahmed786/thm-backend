@@ -21,6 +21,7 @@ export interface IAddress extends Address {
 
 
 export interface IBusinessProfile extends Document {
+    bio: string;
     profilePic: IProfilePic;
     businessTypeID: Types.ObjectId | string;
     businessSubTypeID: Types.ObjectId | string;
@@ -52,11 +53,13 @@ const AddressSchema = new Schema<IAddress>(
         },
         lat: { type: Number, required: true },
         lng: { type: Number, required: true },
+
     },
     { _id: false }
 );
 const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
     {
+        bio: { type: String, default: "" },
         profilePic: ProfileSchema,
         description: { type: String },
         businessTypeID: {
@@ -95,31 +98,3 @@ BusinessProfileSchema.index({ 'address.geoCoordinate': '2dsphere' });
 
 const BusinessProfile = model<IBusinessProfile>('BusinessProfile', BusinessProfileSchema);
 export default BusinessProfile;
-
-/**
- * 
- * @returns Returns business profile's amenities lookup
- */
-export function addAmenitiesInBusinessProfile() {
-    const lookup = {
-        '$lookup': {
-            'from': 'businessquestions',
-            'let': { 'amenitiesIDs': '$amenities' },
-            'pipeline': [
-                { '$match': { '$expr': { '$in': ['$_id', '$$amenitiesIDs'] } } },
-                {
-                    '$project': {
-                        'question': 0,
-                        'businessTypeID': 0,
-                        'businessSubtypeID': 0,
-                        'createdAt': 0,
-                        'updatedAt': 0,
-                        '__v': 0,
-                    }
-                }
-            ],
-            'as': 'amenitiesRef'
-        }
-    };
-    return { lookup }
-}

@@ -16,10 +16,11 @@ import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessDocument from '../database/models/businessDocument.model';
 import BusinessQuestion from '../database/models/businessQuestion.model';
 import Subscription from '../database/models/subscription.model';
+
 import { isArray } from '../utils/helper/basic';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { fullName, dialCode, phoneNumber, bio, acceptedTerms } = request.body;
+        const { fullName, dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -27,22 +28,36 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
         }
         if (user.accountType === AccountType.BUSINESS) {
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
+            const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID })
+            if (businessProfileRef) {
+                businessProfileRef.bio = bio ?? businessProfileRef.bio;
+                businessProfileRef.website = website ?? businessProfileRef.website;
+                businessProfileRef.phoneNumber = phoneNumber ?? businessProfileRef.phoneNumber;
+                businessProfileRef.dialCode = dialCode ?? businessProfileRef.dialCode;
+                businessProfileRef.name = name ?? businessProfileRef.name;
+                businessProfileRef.gstn = gstn ?? businessProfileRef.gstn;
+                businessProfileRef.email = email ?? businessProfileRef.email;
+                await businessProfileRef.save();
+            }
+            const savedUser = await user.save();
+            return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef }, "Profile updated successfully"));
         } else {
             user.fullName = fullName ?? user.fullName;
             user.dialCode = dialCode ?? user.dialCode;
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
+            const savedUser = await user.save();
+            return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));
         }
-        const savedUser = await user.save();
-        return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const profile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { id } = request.user;
+        const { id, accountType } = request.user;
         const user = await User.aggregate(
             [
                 {
@@ -69,7 +84,14 @@ const profile = async (request: Request, response: Response, next: NextFunction)
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
-        return response.send(httpOk(user[0], 'User profile fetched'))
+
+        let responseData = { posts: 0, follower: 0, following: 0 };
+        if (accountType === AccountType.BUSINESS) {
+            Object.assign(responseData, { ...user[0] })
+        } else {
+            Object.assign(responseData, { ...user[0] })
+        }
+        return response.send(httpOk(responseData, 'User profile fetched'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

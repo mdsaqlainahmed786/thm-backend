@@ -2,12 +2,22 @@ import { Schema, Document, model, Types } from "mongoose";
 
 export interface ISubscription extends Document {
     businessProfileID: Types.ObjectId | string;
+    subscriptionPlanID: Types.ObjectId | string;
+    expirationDate: Date;
 }
 const SubscriptionSchema: Schema = new Schema<ISubscription>(
     {
         businessProfileID: {
             type: Schema.Types.ObjectId,
             ref: "BusinessProfile"
+        },
+        subscriptionPlanID: {
+            type: Schema.Types.ObjectId,
+            ref: "SubscriptionPlan"
+        },
+        expirationDate: {
+            type: Date,
+            required: true
         },
     },
     {

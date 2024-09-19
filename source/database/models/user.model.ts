@@ -1,6 +1,5 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { genSalt, hash, compare } from 'bcrypt';
-import { addAmenitiesInBusinessProfile } from "./businessProfile.model";
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -184,27 +183,7 @@ export function addBusinessProfileInUser() {
             'let': { 'businessProfileID': '$businessProfileID' },
             'pipeline': [
                 { '$match': { '$expr': { '$eq': ['$_id', '$$businessProfileID'] } } },
-                // addAmenitiesInBusinessProfile().lookup,
-                {
-                    '$lookup': {
-                        'from': 'businessquestions',
-                        'let': { 'amenitiesIDs': '$amenities' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$in': ['$_id', '$$amenitiesIDs'] } } },
-                            {
-                                '$project': {
-                                    'question': 0,
-                                    'businessTypeID': 0,
-                                    'businessSubtypeID': 0,
-                                    'createdAt': 0,
-                                    'updatedAt': 0,
-                                    '__v': 0,
-                                }
-                            }
-                        ],
-                        'as': 'amenitiesRef'
-                    }
-                },
+                addAmenitiesInBusinessProfile().lookup,
                 {
                     '$project': {
                         'createdAt': 0,
@@ -213,14 +192,44 @@ export function addBusinessProfileInUser() {
                     }
                 }
             ],
-            'as': 'businessProfilesRef'
+            'as': 'businessProfileRef'
         }
     };
     const unwindLookup = {
         '$unwind': {
-            'path': '$businessProfilesRef',
+            'path': '$businessProfileRef',
             'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
         }
     }
     return { lookup, unwindLookup }
+}
+
+
+/**
+ * 
+ * @returns Returns business profile's amenities lookup
+ */
+export function addAmenitiesInBusinessProfile() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businessquestions',
+            'let': { 'amenitiesIDs': '$amenities' },
+            'pipeline': [
+                { '$match': { '$expr': { '$in': ['$_id', '$$amenitiesIDs'] } } },
+                {
+                    '$project': {
+                        'answer': 0,
+                        'question': 0,
+                        'businessTypeID': 0,
+                        'businessSubtypeID': 0,
+                        'createdAt': 0,
+                        'updatedAt': 0,
+                        '__v': 0,
+                    }
+                }
+            ],
+            'as': 'amenitiesRef'
+        }
+    }
+    return { lookup }
 }

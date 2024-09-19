@@ -614,8 +614,6 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
                 newBusiness.order = question.order;
                 newBusiness.answer = ['Yes', 'No']
                 const savedBusinessQuestion = await newBusiness.save();
-                console.log(businessTypeID);
-                console.log(businessSubtypeID);
                 return question;
             })
         )
