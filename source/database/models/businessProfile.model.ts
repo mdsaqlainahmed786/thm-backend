@@ -23,6 +23,7 @@ export interface IAddress extends Address {
 export interface IBusinessProfile extends Document {
     bio: string;
     profilePic: IProfilePic;
+    username: string;
     businessTypeID: Types.ObjectId | string;
     businessSubTypeID: Types.ObjectId | string;
     name: string;
@@ -61,7 +62,8 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
     {
         bio: { type: String, default: "" },
         profilePic: ProfileSchema,
-        description: { type: String },
+        description: { type: String },//FIXME bio or description
+        username: { type: String },
         businessTypeID: {
             type: Schema.Types.ObjectId,
             ref: "BusinessType"

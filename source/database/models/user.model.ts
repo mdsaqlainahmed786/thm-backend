@@ -1,5 +1,8 @@
+
 import { Schema, Document, model, Types } from "mongoose";
 import { genSalt, hash, compare } from 'bcrypt';
+
+import BusinessProfile from './businessProfile.model';
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -13,6 +16,7 @@ export interface IProfilePic {
 }
 
 export interface Individual {
+    username: string;
     email: string;
     phoneNumber: string;
     dialCode: string;
@@ -26,7 +30,6 @@ export interface Individual {
     otp: number;
     hasProfilePicture: boolean;
     bio: string;
-    username: string;
     profilePic: IProfilePic;
     acceptedTerms: boolean;//User  accepted the terms
 }
@@ -60,6 +63,7 @@ export const ProfileSchema: Schema = new Schema<IProfilePic>(
 
 const UserSchema: Schema = new Schema<IUser>(
     {
+        username: { type: String },
         profilePic: ProfileSchema,
         businessProfileID: {
             type: Schema.Types.ObjectId,
@@ -233,3 +237,5 @@ export function addAmenitiesInBusinessProfile() {
     }
     return { lookup }
 }
+
+

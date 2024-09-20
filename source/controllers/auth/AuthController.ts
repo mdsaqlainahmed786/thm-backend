@@ -1,4 +1,4 @@
-import { Business } from './../../database/models/user.model';
+import { Business, } from './../../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, httpConflict, httpForbidden } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
@@ -17,6 +17,8 @@ import BusinessSubType from "../../database/models/businessSubType.model";
 import BusinessProfile, { GeoCoordinate } from "../../database/models/businessProfile.model";
 import BusinessDocument from '../../database/models/businessDocument.model';
 import Subscription from '../../database/models/subscription.model';
+import { generateFromEmail } from "unique-username-generator";
+
 
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -65,11 +67,18 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                 hasAmenities = false;
             }
+
             if (!subscription) {
                 hasSubscription = false;
             }
+
             if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+            }
+            //TODO is subscription is expired then user can't use application.
+            const now = new Date();
+            if (subscription && subscription.expirationDate < now) {
+                return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
             }
         }
         if (!user.isApproved) {
@@ -85,10 +94,15 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, fullName, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, businessDescription, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state } = request.body;
-        const isUserExist = await User.findOne({ email: email });
+        const [username, isUserExist] = await Promise.all([
+            generateUsername(email, accountType),
+            User.findOne({ email: email }),
+        ]);
         if (isUserExist) {
             return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.EMAIL_IN_USE), ErrorMessage.EMAIL_IN_USE));
         }
@@ -104,6 +118,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
 
             /** Create business profile */
             const newBusinessProfile = new BusinessProfile();
+            newBusinessProfile.username = username;
             newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
             newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
             newBusinessProfile.name = businessName;
@@ -120,6 +135,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
 
             const newUser = new User();
             newUser.email = email;
+            newUser.username = username;
             newUser.fullName = fullName;
             newUser.accountType = accountType;
             newUser.dialCode = dialCode;
@@ -133,6 +149,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
         const newUser = new User();
+        newUser.username = username;
         newUser.email = email;
         newUser.fullName = fullName;
         newUser.accountType = accountType;
@@ -148,6 +165,8 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
 const verifyEmail = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, otp, deviceID, notificationToken, devicePlatform } = request.body;
@@ -190,6 +209,7 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
         return response.send(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
 
 const resendOTP = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -238,6 +258,8 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
 const refreshToken = async (request: Request, response: Response, next: NextFunction) => {
     const cookies = request?.cookies;
     const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
@@ -249,8 +271,6 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
     if (deviceID !== undefined && deviceID !== "") {
         Object.assign(authTokenFindQuery, { deviceID: deviceID });
     }
-
-
     const authToken = await AuthToken.findOne(authTokenFindQuery);
     if (!authToken) {
         return response.status(403).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_MISMATCH), ErrorMessage.TOKEN_MISMATCH));
@@ -273,6 +293,26 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
         }
     } catch (error: any) {
         return response.status(403).send(httpUnauthorized({}, ErrorMessage.INVALID_OR_EXPIRED_TOKEN));
+    }
+}
+
+
+export async function generateUsername(email: string, accountType: AccountType): Promise<string> {
+    const username = generateFromEmail(email, 2);
+    if (accountType === AccountType.BUSINESS) {
+        const isAvailable = await BusinessProfile.findOne({ username: username });
+        if (!isAvailable) {
+            return username;
+        } else {
+            return await generateUsername(email, accountType);
+        }
+    } else {
+        const isAvailable = await User.findOne({ username: username });
+        if (!isAvailable) {
+            return username;
+        } else {
+            return await generateUsername(email, accountType);
+        }
     }
 }
 

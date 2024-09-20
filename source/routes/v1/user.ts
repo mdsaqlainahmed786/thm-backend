@@ -14,5 +14,5 @@ UserEndpoints.post('/business-profile/documents', authenticateUser, uploadMedia(
 UserEndpoints.post('/business-profile/subscription', authenticateUser, buySubscriptionApiValidator, validateRequest, SubscriptionController.buySubscription);
 UserEndpoints.post('/business-profile/subscription/plans', authenticateUser, subscriptionPlansApiValidator, validateRequest, SubscriptionController.getSubscriptionPlans);
 UserEndpoints.post('/business-profile/subscription/checkout', authenticateUser, subscriptionCheckoutApiValidator, validateRequest, SubscriptionController.subscriptionCheckout);
-UserEndpoints.get('/business-profile/subscription', authenticateUser, subscriptionPlansApiValidator, validateRequest, SubscriptionController.index);//FIXME Remove this api
+UserEndpoints.get('/business-profile/subscription', authenticateUser, SubscriptionController.index);//FIXME Remove this api
 export default UserEndpoints;

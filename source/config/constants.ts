@@ -65,3 +65,21 @@ export abstract class GeoLocation {
     static readonly EARTH_RADIUS_IN_KM: number = 6378;
     // static readonly
 }
+
+//  # ┌────────────── second (optional)
+//  # │ ┌──────────── minute
+//  # │ │ ┌────────── hour
+//  # │ │ │ ┌──────── day of month
+//  # │ │ │ │ ┌────── month
+//  # │ │ │ │ │ ┌──── day of week
+//  # │ │ │ │ │ │
+//  # │ │ │ │ │ │
+//  # * * * * * *
+export abstract class CronSchedule {
+    static readonly EVERY_FIVE_SECOND: string = "*/5 * * * * *";
+    static readonly EVERY_TEN_SECOND: string = "*/10 * * * * *";
+    static readonly EVERY_MINUTE: string = "* * * * *";
+    static readonly EVERY_TWO_MINUTE: string = "*/2 * * * *";
+    static readonly EVERY_TWO_HOURS: string = "0 */2 * * *";
+    static readonly EVERY_DAY_AT_00 = "0 0 * * *";
+}

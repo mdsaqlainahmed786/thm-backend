@@ -1,3 +1,4 @@
+
 import { body } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, fullNameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
 import { AccountType } from "../../database/models/user.model";
@@ -143,6 +144,18 @@ export const resendOTPApiValidator = [
     emailValidationRule,
 ];
 
+export const forgotPasswordApiValidator = [
+    emailValidationRule,
+];
+export const verifyOTPApiValidator = [
+    emailValidationRule,
+    otpValidationRule,
+];
+export const resetPasswordApiValidator = [
+    emailValidationRule,
+    strongPasswordValidationRule,
+    body("resetToken", "Reset token is required field.").exists().bail().notEmpty().bail()
+]
 export const businessQuestionsApiValidator = [
     businessTypeIDValidationRule,
     businessSubtypeIDValidationRule
