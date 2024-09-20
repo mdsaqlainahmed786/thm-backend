@@ -61,6 +61,43 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const subscriptions = await SubscriptionPlan.find({});
         const subscriptionLevelValues = Object.values(SubscriptionLevel);
         if (subscriptions.length === 0) {
+            //Individual subscription plans
+            const newSubscriptionPlan1 = new SubscriptionPlan();
+            newSubscriptionPlan1.name = 'Free Plan';
+            newSubscriptionPlan1.description = "The Free Plan is aimed at users who want an enhanced experience with additional features and no advertisements. This plan is ideal for normal";
+            newSubscriptionPlan1.price = 0;
+            newSubscriptionPlan1.duration = SubscriptionDuration.MONTHLY;
+            newSubscriptionPlan1.image = hostAddress + '/public/files/premium-subscription-plan.png';
+            newSubscriptionPlan1.type = AccountType.INDIVIDUAL;
+            newSubscriptionPlan1.level = SubscriptionLevel.BASIC;
+            newSubscriptionPlan1.currency = 'INR';
+            newSubscriptionPlan1.features = [
+                'Upload 02 photos per/day',
+                '15 Sec Video per/day',
+                'Upload 2 post (20 words)',
+                'Can follow anyone',
+                'Followers limitation up to 5k',
+            ];
+            newSubscriptionPlan1.save();
+            const newSubscriptionPlan = new SubscriptionPlan();
+            newSubscriptionPlan.name = 'Premium';
+            newSubscriptionPlan.description = "The Premium Plan is aimed at users who want an enhanced experience with additional features and no advertisements. This plan is ideal for frequent travelers and those who want to make the most of the app's capabilities.";
+            newSubscriptionPlan.price = 149;
+            newSubscriptionPlan.duration = SubscriptionDuration.MONTHLY;
+            newSubscriptionPlan.image = hostAddress + '/public/files/premium-subscription-plan.png';
+            newSubscriptionPlan.type = AccountType.INDIVIDUAL;
+            newSubscriptionPlan.level = SubscriptionLevel.PREMIUM;
+            newSubscriptionPlan.currency = 'INR';
+            newSubscriptionPlan.features = [
+                'Upload unlimited photos',
+                'Unlimited video upload (05 min video)',
+                'Unlimited posts',
+                'Can follow anyone',
+                'Unlimited followers',
+                '* Rs 99+ gst after 10k followers'
+            ];
+            newSubscriptionPlan.save();
+
             const all = await Promise.all(
                 allBusinessCategory.map(async (businessCategory) => {
                     const allSubCategory = await BusinessSubType.find({ businessTypeID: businessCategory._id });
@@ -90,6 +127,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                                     newSubscriptionPlan.duration = SubscriptionDuration.YEARLY;
                                     newSubscriptionPlan.image = hostAddress + '/public/files/premium-subscription-plan.png';
                                 }
+                                newSubscriptionPlan.type = AccountType.BUSINESS;
                                 newSubscriptionPlan.businessTypeID = businessCategory.id;
                                 newSubscriptionPlan.businessSubtypeID = businessSubCategory.id;
                                 newSubscriptionPlan.level = subscriptionLevel as SubscriptionLevel;
@@ -117,10 +155,13 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 }
 const getSubscriptionPlans = async (request: Request, response: Response, next: NextFunction) => {
     try {
+
+        //TODO Fix here add account type as well
         const { businessSubtypeID, businessTypeID } = request.body;
         const businessQuestions = await SubscriptionPlan.find({
             businessTypeID: { $in: [businessTypeID] },
-            businessSubtypeID: { $in: [businessSubtypeID] }
+            businessSubtypeID: { $in: [businessSubtypeID] },
+            type: AccountType.BUSINESS
         });
         return response.send(httpOk(businessQuestions, "Business subscription plan fetched"));
     } catch (error: any) {

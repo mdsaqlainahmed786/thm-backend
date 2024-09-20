@@ -1,4 +1,5 @@
 import { Schema, Document, model, Types } from "mongoose";
+import { AccountType } from "./user.model";
 
 export enum SubscriptionLevel {
     BASIC = "basic",
@@ -11,8 +12,14 @@ export enum SubscriptionDuration {
     YEARLY = "yearly",
     HALF_YEARLY = "half-yearly",
 }
+export interface IBusinessSubscription {
+    businessTypeID: (Types.ObjectId | string)[];
+    businessSubtypeID: (Types.ObjectId | string)[];
+}
 
-export interface ISubscriptionPlan extends Document {
+
+
+export interface ISubscriptionPlan extends Document, IBusinessSubscription {
     name: string;
     description: string;
     price: number;
@@ -21,8 +28,7 @@ export interface ISubscriptionPlan extends Document {
     features: string[];
     level: SubscriptionLevel;
     image: string;
-    businessTypeID: (Types.ObjectId | string)[];
-    businessSubtypeID: (Types.ObjectId | string)[];
+    type: AccountType;
 }
 const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
     {
@@ -41,6 +47,10 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
         image: {
             type: String,
             required: true,
+        },
+        type: {
+            type: String,
+            enum: AccountType
         },
         businessSubtypeID: [
             {

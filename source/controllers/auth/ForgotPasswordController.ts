@@ -3,11 +3,7 @@ import { httpBadRequest, httpNotFoundOr404, httpInternalServerError, httpOk, htt
 import { ErrorMessage } from "../../utils/response-message/error";
 import User from "../../database/models/user.model";
 import { generateOTP } from "../../utils/helper/basic";
-import { generateAccessToken } from "../../middleware/authenticate";
 import { AuthenticateUser } from "../../common";
-import { AppConfig } from "../../config/constants";
-import { CookiePolicy } from "../../config/constants";
-import { genSalt, hash } from "bcrypt";
 import PasswordResetToken from "../../database/models/passwordResetToken.model";
 import { sign } from "jsonwebtoken";
 const forgotPasswordRequest = async (request: Request, response: Response, next: NextFunction) => {
