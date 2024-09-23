@@ -1,5 +1,5 @@
 import { body } from 'express-validator';
-import { addBusinessProfileInUser, Business } from './../database/models/user.model';
+import { addBusinessProfileInUser, Business, calculateProfileCompletion } from './../database/models/user.model';
 import path from "path";
 import { Request, Response, NextFunction, response } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
@@ -58,34 +58,38 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
 const profile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
-        const user = await User.aggregate(
-            [
-                {
-                    $match: {
-                        _id: new ObjectId(id)
+        const [user, profileCompleted] = await Promise.all([
+            User.aggregate(
+                [
+                    {
+                        $match: {
+                            _id: new ObjectId(id)
+                        }
+                    },
+                    addBusinessProfileInUser().lookup,
+                    addBusinessProfileInUser().unwindLookup,
+                    {
+                        $limit: 1,
+                    },
+                    {
+                        $project: {
+                            otp: 0,
+                            password: 0,
+                            createdAt: 0,
+                            updatedAt: 0,
+                            __v: 0,
+                        }
                     }
-                },
-                addBusinessProfileInUser().lookup,
-                addBusinessProfileInUser().unwindLookup,
-                {
-                    $limit: 1,
-                },
-                {
-                    $project: {
-                        otp: 0,
-                        password: 0,
-                        createdAt: 0,
-                        updatedAt: 0,
-                        __v: 0,
-                    }
-                }
-            ]
-        )
+                ]
+            ),
+            calculateProfileCompletion(id)
+        ])
+
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
 
-        let responseData = { posts: 0, follower: 0, following: 0 };
+        let responseData = { posts: 0, follower: 0, following: 0, profileCompleted, };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
         } else {

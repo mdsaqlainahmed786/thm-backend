@@ -1,20 +1,15 @@
 
 import { Schema, Document, model, Types } from "mongoose";
 import { genSalt, hash, compare } from 'bcrypt';
-
+import { getAllKeysFromSchema } from "../../utils/helper/basic";
 import BusinessProfile from './businessProfile.model';
+import { isArray } from "../../utils/helper/basic";
+import { IProfilePic, ProfileSchema } from "./common.model";
+
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
 }
-
-
-export interface IProfilePic {
-    small: string;
-    medium: string;
-    large: string;
-}
-
 export interface Individual {
     username: string;
     email: string;
@@ -41,25 +36,7 @@ export interface Business {
 
 export interface IUser extends Document, Individual, Business {
 }
-export const ProfileSchema: Schema = new Schema<IProfilePic>(
-    {
-        small: {
-            type: String,
-            default: ""
-        },
-        medium: {
-            type: String,
-            default: ""
-        },
-        large: {
-            type: String,
-            default: "",
-        }
-    },
-    {
-        _id: false,
-    }
-);
+
 
 const UserSchema: Schema = new Schema<IUser>(
     {
@@ -239,3 +216,54 @@ export function addAmenitiesInBusinessProfile() {
 }
 
 
+
+export async function calculateProfileCompletion(userID: Types.ObjectId | string): Promise<number> {
+    const userProfile = await User.findOne({ _id: userID });
+    if (userProfile && userProfile.accountType === AccountType.INDIVIDUAL) {
+        const schemaKeys = getAllKeysFromSchema(User.schema);
+        const topLevelNestedFields = getTopLevelNestedFields(User.schema);
+        // Remove top-level nested fields from the schemaKeys
+        const filteredSchemaFields = schemaKeys.filter(field => !topLevelNestedFields.includes(field))
+            .filter(field => !['profilePic.small', 'profilePic.medium', 'businessProfileID', 'otp'].includes(field));
+        const filledKeys = filteredSchemaFields.filter((key) => {
+            const value = userProfile?.get(key);
+            if (isArray(value)) {
+                return value?.length !== 0;
+            } else {
+                return value !== undefined && value !== null && value !== '';
+            }
+        });
+        const completionPercentage = (filledKeys.length / filteredSchemaFields.length) * 100;
+        const finalCompletionPercentage = completionPercentage.toFixed(2);
+        return parseFloat(finalCompletionPercentage)
+    }
+    if (userProfile && userProfile.accountType === AccountType.BUSINESS && userProfile.businessProfileID) {
+        const businessProfile = await BusinessProfile.findOne({ _id: userProfile.businessProfileID });
+        const schemaKeys = getAllKeysFromSchema(BusinessProfile.schema);
+        const topLevelNestedFields = getTopLevelNestedFields(BusinessProfile.schema);
+        // Remove top-level nested fields from the schemaKeys
+        const filteredSchemaFields = schemaKeys.filter(field => !topLevelNestedFields.includes(field))
+            .filter(field => !['profilePic.small', 'profilePic.medium', 'otp'].includes(field));
+        const filledKeys = filteredSchemaFields.filter((key) => {
+            const value = businessProfile?.get(key);
+            if (isArray(value)) {
+                return value?.length !== 0;
+            } else {
+                return value !== undefined && value !== null && value !== '';
+            }
+        });
+        const completionPercentage = (filledKeys.length / filteredSchemaFields.length) * 100;
+        const finalCompletionPercentage = completionPercentage.toFixed(2);
+        return parseFloat(finalCompletionPercentage)
+    }
+    return 0;
+
+}
+
+function getTopLevelNestedFields(schema: Schema): string[] {
+    return Object.keys(schema.paths)
+        .filter((key) => {
+            const fieldSchema = schema.paths[key];
+            return fieldSchema.schema !== undefined; // Check if the field has a nested schema
+        });
+}

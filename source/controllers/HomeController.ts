@@ -1,16 +1,77 @@
 import path from "path";
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended } from "../utils/response";
 import sharp from "sharp";
 import fs from "fs/promises"
 import { PUBLIC_DIR } from "../middleware/file-uploading";
 import { v4 } from "uuid";
-
 import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
-const home = async (request: Request, response: Response, next: NextFunction) => {
+import { parseQueryParam } from "../utils/helper/basic";
+import Post from "../database/models/post.model";
+const feed = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        let { pageNumber, documentLimit, query }: any = request.query;
+        const dbQuery = { isPublished: true };
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (query !== undefined && query !== "") {
+        }
+        const documents = await Post.aggregate(
+            [
+                {
+                    $match: dbQuery
+                },
+                {
+                    $sort: { _id: -1 }
+                },
+                {
+                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                },
+                {
+                    $limit: documentLimit
+                },
+            ]
+        ).exec();
+        const totalDocument = await Post.find(dbQuery).countDocuments();
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+const businessTypes = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const businessTypes = await BusinessType.find();
+        return response.send(httpOk(businessTypes, "Business type fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const businessSubTypes = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request.params.id;
+        const businessTypes = await BusinessSubType.find({ businessTypeID: ID });
+        return response.send(httpOk(businessTypes, "Business subtype fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const businessQuestions = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { businessSubtypeID, businessTypeID } = request.body;
+        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer');
+        return response.send(httpOk(businessQuestions, "Business questions fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+
+const dbSeeder = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const businessTypes = ['Hotel', 'Bars / Clubs', 'Home Stays', 'Marriage Banquets', 'Restaurant'];
         const hostAddress = request.protocol + "://" + request.get("host");
@@ -621,32 +682,6 @@ const home = async (request: Request, response: Response, next: NextFunction) =>
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
-}
 
-const businessTypes = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const businessTypes = await BusinessType.find();
-        return response.send(httpOk(businessTypes, "Business type fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
 }
-const businessSubTypes = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const ID = request.params.id;
-        const businessTypes = await BusinessSubType.find({ businessTypeID: ID });
-        return response.send(httpOk(businessTypes, "Business subtype fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
-const businessQuestions = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { businessSubtypeID, businessTypeID } = request.body;
-        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer');
-        return response.send(httpOk(businessQuestions, "Business questions fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
-export default { home, businessTypes, businessSubTypes, businessQuestions };
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder };

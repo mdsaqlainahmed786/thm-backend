@@ -1,0 +1,10 @@
+import express, { Router } from "express";
+import PostController from "../../controllers/PostController";
+import { uploadMedia } from "../../middleware/file-uploading";
+import { AwsS3AccessEndpoints } from "../../config/constants";
+const PostEndpoints: Router = express.Router();
+// PostEndpoints.get('/', RankHistoryController.index);
+PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
+// PostEndpoints.put('/:id', RankHistoryController.update);
+// PostEndpoints.delete('/:id', RankHistoryController.destroy);
+export default PostEndpoints;

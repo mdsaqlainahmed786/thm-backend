@@ -1,5 +1,5 @@
 import { Schema, Document, model, Types } from "mongoose";
-import { IProfilePic, ProfileSchema } from "./user.model";
+import { IProfilePic, ProfileSchema } from "./common.model";
 
 export interface GeoCoordinate {
     type: string,
@@ -35,6 +35,7 @@ export interface IBusinessProfile extends Document {
     gstn: string;
     description: string;
     amenities: (Types.ObjectId | string)[];
+    placeID: string;
 }
 const AddressSchema = new Schema<IAddress>(
     {
@@ -80,6 +81,7 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
         dialCode: { type: String },
         website: { type: String, default: '' },
         gstn: { type: String, default: '' },
+        placeID: { type: String },
         amenities: [
             {
                 type: Schema.Types.ObjectId,

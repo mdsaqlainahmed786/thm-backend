@@ -11,6 +11,7 @@ export const businessEmailValidationRule = body("businessEmail", "Business email
 export const businessPhoneNumberValidationRule = body("businessPhoneNumber", "Business phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
 export const businessDialCodeValidationRule = body("businessDialCode", "Business dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
 export const businessDescriptionValidationRule = body('businessDescription', 'Business description is a required field.').exists().bail().notEmpty().bail();
+export const placeIDValidationRule = body('placeID', 'Place ID is a required field.').exists().bail().notEmpty().bail();
 
 
 
@@ -100,6 +101,12 @@ const lngCustomValidationRule = body('accountType').custom((value, { req }) => {
     }
     return true;
 });
+const placeIDCustomValidationRule = body('placeID').custom((value, { req }) => {
+    if (req.body.accountType === AccountType.BUSINESS) {
+        return placeIDValidationRule.run(req);
+    }
+    return true;
+});
 /** Api validation rule for Api */
 export const loginApiValidator = [
     emailValidationRule,
@@ -131,7 +138,10 @@ export const signUpApiValidator = [
     zipCodeCustomValidationRule,
     countryCustomValidationRule,
     latCustomValidationRule,
-    lngCustomValidationRule
+    lngCustomValidationRule,
+
+    //Place ID //TODO For what?
+    placeIDCustomValidationRule
 ]
 export const verifyEmailApiValidator = [
     emailValidationRule,

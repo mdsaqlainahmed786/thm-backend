@@ -98,7 +98,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
 
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, fullName, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, businessDescription, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state } = request.body;
+        const { email, fullName, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, businessDescription, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID } = request.body;
         const [username, isUserExist] = await Promise.all([
             generateUsername(email, accountType),
             User.findOne({ email: email }),
@@ -118,6 +118,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
 
             /** Create business profile */
             const newBusinessProfile = new BusinessProfile();
+            newBusinessProfile.profilePic = { small: '', large: '', medium: '' };
             newBusinessProfile.username = username;
             newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
             newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
@@ -130,7 +131,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newBusinessProfile.dialCode = businessDialCode;
             newBusinessProfile.website = businessWebsite;
             newBusinessProfile.gstn = gstn;
-            newBusinessProfile.profilePic = { small: '', large: '', medium: '' };
+            newBusinessProfile.placeID = placeID;
             const savedBusinessProfile = await newBusinessProfile.save();
 
             const newUser = new User();
@@ -149,6 +150,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
         const newUser = new User();
+        newUser.profilePic = { small: '', large: '', medium: '' };
         newUser.username = username;
         newUser.email = email;
         newUser.fullName = fullName;
@@ -157,7 +159,6 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         newUser.phoneNumber = phoneNumber;
         newUser.password = password;
         newUser.isActivated = true;
-        newUser.profilePic = { small: '', large: '', medium: '' };
         newUser.otp = generateOTP();
         const savedUser = await newUser.save();
         return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL));

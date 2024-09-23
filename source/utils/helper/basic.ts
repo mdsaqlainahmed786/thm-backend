@@ -166,7 +166,17 @@ export function addStringBeforeExtension(filePath: string, stringToAdd: string) 
     }
 }
 
+
+//Return the word count of give string;
+export function countWords(string: string) {
+    const trimmedStr = string.trim();
+    if (trimmedStr === "") {
+        return 0; // Return 0 if there are no words
+    }
+    const wordsArray = trimmedStr.split(/\s+/);
+    return wordsArray.length; // Return the count of words
+}
+
 const months = ["January", "February", "March", "April", "May", "June", "July"];
 
 const random = Math.floor(Math.random() * months.length);
-console.log(random, months[random]);
