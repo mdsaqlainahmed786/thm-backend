@@ -7,7 +7,6 @@ import Subscription from "../database/models/subscription.model";
 import Post, { PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords } from "../utils/helper/basic";
-import S3Object from './../database/models/s3Object.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         // let { pageNumber, documentLimit, query }: any = request.query;
