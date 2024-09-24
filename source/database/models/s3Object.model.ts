@@ -30,5 +30,5 @@ S3ObjectSchema.set('toJSON', { virtuals: true });
 export interface IS3ObjectModel extends IS3Object {
 }
 
-const S3Object = model<IS3Object, IS3ObjectModel>('Post', S3ObjectSchema);
+const S3Object = model<IS3Object>('S3Object', S3ObjectSchema);
 export default S3Object;

@@ -1,21 +1,33 @@
 import { Schema, Document, model, Types } from "mongoose";
-
+import { MongoID } from "../../common";
 
 
 interface IDailyContentLimit {
-    userID: Types.ObjectId | string;
-    photos: number;
+    userID: MongoID;
+    images: number;
     videos: number;
     text: number;
+    timeStamp: Date;
 }
 const DailyContentLimitSchema: Schema = new Schema<IDailyContentLimit>(
     {
         userID: {
             type: Schema.Types.ObjectId,
-            ref: "User"
+            ref: "User",
+            required: true,
         },
-        photos: {
-
+        timeStamp: { type: Date, required: true },
+        images: {
+            type: Number,
+            default: 0,
+        },
+        videos: {
+            type: Number,
+            default: 0,
+        },
+        text: {
+            type: Number,
+            default: 0,
         }
     },
     {

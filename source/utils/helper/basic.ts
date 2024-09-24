@@ -1,6 +1,7 @@
 import { Types, Schema } from "mongoose";
 import crypto from 'crypto';
 import { AppConfig } from "../../config/constants";
+import { MongoID } from "../../common";
 declare global {
     interface String {
         capitalize(): string;
@@ -40,7 +41,7 @@ export function isString(data: any): boolean {
 }
 
 //check if a MongoDB ObjectId is in an array
-export function isObjectIdInArray(objectId: Types.ObjectId | string, array: any[]): boolean {
+export function isObjectIdInArray(objectId: MongoID, array: any[]): boolean {
     const objectIdStr = objectId.toString(); // Convert the input ObjectId to string
     for (const item of array) {
         const itemStr = item.toString(); // Convert each item in the array to string

@@ -1,6 +1,6 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { IProfilePic, ProfileSchema } from "./common.model";
-
+import { MongoID } from "../../common";
 export interface GeoCoordinate {
     type: string,
     coordinates: Array<number>
@@ -24,8 +24,8 @@ export interface IBusinessProfile extends Document {
     bio: string;
     profilePic: IProfilePic;
     username: string;
-    businessTypeID: Types.ObjectId | string;
-    businessSubTypeID: Types.ObjectId | string;
+    businessTypeID: MongoID;
+    businessSubTypeID: MongoID;
     name: string;
     address: IAddress;
     email: string;
@@ -34,7 +34,7 @@ export interface IBusinessProfile extends Document {
     website: string;
     gstn: string;
     description: string;
-    amenities: (Types.ObjectId | string)[];
+    amenities: MongoID[];
     placeID: string;
 }
 const AddressSchema = new Schema<IAddress>(

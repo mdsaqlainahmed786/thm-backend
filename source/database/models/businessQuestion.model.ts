@@ -1,11 +1,11 @@
 import { Schema, Document, model, Types } from "mongoose";
-
+import { MongoID } from "../../common";
 export interface IBusinessQuestion extends Document {
     icon: string;
     name: string;
     question: string;
-    businessTypeID: (Types.ObjectId | string)[];
-    businessSubtypeID: (Types.ObjectId | string)[];
+    businessTypeID: MongoID[];
+    businessSubtypeID: MongoID[];
     answer: string[];
     order: number;
 }

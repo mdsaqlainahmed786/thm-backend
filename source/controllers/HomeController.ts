@@ -1,16 +1,13 @@
 import path from "path";
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended } from "../utils/response";
-import sharp from "sharp";
-import fs from "fs/promises"
-import { PUBLIC_DIR } from "../middleware/file-uploading";
-import { v4 } from "uuid";
 import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam } from "../utils/helper/basic";
 import Post from "../database/models/post.model";
+import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../database/models/user.model";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         let { pageNumber, documentLimit, query }: any = request.query;
@@ -25,6 +22,85 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                     $match: dbQuery
                 },
                 {
+                    '$lookup': {
+                        'from': 'media',
+                        'let': { 'mediaIDs': '$media' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
+                            {
+                                '$project': {
+                                    "userID": 0,
+                                    "fileName": 0,
+                                    "width": 0,
+                                    "height": 0,
+                                    "fileSize": 0,
+                                    "s3Key": 0,
+                                    "createdAt": 0,
+                                    "updatedAt": 0,
+                                    "__v": 0
+                                }
+                            }
+                        ],
+                        'as': 'mediaRef'
+                    }
+                },
+                {
+                    '$lookup': {
+                        'from': 'users',
+                        'let': { 'taggedID': '$tagged' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$in': ['$_id', '$$taggedID'] } } },
+                            addBusinessProfileInUser().lookup,
+                            addBusinessProfileInUser().unwindLookup,
+                            {
+                                '$project': {
+                                    "fullName": 1,
+                                    "profilePic": 1,
+                                    "accountType": 1,
+                                    "businessProfileID": 1,
+                                    "businessProfileRef._id": 1,
+                                    "businessProfileRef.name": 1,
+                                    "businessProfileRef.profilePic": 1,
+                                    "businessProfileRef.businessTypeRef": 1,
+                                }
+                            }
+                        ],
+                        'as': 'taggedRef'
+                    }
+                },
+
+
+                {
+                    '$lookup': {
+                        'from': 'users',
+                        'let': { 'userID': '$userID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
+                            addBusinessProfileInUser().lookup,
+                            addBusinessProfileInUser().unwindLookup,
+                            {
+                                '$project': {
+                                    "fullName": 1,
+                                    "profilePic": 1,
+                                    "accountType": 1,
+                                    "businessProfileID": 1,
+                                    "businessProfileRef._id": 1,
+                                    "businessProfileRef.name": 1,
+                                    "businessProfileRef.profilePic": 1,
+                                    "businessProfileRef.businessTypeRef": 1,
+                                }
+                            }
+                        ],
+                        'as': 'postedBy'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$postedBy',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
                     $sort: { _id: -1 }
                 },
                 {
@@ -33,6 +109,14 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 {
                     $limit: documentLimit
                 },
+                {
+                    $project: {
+                        tagged: 0,
+                        media: 0,
+                        updatedAt: 0,
+                        __v: 0,
+                    }
+                }
             ]
         ).exec();
         const totalDocument = await Post.find(dbQuery).countDocuments();
@@ -63,7 +147,7 @@ const businessSubTypes = async (request: Request, response: Response, next: Next
 const businessQuestions = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { businessSubtypeID, businessTypeID } = request.body;
-        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer');
+        const businessQuestions = await BusinessQuestion.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer').sort({ order: 1 }).limit(6);
         return response.send(httpOk(businessQuestions, "Business questions fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

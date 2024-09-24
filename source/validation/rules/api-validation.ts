@@ -150,8 +150,14 @@ export const verifyEmailApiValidator = [
     notificationTokenValidationRule,
     devicePlatformValidationRule
 ];
+enum Types {
+    EMAIL_VERIFICATION = "email-verification",
+    FORGOT_PASSWORD = "forgot-password"
+}
+const TypesValue = Object.values(Types);
 export const resendOTPApiValidator = [
     emailValidationRule,
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypesValue).withMessage(`Type must be in  ${TypesValue.join(' | ')}`)
 ];
 
 export const forgotPasswordApiValidator = [
@@ -175,10 +181,10 @@ export const businessQuestionAnswerApiValidator = [
     questionsIDsValidationRule
 ]
 
-export const subscriptionPlansApiValidator = [
-    businessTypeIDValidationRule,
-    businessSubtypeIDValidationRule
-]
+// export const subscriptionPlansApiValidator = [
+//     businessTypeIDValidationRule,
+//     businessSubtypeIDValidationRule
+// ]
 
 export const subscriptionCheckoutApiValidator = [
     subscriptionPlanIDValidationRule

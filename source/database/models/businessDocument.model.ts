@@ -1,8 +1,9 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
+import { MongoID } from '../../common';
 interface IBusinessDocument extends Document {
     addressProof: string;
     businessRegistration: string;
-    businessProfileID: Types.ObjectId | string;
+    businessProfileID: MongoID;
 }
 
 const AuthTokenSchema: Schema = new Schema<IBusinessDocument>(

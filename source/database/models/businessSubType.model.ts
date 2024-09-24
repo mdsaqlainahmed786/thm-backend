@@ -1,7 +1,8 @@
 import { Schema, Document, model, Types } from "mongoose";
+import { MongoID } from "../../common";
 export interface IBusinessSubType extends Document {
     name: string;
-    businessTypeID: Types.ObjectId | string;
+    businessTypeID: MongoID;
 }
 const BusinessSubTypeSchema: Schema = new Schema<IBusinessSubType>(
     {

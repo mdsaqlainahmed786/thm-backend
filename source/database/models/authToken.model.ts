@@ -1,7 +1,8 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
 import { AccountType } from './user.model';
+import { MongoID } from '../../common';
 interface IAuthToken extends Document {
-    userID: Types.ObjectId | string;
+    userID: MongoID;
     accountType: AccountType | undefined;
     refreshToken: string;
     creationDate: Date;

@@ -155,14 +155,30 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 }
 const getSubscriptionPlans = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
-        //TODO Fix here add account type as well
-        const { businessSubtypeID, businessTypeID } = request.body;
-        const businessQuestions = await SubscriptionPlan.find({
-            businessTypeID: { $in: [businessTypeID] },
-            businessSubtypeID: { $in: [businessSubtypeID] },
-            type: AccountType.BUSINESS
-        });
+        const { id } = request.user;
+        const [user] = await Promise.all([
+            User.findOne({ _id: id }),
+        ])
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        let findQuery = {};
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+            if (!businessProfile) {
+                return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            }
+            Object.assign(findQuery,
+                {
+                    businessTypeID: { $in: [businessProfile.businessTypeID] },
+                    businessSubtypeID: { $in: [businessProfile.businessSubTypeID] },
+                    type: AccountType.BUSINESS
+                }
+            )
+        } else {
+            Object.assign(findQuery, { type: AccountType.INDIVIDUAL });
+        }
+        const businessQuestions = await SubscriptionPlan.find(findQuery);
         return response.send(httpOk(businessQuestions, "Business subscription plan fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

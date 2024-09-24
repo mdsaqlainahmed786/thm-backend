@@ -1,9 +1,9 @@
 import { Schema, Document, model, Types } from "mongoose";
-
+import { MongoID } from "../../common";
 export interface ISubscription extends Document {
-    userID: Types.ObjectId | string;
-    businessProfileID: Types.ObjectId | string;
-    subscriptionPlanID: Types.ObjectId | string;
+    userID: MongoID;
+    businessProfileID: MongoID;
+    subscriptionPlanID: MongoID;
     expirationDate: Date;
 }
 const SubscriptionSchema: Schema = new Schema<ISubscription>(

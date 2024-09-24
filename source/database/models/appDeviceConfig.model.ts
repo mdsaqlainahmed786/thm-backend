@@ -1,11 +1,12 @@
 import mongoose, { Schema, Types, Document, Model } from 'mongoose';
 import { AccountType } from './user.model';
 import { DevicePlatform } from '../../validation/common-validation';
+import { MongoID } from '../../common';
 export interface IDevicesConfig extends Document {
     deviceID: string;
     devicePlatform: DevicePlatform;
     notificationToken: string,//FCM token for firebase notification for users.
-    userID: Types.ObjectId | string,
+    userID: MongoID,
     accountType: AccountType | undefined;
 }
 
@@ -44,7 +45,7 @@ const DevicesConfig = mongoose.model<IDevicesConfig, IDevicesConfigModel>('Devic
 export default DevicesConfig;
 
 /*** This function store device config to handle notification and other staff */
-export async function addUserDevicesConfig(deviceID: string, devicePlatform: DevicePlatform, notificationToken: string, userID: Types.ObjectId | string, accountType: AccountType | undefined): Promise<IDevicesConfig> {
+export async function addUserDevicesConfig(deviceID: string, devicePlatform: DevicePlatform, notificationToken: string, userID: MongoID, accountType: AccountType | undefined): Promise<IDevicesConfig> {
     try {
         const devicesConfig = await DevicesConfig.findOne({ userID: userID, accountType: accountType, deviceID: deviceID, devicePlatform: devicePlatform });
         if (!devicesConfig) {

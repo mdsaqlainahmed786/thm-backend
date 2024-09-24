@@ -31,15 +31,15 @@ function httpInternalServerError(response?: ResponseResult, message?: string): J
     return json_response;
 }
 
-// function httpCreated(response?: ResponseResult, message?: string): JsonResponseModel {
-//     const json_response: JsonResponseModel = {
-//         status: true,
-//         statusCode: 201 ?? "Created",
-//         message: message,
-//         data: response ?? null
-//     }
-//     return json_response;
-// }
+function httpCreated(response?: ResponseResult, message?: string): JsonResponseModel {
+    const json_response: JsonResponseModel = {
+        status: true,
+        statusCode: 201,
+        message: message ?? "Created",
+        data: response ?? null
+    }
+    return json_response;
+}
 // function httpAcceptedOrUpdated(response?: ResponseResult, message?: string): JsonResponseModel {
 //     const json_response: JsonResponseModel = {
 //         status: true,
@@ -121,4 +121,4 @@ function httpBadRequest(response?: ResponseResult, message?: string): JsonRespon
     return json_response;
 }
 
-export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended }
+export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated }

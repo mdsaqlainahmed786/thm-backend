@@ -1,5 +1,6 @@
 import { Schema, Document, model, Types } from "mongoose";
-
+import { ILocation, LocationSchema } from "./common.model";
+import { MongoID } from "../../common";
 export enum PostType {
     POST = "post",
     REVIEW = "review"
@@ -13,11 +14,15 @@ enum MediaType {
 
 
 interface IPost {
-    userID: Types.ObjectId | string;
-    businessProfileID?: Types.ObjectId | string;
+    userID: MongoID;
+    businessProfileID?: MongoID;
     postType: PostType;
     content: string;
     isPublished: boolean;
+    location: ILocation | null;
+    media: MongoID[];
+    tagged: MongoID[];
+    feelings: string;
 }
 
 // user_tags
@@ -42,6 +47,19 @@ const PostSchema: Schema = new Schema<IPost>(
         isPublished: {
             type: Boolean,
             default: false
+        },
+        location: LocationSchema,
+        media: [{
+            type: Schema.Types.ObjectId,
+            ref: "Media"
+        }],
+        tagged: [{
+            type: Schema.Types.ObjectId,
+            ref: "Media"
+        }],
+        feelings: {
+            type: String,
+            default: ''
         }
     },
     {

@@ -5,7 +5,7 @@ import { getAllKeysFromSchema } from "../../utils/helper/basic";
 import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { IProfilePic, ProfileSchema } from "./common.model";
-
+import { MongoID } from "../../common";
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -30,7 +30,7 @@ export interface Individual {
 }
 
 export interface Business {
-    businessProfileID: Types.ObjectId | string;
+    businessProfileID: MongoID;
 }
 
 
@@ -165,6 +165,10 @@ export function addBusinessProfileInUser() {
             'pipeline': [
                 { '$match': { '$expr': { '$eq': ['$_id', '$$businessProfileID'] } } },
                 addAmenitiesInBusinessProfile().lookup,
+                addBusinessTypeInBusinessProfile().lookup,
+                addBusinessTypeInBusinessProfile().unwindLookup,
+                addBusinessSubTypeInBusinessProfile().lookup,
+                addBusinessSubTypeInBusinessProfile().unwindLookup,
                 {
                     '$project': {
                         'createdAt': 0,
@@ -212,12 +216,73 @@ export function addAmenitiesInBusinessProfile() {
             'as': 'amenitiesRef'
         }
     }
+
     return { lookup }
 }
 
+/**
+ * 
+ * @returns Returns business type for business profile's 
+ */
+export function addBusinessTypeInBusinessProfile() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businesstypes',
+            'let': { 'businessTypeID': '$businessTypeID' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$businessTypeID'] } } },
+                {
+                    '$project': {
+                        'createdAt': 0,
+                        'updatedAt': 0,
+                        '__v': 0,
+                    }
+                }
+            ],
+            'as': 'businessTypeRef'
+        }
+    }
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$businessTypeRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
+}
+/**
+ * 
+ * @returns Returns business subtype for business profile's 
+ */
+export function addBusinessSubTypeInBusinessProfile() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businesssubtypes',
+            'let': { 'businessSubTypeID': '$businessSubTypeID' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$businessSubTypeID'] } } },
+                {
+                    '$project': {
+                        'businessTypeID': 0,
+                        'createdAt': 0,
+                        'updatedAt': 0,
+                        '__v': 0,
+                    }
+                }
+            ],
+            'as': 'businessSubtypeRef'
+        }
+    }
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$businessSubtypeRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
+}
 
-
-export async function calculateProfileCompletion(userID: Types.ObjectId | string): Promise<number> {
+export async function calculateProfileCompletion(userID: MongoID): Promise<number> {
     const userProfile = await User.findOne({ _id: userID });
     if (userProfile && userProfile.accountType === AccountType.INDIVIDUAL) {
         const schemaKeys = getAllKeysFromSchema(User.schema);

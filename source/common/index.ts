@@ -7,6 +7,7 @@ export interface AuthenticateUser {
     accountType?: AccountType | undefined;
 }
 
+export type MongoID = Types.ObjectId | string;
 
 
 

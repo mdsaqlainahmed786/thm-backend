@@ -1,21 +1,14 @@
-import { body } from 'express-validator';
 import { addBusinessProfileInUser, Business, calculateProfileCompletion } from './../database/models/user.model';
-import path from "path";
 import { Request, Response, NextFunction, response } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
-import sharp from "sharp";
-import fs from "fs/promises"
-import { PUBLIC_DIR } from "../middleware/file-uploading";
-import { v4 } from "uuid";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
-import { getS3Object, putS3Object } from "../middleware/file-uploading";
-import { addStringBeforeExtension } from "../utils/helper/basic";
+
 import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessDocument from '../database/models/businessDocument.model';
 import BusinessQuestion from '../database/models/businessQuestion.model';
-import Subscription from '../database/models/subscription.model';
+import { generateThumbnail } from './MediaController';
 
 import { isArray } from '../utils/helper/basic';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
@@ -180,13 +173,13 @@ const businessDocumentUpload = async (request: Request, response: Response, next
 const businessQuestionAnswer = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        // const { questionsIDs } = request.body;
+        //FIXME add answer as well
         const body = request.body;
         let questionIDs: string[] = [];
         if (isArray(body)) {
             body.map((answerData: any) => {
                 if (answerData.questionID && answerData.answer && answerData.answer.toLowerCase() === "yes") {
-                    questionIDs = answerData.questionID
+                    questionIDs.push(answerData.questionID);
                 }
             })
             const user = await User.findOne({ _id: id });
@@ -219,52 +212,5 @@ const businessQuestionAnswer = async (request: Request, response: Response, next
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
-    const s3Image = await getS3Object(media.key);
-    const cropSetting: {} = { width: width, height: height, fit: "cover" };
-    if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
-        const body = s3Image.Body;
-        const rawToByteArray = await body.transformToByteArray();
-        const sharpImage = await sharp(rawToByteArray);
-        // const metadata = await sharpImage.metadata();
-        const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-        const thumbnailPath = addStringBeforeExtension(media.key, `-${width}x${height}`)
-        const s3Upload = await putS3Object(thumbnail, media.mimetype, thumbnailPath);
-        return s3Upload;
-    }
-    return null;
-    // if (s3Image.Body && media.mimetype.startsWith('video/') && thumbnailFor === "video") {
-    //     const body = s3Image.Body;
-    //     const rawToByteArray = await body.transformToByteArray();
-    //     const thumbnailExtName = "png";
-    //     const screenshot = await generateScreenshotBuffer(rawToByteArray, media.key, thumbnailExtName).catch((error: any) => console.log(error));
-    //     if (screenshot) {
-    //         const sharpImage = await sharp(screenshot);
-    //         const metadata = await sharpImage.metadata();
-    //         let thumbnailPathT = path.parse(media.key);
-    //         width = metadata.width ?? 0;
-    //         height = metadata.height ?? 0;
-    //         // height: thumbnailHeight, fit: "contain"
-    //         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-    //         //key new thumbnail key 
-    //         const thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${thumbnailWidth}x${thumbnailHeight}`)
-    //         const thumbnailMimeType = `image/${thumbnailExtName}`;
-    //         const s3Upload = await putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
-    //         if (s3Upload && s3Upload.Location && s3Upload.Key) {
-    //             const imageData: ThumbnailMediaFile = {
-    //                 fileName: `${thumbnailPathT.name}.${thumbnailExtName}`,
-    //                 width: thumbnailWidth,
-    //                 height: thumbnailHeight,
-    //                 fileSize: media.size,
-    //                 mimeType: thumbnailMimeType,
-    //                 sourceUrl: s3Upload.Location,
-    //                 s3Key: s3Upload.Key,
-    //                 size: Size.THUMBNAIL
-    //             }
-    //             sizeArray.push(imageData)
-    //         }
-    //     }
-    // }
-    // return { width, height, sizeArray };
-}
+
 export default { editProfile, profile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, };

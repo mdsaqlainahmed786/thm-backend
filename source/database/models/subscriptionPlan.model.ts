@@ -1,6 +1,6 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { AccountType } from "./user.model";
-
+import { MongoID } from "../../common";
 export enum SubscriptionLevel {
     BASIC = "basic",
     STANDARD = "standard",
@@ -13,8 +13,8 @@ export enum SubscriptionDuration {
     HALF_YEARLY = "half-yearly",
 }
 export interface IBusinessSubscription {
-    businessTypeID: (Types.ObjectId | string)[];
-    businessSubtypeID: (Types.ObjectId | string)[];
+    businessTypeID: MongoID[];
+    businessSubtypeID: MongoID[];
 }
 
 
