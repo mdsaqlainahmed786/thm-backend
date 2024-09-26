@@ -12,7 +12,7 @@ UserEndpoints.patch('/edit-profile', authenticateUser, UserController.editProfil
 UserEndpoints.post('/edit-profile-pic', authenticateUser, uploadMedia(AwsS3AccessEndpoints.USERS).fields([{ name: 'profilePic', maxCount: 1 }]), UserController.changeProfilePic);
 UserEndpoints.post('/business-profile/documents', authenticateUser, uploadMedia(AwsS3AccessEndpoints.USERS).fields([{ name: 'businessRegistration', maxCount: 1 }, { name: 'addressProof', maxCount: 1 }]), UserController.businessDocumentUpload);
 UserEndpoints.post('/business-profile/subscription', authenticateUser, buySubscriptionApiValidator, validateRequest, SubscriptionController.buySubscription);
-UserEndpoints.post('/business-profile/subscription/plans', authenticateUser, SubscriptionController.getSubscriptionPlans);
+UserEndpoints.get('/business-profile/subscription/plans', authenticateUser, SubscriptionController.getSubscriptionPlans);
 UserEndpoints.post('/business-profile/subscription/checkout', authenticateUser, subscriptionCheckoutApiValidator, validateRequest, SubscriptionController.subscriptionCheckout);
 UserEndpoints.get('/business-profile/subscription', authenticateUser, SubscriptionController.index);//FIXME Remove this api
 export default UserEndpoints;
