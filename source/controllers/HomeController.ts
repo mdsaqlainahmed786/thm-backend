@@ -1,107 +1,58 @@
 import path from "path";
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam } from "../utils/helper/basic";
-import Post from "../database/models/post.model";
+import Post, { addMediaInPost, addPostedByInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
 import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../database/models/user.model";
+import { addLikesInPost } from "../database/models/like.model";
+import Like from "../database/models/like.model";
+import SavedPost from "../database/models/savedPost.model";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        //Only shows public profile post here and follower posts
+        const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
         const dbQuery = { isPublished: true };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         if (query !== undefined && query !== "") {
         }
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const likedByMe = await Like.distinct('postID', { userID: id, postID: { $ne: null } });
+        const savedByMe = await SavedPost.distinct('postID', { userID: id, postID: { $ne: null } });
         const documents = await Post.aggregate(
             [
                 {
                     $match: dbQuery
                 },
+                addMediaInPost().lookup,
+                addTaggedPeopleInPost().lookup,
+                addPostedByInPost().lookup,
+                addPostedByInPost().unwindLookup,
+                addLikesInPost().lookup,
+                addLikesInPost().addLikeCount,
                 {
-                    '$lookup': {
-                        'from': 'media',
-                        'let': { 'mediaIDs': '$media' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
-                            {
-                                '$project': {
-                                    "userID": 0,
-                                    "fileName": 0,
-                                    "width": 0,
-                                    "height": 0,
-                                    "fileSize": 0,
-                                    "s3Key": 0,
-                                    "createdAt": 0,
-                                    "updatedAt": 0,
-                                    "__v": 0
-                                }
-                            }
-                        ],
-                        'as': 'mediaRef'
+                    $addFields: {
+                        likedByMe: {
+                            $in: ['$_id', likedByMe]
+                        },
                     }
                 },
                 {
-                    '$lookup': {
-                        'from': 'users',
-                        'let': { 'taggedID': '$tagged' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$in': ['$_id', '$$taggedID'] } } },
-                            addBusinessProfileInUser().lookup,
-                            addBusinessProfileInUser().unwindLookup,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "profilePic": 1,
-                                    "accountType": 1,
-                                    "businessProfileID": 1,
-                                    "businessProfileRef._id": 1,
-                                    "businessProfileRef.name": 1,
-                                    "businessProfileRef.profilePic": 1,
-                                    "businessProfileRef.businessTypeRef": 1,
-                                }
-                            }
-                        ],
-                        'as': 'taggedRef'
-                    }
-                },
-
-
-                {
-                    '$lookup': {
-                        'from': 'users',
-                        'let': { 'userID': '$userID' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
-                            addBusinessProfileInUser().lookup,
-                            addBusinessProfileInUser().unwindLookup,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "profilePic": 1,
-                                    "accountType": 1,
-                                    "businessProfileID": 1,
-                                    "businessProfileRef._id": 1,
-                                    "businessProfileRef.name": 1,
-                                    "businessProfileRef.profilePic": 1,
-                                    "businessProfileRef.businessTypeRef": 1,
-                                }
-                            }
-                        ],
-                        'as': 'postedBy'
+                    $addFields: {
+                        savedByMe: {
+                            $in: ['$_id', savedByMe]
+                        },
                     }
                 },
                 {
-                    '$unwind': {
-                        'path': '$postedBy',
-                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                    }
-                },
-                {
-                    $sort: { _id: -1 }
+                    $sort: { createdAt: -1, id: 1 }
                 },
                 {
                     $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -111,6 +62,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 {
                     $project: {
+                        likesRef: 0,
                         tagged: 0,
                         media: 0,
                         updatedAt: 0,

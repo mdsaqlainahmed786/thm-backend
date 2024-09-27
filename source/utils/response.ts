@@ -121,4 +121,4 @@ function httpBadRequest(response?: ResponseResult, message?: string): JsonRespon
     return json_response;
 }
 
-export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated }
+export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated, httpNoContent }

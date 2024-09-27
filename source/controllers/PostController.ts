@@ -6,7 +6,7 @@ import { AccountType } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
 import Post, { PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
-import { countWords } from "../utils/helper/basic";
+import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
 import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
@@ -56,7 +56,9 @@ const MAX_VIDEO_UPLOADS = 1;
 const MAX_IMAGE_UPLOADS = 2;
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { id, accountType } = request.user;
+
+
+        const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
@@ -120,12 +122,20 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
         }
         const newPost = new Post();
+        if (accountType === AccountType.BUSINESS && businessProfileID) {
+            newPost.businessProfileID = businessProfileID;
+        }
         newPost.postType = PostType.POST;
         newPost.userID = id;
         newPost.isPublished = true;
         newPost.content = content;
         newPost.feelings = feelings ?? "";
-        newPost.tagged = tagged;//FIXME need to be done
+        if (tagged && isArray(tagged)) {
+            newPost.tagged = tagged;
+        } else {
+            newPost.tagged = [];
+        }
+
         if (placeName && lat && lng) {
             newPost.location = { placeName, lat, lng };
         } else {

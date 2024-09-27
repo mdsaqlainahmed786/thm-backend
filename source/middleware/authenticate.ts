@@ -3,7 +3,7 @@ import { verify, sign, } from "jsonwebtoken";
 import { httpUnauthorized } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AppConfig } from "../config/constants";
-import User from "../database/models/user.model";
+import User, { AccountType } from "../database/models/user.model";
 import { AuthenticateUser } from "../common";
 import AuthToken from "../database/models/authToken.model";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
@@ -21,8 +21,9 @@ export default async function authenticateUser(request: Request, response: Respo
             const auth_user = await User.findOne({ _id: decoded.id });
             if (auth_user) {
                 request.user = {
-                    id: auth_user?._id,
+                    id: auth_user.id,
                     accountType: auth_user.accountType,
+                    businessProfileID: auth_user.accountType === AccountType.BUSINESS ? auth_user.businessProfileID : null,
                 }
             } else {
                 return response.status(403).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS), ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));

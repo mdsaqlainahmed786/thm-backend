@@ -58,7 +58,7 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
 
 async function storeMedia(files: Express.Multer.S3File[], userID: MongoID, businessProfileID: MongoID | null, type: MediaType) {
     let fileList: any[] = [];
-    files.map((file) => {
+    files && files.map((file) => {
         fileList.push({
             userID: userID,
             fileName: file.originalname,

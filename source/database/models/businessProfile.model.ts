@@ -36,6 +36,7 @@ export interface IBusinessProfile extends Document {
     description: string;
     amenities: MongoID[];
     placeID: string;
+    privateAccount: boolean;
 }
 const AddressSchema = new Schema<IAddress>(
     {
@@ -87,6 +88,9 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
                 ref: "BusinessQuestion"
             }
         ],
+        privateAccount: {
+            type: Boolean, default: true,
+        }
     },
     {
         timestamps: true

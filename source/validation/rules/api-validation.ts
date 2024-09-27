@@ -1,5 +1,5 @@
 
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
 import { AccountType } from "../../database/models/user.model";
 
@@ -12,6 +12,9 @@ export const businessPhoneNumberValidationRule = body("businessPhoneNumber", "Bu
 export const businessDialCodeValidationRule = body("businessDialCode", "Business dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
 export const bioValidationRule = body('bio', 'Business description is a required field.').exists().bail().notEmpty().bail();
 export const placeIDValidationRule = body('placeID', 'Place ID is a required field.').exists().bail().notEmpty().bail();
+
+
+export const paramIDValidationRule = param("id", 'ID is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
 
 
 
@@ -149,6 +152,13 @@ export const verifyEmailApiValidator = [
     deviceIDValidationRule,
     notificationTokenValidationRule,
     devicePlatformValidationRule
+];
+
+export const createLikesApiValidator = [
+    paramIDValidationRule,
+];
+export const savedPostApiValidator = [
+    paramIDValidationRule,
 ];
 enum Types {
     EMAIL_VERIFICATION = "email-verification",

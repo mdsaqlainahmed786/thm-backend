@@ -27,6 +27,7 @@ export interface Individual {
     bio: string;
     profilePic: IProfilePic;
     acceptedTerms: boolean;//User  accepted the terms
+    privateAccount: boolean;
 }
 
 export interface Business {
@@ -92,6 +93,9 @@ const UserSchema: Schema = new Schema<IUser>(
         acceptedTerms: {
             type: Boolean, default: false,
         },
+        privateAccount: {
+            type: Boolean, default: true,
+        }
     },
     {
         timestamps: true
