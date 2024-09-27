@@ -63,7 +63,6 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
     {
         bio: { type: String, default: "" },
         profilePic: ProfileSchema,
-        description: { type: String },//FIXME bio or description
         username: { type: String },
         businessTypeID: {
             type: Schema.Types.ObjectId,

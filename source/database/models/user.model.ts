@@ -17,7 +17,7 @@ export interface Individual {
     dialCode: string;
     accountType: AccountType;
     password: string;
-    fullName: string;
+    name: string;
     isVerified: boolean;//for otp verification
     isActivated: boolean;//block or disable account 
     isDeleted: boolean;//soft delete 
@@ -46,7 +46,7 @@ const UserSchema: Schema = new Schema<IUser>(
             type: Schema.Types.ObjectId,
             ref: "BusinessProfile"
         },
-        fullName: { type: String, required: true },
+        name: { type: String, required: true },
         email: { type: String, lowercase: true, index: true, required: true, unique: true, match: [/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, "email is invalid."], },
         password: {
             type: String,
@@ -169,6 +169,24 @@ export function addBusinessProfileInUser() {
                 addBusinessTypeInBusinessProfile().unwindLookup,
                 addBusinessSubTypeInBusinessProfile().lookup,
                 addBusinessSubTypeInBusinessProfile().unwindLookup,
+                {
+                    '$lookup': {
+                        'from': 'businessanswers',
+                        'let': { 'amenitiesIDs': '$amenities' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$businessProfileID', '$$businessProfileID'] } } },
+                            {
+                                '$project': {
+                                    'businessProfileID': 0,
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'businessAnswerRef'
+                    }
+                },
                 {
                     '$project': {
                         'createdAt': 0,

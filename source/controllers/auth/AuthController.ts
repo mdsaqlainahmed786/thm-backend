@@ -98,7 +98,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
 
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, fullName, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, businessDescription, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID } = request.body;
+        const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID } = request.body;
         const [username, isUserExist] = await Promise.all([
             generateUsername(email, accountType),
             User.findOne({ email: email }),
@@ -123,7 +123,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
             newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
             newBusinessProfile.name = businessName;
-            newBusinessProfile.description = businessDescription;
+            newBusinessProfile.bio = bio;
             const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
             newBusinessProfile.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
             newBusinessProfile.email = businessEmail;
@@ -137,7 +137,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             const newUser = new User();
             newUser.email = email;
             newUser.username = username;
-            newUser.fullName = fullName;
+            newUser.name = name;
             newUser.accountType = accountType;
             newUser.dialCode = dialCode;
             newUser.phoneNumber = phoneNumber;
@@ -153,7 +153,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         newUser.profilePic = { small: '', large: '', medium: '' };
         newUser.username = username;
         newUser.email = email;
-        newUser.fullName = fullName;
+        newUser.name = name;
         newUser.accountType = accountType;
         newUser.dialCode = dialCode;
         newUser.phoneNumber = phoneNumber;

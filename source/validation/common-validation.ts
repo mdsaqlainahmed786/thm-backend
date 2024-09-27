@@ -23,7 +23,7 @@ export const accountTypeValidationRule = body("accountType", "Account type is re
 export const emailValidationRule = body("email", "Email is a required field.").exists().bail().notEmpty().bail().isEmail().withMessage("Please enter valid email address.");
 export const phoneNumberValidationRule = body("phoneNumber", "Phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
 export const dialCodeValidationRule = body("dialCode", "Dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
-export const fullNameValidationRule = body("fullName", "Full name is a required field.").exists().bail().notEmpty().bail();
+export const nameValidationRule = body("name", "Name is a required field.").exists().bail().notEmpty().bail();
 
 const isStrongPassword = (value: string) => {
     // Implement your password strength criteria using a regular expression

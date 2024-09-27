@@ -54,7 +54,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                             addBusinessProfileInUser().unwindLookup,
                             {
                                 '$project': {
-                                    "fullName": 1,
+                                    "name": 1,
                                     "profilePic": 1,
                                     "accountType": 1,
                                     "businessProfileID": 1,
@@ -80,7 +80,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                             addBusinessProfileInUser().unwindLookup,
                             {
                                 '$project': {
-                                    "fullName": 1,
+                                    "name": 1,
                                     "profilePic": 1,
                                     "accountType": 1,
                                     "businessProfileID": 1,
@@ -223,7 +223,7 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
             }
             return isExits;
         }));
-        //TODO add order in question for better sorting
+
         const questions = [
             {
                 icon: hostAddress + '/public/files/airport.png',
@@ -593,8 +593,8 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
             //Restaurant
             {
                 icon: hostAddress + '/public/files/open-air.png',
-                name: 'Open Air/Outside Dining',
-                question: 'Open air/outside dining?',
+                name: 'Open Air Dining',
+                question: 'Open air dining?',
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
                 order: 1,
@@ -670,6 +670,14 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
                 businessTypeID: ["Restaurant"],
                 businessSubtypeID: restaurants,
                 order: 10,
+            },
+            {
+                icon: hostAddress + '/public/files/open-air.png',
+                name: 'Outside Dining',
+                question: 'Outside dining?',
+                businessTypeID: ["Restaurant"],
+                businessSubtypeID: restaurants,
+                order: 11,
             },
             //Marriage Banquets
             {

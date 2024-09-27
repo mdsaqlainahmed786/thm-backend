@@ -1,6 +1,6 @@
 
 import { body } from "express-validator";
-import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, fullNameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
+import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
 import { AccountType } from "../../database/models/user.model";
 
 export const businessTypeValidationRule = body('businessType', 'Business type is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid business type');
@@ -120,7 +120,7 @@ export const signUpApiValidator = [
     dialCodeValidationRule,
     emailValidationRule,
     phoneNumberValidationRule,
-    fullNameValidationRule,
+    nameValidationRule,
     strongPasswordValidationRule,
 
     /** Business Profile Data */
