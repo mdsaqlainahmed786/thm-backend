@@ -10,7 +10,7 @@ export const businessNameValidationRule = body('businessName', 'Business name is
 export const businessEmailValidationRule = body("businessEmail", "Business email is a required field.").exists().bail().notEmpty().bail().isEmail().withMessage("Please enter valid email address.");
 export const businessPhoneNumberValidationRule = body("businessPhoneNumber", "Business phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
 export const businessDialCodeValidationRule = body("businessDialCode", "Business dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
-export const businessDescriptionValidationRule = body('businessDescription', 'Business description is a required field.').exists().bail().notEmpty().bail();
+export const bioValidationRule = body('bio', 'Business description is a required field.').exists().bail().notEmpty().bail();
 export const placeIDValidationRule = body('placeID', 'Place ID is a required field.').exists().bail().notEmpty().bail();
 
 
@@ -48,7 +48,7 @@ const businessTypeCustomValidationRule = body('accountType').custom((value, { re
 });
 const businessDescriptionCustomValidationRule = body('accountType').custom((value, { req }) => {
     if (req.body.accountType === AccountType.BUSINESS) {
-        return businessDescriptionValidationRule.run(req);
+        return bioValidationRule.run(req);
     }
     return true;
 });

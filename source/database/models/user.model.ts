@@ -204,7 +204,11 @@ export function addBusinessProfileInUser() {
             'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
         }
     }
-    return { lookup, unwindLookup }
+    const mergeObject = {
+        $replaceRoot: { newRoot: { $mergeObjects: [{ $arrayElemAt: ["$businessProfileRef", 0] }, "$$ROOT"] } }
+    }
+
+    return { lookup, unwindLookup, mergeObject }
 }
 
 
