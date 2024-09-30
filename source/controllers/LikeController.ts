@@ -13,6 +13,7 @@ import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import Like from '../database/models/like.model';
 import { SuccessMessage } from '../utils/response-message/success';
+import Comment from '../database/models/comment.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         // let { pageNumber, documentLimit, query }: any = request.query;
@@ -55,28 +56,58 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const postID = request.params.id;
-        const { id, accountType, businessProfileID } = request.user;
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        //Like post
+        if (new RegExp("/posts/likes/").test(request.originalUrl)) {
+            const postID = request.params.id;
+            const { id, accountType, businessProfileID } = request.user;
+            if (!id) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            }
+            const [post, isLiked] = await Promise.all([
+                Post.findOne({ _id: postID }),
+                Like.findOne({ postID: postID, userID: id }),
+            ])
+            if (!post) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            }
+            if (!isLiked) {
+                const newLike = new Like();
+                newLike.userID = id;
+                newLike.postID = postID;
+                newLike.businessProfileID = businessProfileID ?? null;
+                const savedLike = await newLike.save();
+                return response.send(httpCreated(savedLike, "Post liked successfully"));
+            }
+            await isLiked.deleteOne();
+            return response.send(httpNoContent(null, 'Post disliked successfully'));
         }
-        const [post, isLiked] = await Promise.all([
-            Post.findOne({ _id: postID }),
-            Like.findOne({ postID: postID, userID: id }),
-        ])
-        if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+
+        //Like comment
+        if (new RegExp("/posts/comments/likes/").test(request.originalUrl)) {
+
+            const commentID = request.params.id;
+            const { id, accountType, businessProfileID } = request.user;
+            if (!id) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            }
+            const [comment, isLiked] = await Promise.all([
+                Comment.findOne({ _id: commentID }),
+                Like.findOne({ commentID: commentID, userID: id }),
+            ])
+            if (!comment) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Comment not found"), "Comment not found"));
+            }
+            if (!isLiked) {
+                const newLike = new Like();
+                newLike.userID = id;
+                newLike.commentID = commentID;
+                newLike.businessProfileID = businessProfileID ?? null;
+                const savedLike = await newLike.save();
+                return response.send(httpCreated(savedLike, "Comment liked successfully"));
+            }
+            await isLiked.deleteOne();
+            return response.send(httpNoContent(null, 'Comment disliked successfully'));
         }
-        if (!isLiked) {
-            const newLike = new Like();
-            newLike.userID = id;
-            newLike.postID = postID;
-            newLike.businessProfileID = businessProfileID ?? null;
-            const savedLike = await newLike.save();
-            return response.send(httpCreated(savedLike, "Post liked successfully"));
-        }
-        await isLiked.deleteOne();
-        return response.send(httpNoContent(null, 'Post disliked successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

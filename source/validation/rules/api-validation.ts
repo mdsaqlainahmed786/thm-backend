@@ -15,7 +15,8 @@ export const placeIDValidationRule = body('placeID', 'Place ID is a required fie
 
 
 export const paramIDValidationRule = param("id", 'ID is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
-
+export const postIDValidationRule = body("postID", 'Post ID is required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
+export const messageValidationRule = body("message", "Message is required field.").exists().bail().notEmpty().bail();
 
 
 
@@ -160,6 +161,12 @@ export const createLikesApiValidator = [
 export const savedPostApiValidator = [
     paramIDValidationRule,
 ];
+
+export const createCommentApiValidator = [
+    postIDValidationRule,
+    messageValidationRule,
+]
+
 enum Types {
     EMAIL_VERIFICATION = "email-verification",
     FORGOT_PASSWORD = "forgot-password"

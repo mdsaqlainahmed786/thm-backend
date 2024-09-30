@@ -9,6 +9,7 @@ import { parseQueryParam } from "../utils/helper/basic";
 import Post, { addMediaInPost, addPostedByInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
 import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../database/models/user.model";
 import { addLikesInPost } from "../database/models/like.model";
+import { addCommentsInPost } from "../database/models/comment.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
@@ -37,6 +38,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 addPostedByInPost().unwindLookup,
                 addLikesInPost().lookup,
                 addLikesInPost().addLikeCount,
+                addCommentsInPost().lookup,
+                addCommentsInPost().addCommentCount,
                 {
                     $addFields: {
                         likedByMe: {
@@ -62,6 +65,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 {
                     $project: {
+                        commentsRef: 0,
                         likesRef: 0,
                         tagged: 0,
                         media: 0,

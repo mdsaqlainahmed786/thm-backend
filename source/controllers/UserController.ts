@@ -14,6 +14,8 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer, { IBusinessAnswer } from '../database/models/businessAnswer.model';
+import { PipelineStage } from 'mongoose';
+import Post from '../database/models/post.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID } = request.body;
@@ -70,7 +72,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
 const profile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
-        const [user, profileCompleted] = await Promise.all([
+        const [user, profileCompleted, posts] = await Promise.all([
             User.aggregate(
                 [
                     {
@@ -94,14 +96,15 @@ const profile = async (request: Request, response: Response, next: NextFunction)
                     }
                 ]
             ),
-            calculateProfileCompletion(id)
+            calculateProfileCompletion(id),
+            Post.find({ userID: id }).countDocuments()
         ])
 
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
 
-        let responseData = { posts: 0, follower: 0, following: 0, profileCompleted, };
+        let responseData = { posts: posts, follower: 0, following: 0, profileCompleted, };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
         } else {
@@ -112,6 +115,60 @@ const profile = async (request: Request, response: Response, next: NextFunction)
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 
+}
+const publicProfile = async (request: Request, response: Response, next: NextFunction) => {
+
+    try {
+        const { id, accountType } = request.user;
+        const userID = request.params.id;
+        const [user, posts] = await Promise.all([
+            User.aggregate([
+                {
+                    $match: {
+                        _id: new ObjectId(userID)
+                    }
+                },
+                addBusinessProfileInUser().lookup,
+                addBusinessProfileInUser().unwindLookup,
+                {
+                    $limit: 1,
+                },
+                {
+                    $project: {
+                        isVerified: 0,
+                        isApproved: 0,
+                        isActivated: 0,
+                        isDeleted: 0,
+                        hasProfilePicture: 0,
+                        acceptedTerms: 0,
+                        profileCompleted: 0,
+                        email: 0,
+                        dialCode: 0,
+                        phoneNumber: 0,
+                        otp: 0,
+                        password: 0,
+                        createdAt: 0,
+                        updatedAt: 0,
+                        __v: 0,
+                    }
+                }
+            ]),
+
+            Post.find({ userID: userID }).countDocuments()
+        ]);
+        if (user.length === 0) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+        }
+        let responseData = { posts: posts, follower: 0, following: 0 };
+        if (accountType === AccountType.BUSINESS) {
+            Object.assign(responseData, { ...user[0] })
+        } else {
+            Object.assign(responseData, { ...user[0] })
+        }
+        return response.send(httpOk(responseData, 'User profile fetched'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
 }
 const changeProfilePic = async (request: Request, response: Response, next: NextFunction) => {
 
@@ -247,4 +304,5 @@ const businessQuestionAnswer = async (request: Request, response: Response, next
     }
 }
 
-export default { editProfile, profile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, };
+
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, };

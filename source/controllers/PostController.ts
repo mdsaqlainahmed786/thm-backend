@@ -86,7 +86,6 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         ]);
         if (accountType === AccountType.INDIVIDUAL) {
             if (!haveSubscription) {
-                console.log(dailyContentLimit && dailyContentLimit.images !== 0 && images && images.length >= dailyContentLimit.images);
                 if (!dailyContentLimit && content && countWords(content) > MAX_CONTENT_LENGTH) {
                     const error = `Content must be a string and cannot exceed ${MAX_CONTENT_LENGTH} words.`;
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))

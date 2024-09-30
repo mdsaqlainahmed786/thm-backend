@@ -5,11 +5,13 @@ interface ILike extends Document {
     userID: MongoID;
     postID: MongoID;
     businessProfileID?: MongoID;
+    commentID: MongoID;
 }
 const LikeSchema: Schema = new Schema<ILike>(
     {
         userID: { type: Schema.Types.ObjectId, ref: "User", required: true },
-        postID: { type: Schema.Types.ObjectId, ref: "Post", required: true },
+        postID: { type: Schema.Types.ObjectId, ref: "Post" },
+        commentID: { type: Schema.Types.ObjectId, ref: "Comment" },
         businessProfileID: { type: Schema.Types.ObjectId, ref: "BusinessProfile", },
     },
     {
