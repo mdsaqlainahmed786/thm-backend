@@ -14,8 +14,8 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer, { IBusinessAnswer } from '../database/models/businessAnswer.model';
-import { PipelineStage } from 'mongoose';
 import Post from '../database/models/post.model';
+import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID } = request.body;
@@ -72,7 +72,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
 const profile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
-        const [user, profileCompleted, posts] = await Promise.all([
+        const [user, profileCompleted, posts, follower, following] = await Promise.all([
             User.aggregate(
                 [
                     {
@@ -97,14 +97,14 @@ const profile = async (request: Request, response: Response, next: NextFunction)
                 ]
             ),
             calculateProfileCompletion(id),
-            Post.find({ userID: id }).countDocuments()
-        ])
-
+            Post.find({ userID: id }).countDocuments(),
+            UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            UserConnection.find({ follower: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+        ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
-
-        let responseData = { posts: posts, follower: 0, following: 0, profileCompleted, };
+        let responseData = { posts: posts, follower: follower, following: following, profileCompleted, };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
         } else {
@@ -119,9 +119,9 @@ const profile = async (request: Request, response: Response, next: NextFunction)
 const publicProfile = async (request: Request, response: Response, next: NextFunction) => {
 
     try {
-        const { id, accountType } = request.user;
+        const { accountType } = request.user;
         const userID = request.params.id;
-        const [user, posts] = await Promise.all([
+        const [user, posts, follower, following] = await Promise.all([
             User.aggregate([
                 {
                     $match: {
@@ -154,12 +154,14 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
                 }
             ]),
 
-            Post.find({ userID: userID }).countDocuments()
+            Post.find({ userID: userID }).countDocuments(),
+            UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
         ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
-        let responseData = { posts: posts, follower: 0, following: 0 };
+        let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
         } else {

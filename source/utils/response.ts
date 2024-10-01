@@ -40,15 +40,15 @@ function httpCreated(response?: ResponseResult, message?: string): JsonResponseM
     }
     return json_response;
 }
-// function httpAcceptedOrUpdated(response?: ResponseResult, message?: string): JsonResponseModel {
-//     const json_response: JsonResponseModel = {
-//         status: true,
-//         statusCode: 202 ?? "Accepted",
-//         message: message,
-//         data: response ?? null
-//     }
-//     return json_response;
-// }
+function httpAcceptedOrUpdated(response?: ResponseResult, message?: string): JsonResponseModel {
+    const json_response: JsonResponseModel = {
+        status: true,
+        statusCode: 202,
+        message: message ?? "Accepted",
+        data: response ?? null
+    }
+    return json_response;
+}
 
 function httpOk(response?: ResponseResult, message?: string): JsonResponseModel {
     const json_response: JsonResponseModel = {
@@ -121,4 +121,4 @@ function httpBadRequest(response?: ResponseResult, message?: string): JsonRespon
     return json_response;
 }
 
-export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated, httpNoContent }
+export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated }

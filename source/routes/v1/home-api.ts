@@ -15,5 +15,5 @@ HomeEndpoints.post('/business-questions/answers', authenticateUser,
     //businessQuestionAnswerApiValidator, validateRequest,
     UserController.businessQuestionAnswer);
 HomeEndpoints.get('/db', HomeController.dbSeeder);
-HomeEndpoints.get('/db/s', SubscriptionController.index)
+HomeEndpoints.get('/db/s', SubscriptionController.index);
 export default HomeEndpoints;
