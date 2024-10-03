@@ -1882,9 +1882,9 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                 }
                 const businessProfileRef = {
                     "profilePic": {
-                        "small": "",
-                        "medium": "",
-                        "large": ""
+                        "small": coverImage,
+                        "medium": coverImage,
+                        "large": coverImage
                     },
                     // "businessTypeID": "66f6859833d7970343e8ae21",
                     // "businessSubTypeID": "66f6859933d7970343e8ae47",
