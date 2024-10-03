@@ -69,12 +69,6 @@ const UserSchema: Schema = new Schema<IUser>(
             default: 0,
             select: false
         },
-        // coverImage: {
-        //     type: String, default: ""
-        // },
-        // logo: {
-        //     type: String, default: ""
-        // },
         isVerified: {
             type: Boolean, default: false
         },

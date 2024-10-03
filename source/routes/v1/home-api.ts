@@ -16,4 +16,5 @@ HomeEndpoints.post('/business-questions/answers', authenticateUser,
     UserController.businessQuestionAnswer);
 HomeEndpoints.get('/db', HomeController.dbSeeder);
 HomeEndpoints.get('/db/s', SubscriptionController.index);
+HomeEndpoints.get('/get-business/:placeID', HomeController.getBusinessByPlaceID)
 export default HomeEndpoints;

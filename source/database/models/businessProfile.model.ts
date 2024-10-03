@@ -23,6 +23,7 @@ export interface IAddress extends Address {
 export interface IBusinessProfile extends Document {
     bio: string;
     profilePic: IProfilePic;
+    coverImage: string;
     username: string;
     businessTypeID: MongoID;
     businessSubTypeID: MongoID;
@@ -90,7 +91,10 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
         ],
         privateAccount: {
             type: Boolean, default: true,
-        }
+        },
+        coverImage: {
+            type: String, default: ""
+        },
     },
     {
         timestamps: true
