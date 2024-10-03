@@ -7,6 +7,7 @@ interface IDailyContentLimit {
     images: number;
     videos: number;
     text: number;
+    reviews: number;
     timeStamp: Date;
 }
 const DailyContentLimitSchema: Schema = new Schema<IDailyContentLimit>(
@@ -26,6 +27,10 @@ const DailyContentLimitSchema: Schema = new Schema<IDailyContentLimit>(
             default: 0,
         },
         text: {
+            type: Number,
+            default: 0,
+        },
+        reviews: {
             type: Number,
             default: 0,
         }

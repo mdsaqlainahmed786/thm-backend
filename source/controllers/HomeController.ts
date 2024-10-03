@@ -6,7 +6,7 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam } from "../utils/helper/basic";
-import Post, { addMediaInPost, addPostedByInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
+import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
 import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../database/models/user.model";
 import { addLikesInPost } from "../database/models/like.model";
 import { addCommentsInPost } from "../database/models/comment.model";
@@ -42,6 +42,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 addLikesInPost().addLikeCount,
                 addCommentsInPost().lookup,
                 addCommentsInPost().addCommentCount,
+                addReviewedBusinessProfileInPost().lookup,
+                addReviewedBusinessProfileInPost().unwindLookup,
                 {
                     $addFields: {
                         likedByMe: {

@@ -11,9 +11,11 @@ enum MediaType {
     // CAROUSEL = "carousel",
 }
 
-
-
-interface IPost {
+interface IReview {
+    reviewedBusinessProfileID: MongoID;//used as a review id
+    rating: number;
+}
+interface IPost extends IReview {
     userID: MongoID;
     businessProfileID?: MongoID;
     postType: PostType;
@@ -25,6 +27,7 @@ interface IPost {
     feelings: string;
 }
 
+
 // user_tags
 const PostSchema: Schema = new Schema<IPost>(
     {
@@ -34,7 +37,11 @@ const PostSchema: Schema = new Schema<IPost>(
         },
         businessProfileID: {
             type: Schema.Types.ObjectId,
-            ref: "User"
+            ref: "BusinessProfile"
+        },
+        reviewedBusinessProfileID: {
+            type: Schema.Types.ObjectId,
+            ref: "BusinessProfile"
         },
         content: {
             type: String,
@@ -60,6 +67,9 @@ const PostSchema: Schema = new Schema<IPost>(
         feelings: {
             type: String,
             default: ''
+        },
+        rating: {
+            type: Number
         }
     },
     {
@@ -75,7 +85,7 @@ export interface IPostModel extends IPost {
 const Post = model<IPost>('Post', PostSchema);
 export default Post;
 
-import { addBusinessProfileInUser } from "./user.model";
+import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile } from "./user.model";
 
 /**
  *
@@ -169,4 +179,37 @@ export function addMediaInPost() {
         }
     };
     return { lookup }
+}
+export function addReviewedBusinessProfileInPost() {
+    const lookup = {
+        '$lookup': {
+            'from': 'businessprofiles',
+            'let': { 'reviewedBusinessProfileID': '$reviewedBusinessProfileID' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$reviewedBusinessProfileID'] } } },
+                addBusinessTypeInBusinessProfile().lookup,
+                addBusinessTypeInBusinessProfile().unwindLookup,
+                addBusinessSubTypeInBusinessProfile().lookup,
+                addBusinessSubTypeInBusinessProfile().unwindLookup,
+                {
+                    '$project': {
+                        "profilePic": 1,
+                        "address": 1,
+                        "name": 1,
+                        "coverImage": 1,
+                        "businessTypeRef": 1,
+                        "businessSubtypeRef": 1,
+                    }
+                }
+            ],
+            'as': 'reviewedBusinessProfileRef'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$reviewedBusinessProfileRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
 }
