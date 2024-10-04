@@ -124,7 +124,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         await Promise.all(JSON.parse(reviews).map(async (review: Review) => {
             if (review.questionID !== "not-indexed") {
                 const question = await BusinessReviewQuestion.findOne({ _id: review?.questionID })
-                if (!question && review?.questionID !== undefined && review?.rating !== undefined) {
+                if (question && review?.questionID !== undefined && review?.rating !== undefined) {
                     validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
                 }
             } else {
