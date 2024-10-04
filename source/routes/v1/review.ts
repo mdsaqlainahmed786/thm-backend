@@ -1,19 +1,6 @@
 import express, { Router } from "express";
-import PostController from "../../controllers/PostController";
 import ReviewController from "../../controllers/ReviewController";
-import { uploadMedia } from "../../middleware/file-uploading";
-import { AwsS3AccessEndpoints } from "../../config/constants";
-import LikeController from "../../controllers/LikeController";
-import { createCommentApiValidator, createLikesApiValidator, paramIDValidationRule, savedPostApiValidator } from "../../validation/rules/api-validation";
-import { validateRequest } from "../../middleware/api-request-validator";
-import { validate } from "node-cron";
-import SavedPostController from "../../controllers/SavedPostController";
-import CommentController from "../../controllers/CommentController";
+
 const ReviewEndpoints: Router = express.Router();
-// ReviewEndpoints.get('/', RankHistoryController.index);
-ReviewEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), ReviewController.store);
-// ReviewEndpoints.put('/:id', RankHistoryController.update);
-// ReviewEndpoints.delete('/:id', RankHistoryController.destroy);
-// ReviewEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
-// ReviewEndpoints.post('/saved-post/:id', savedPostApiValidator, validateRequest, SavedPostController.store);
+ReviewEndpoints.post('/', ReviewController.store);
 export default ReviewEndpoints;

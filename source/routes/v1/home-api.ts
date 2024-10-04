@@ -8,6 +8,8 @@ import authenticateUser from "../../middleware/authenticate";
 import SubscriptionController from "../../controllers/SubscriptionController";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/feed', authenticateUser, HomeController.feed);
+HomeEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessByPlaceID);
+
 HomeEndpoints.get('/business-types', HomeController.businessTypes);
 HomeEndpoints.get('/business-subtypes/:id', HomeController.businessSubTypes);
 HomeEndpoints.post('/business-questions', businessQuestionsApiValidator, validateRequest, HomeController.businessQuestions);
@@ -16,5 +18,4 @@ HomeEndpoints.post('/business-questions/answers', authenticateUser,
     UserController.businessQuestionAnswer);
 HomeEndpoints.get('/db', HomeController.dbSeeder);
 HomeEndpoints.get('/db/s', SubscriptionController.index);
-HomeEndpoints.get('/get-business/:placeID', HomeController.getBusinessByPlaceID)
 export default HomeEndpoints;

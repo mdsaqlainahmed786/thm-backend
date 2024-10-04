@@ -6,6 +6,7 @@ import PostEndpoints from "./post";
 import authenticateUser from "../../middleware/authenticate";
 import UserConnectionEndpoints from "./user-connection";
 import ReviewEndpoints from "./review";
+import EventEndpoints from "./event";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('/auth', AuthEndpoint);
 ApiEndpoints.use('/', HomeEndpoints);
@@ -13,4 +14,5 @@ ApiEndpoints.use('/', authenticateUser, UserConnectionEndpoints);
 ApiEndpoints.use('/user', authenticateUser, UserEndpoints);
 ApiEndpoints.use('/posts', authenticateUser, PostEndpoints);
 ApiEndpoints.use('/reviews', authenticateUser, ReviewEndpoints);
+ApiEndpoints.use('/events', authenticateUser, EventEndpoints)
 export default ApiEndpoints;

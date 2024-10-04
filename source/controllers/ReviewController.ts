@@ -157,7 +157,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.media = [];
         newPost.placeID = placeID ?? "";
         newPost.reviews = validateReviewJSON;
-        newPost.rating = Number.isNaN(rating) ? 0 : rating;
+        newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
         const savedPost = await newPost.save();
         /*** Only for individual account
          * 

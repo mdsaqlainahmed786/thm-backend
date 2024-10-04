@@ -3,7 +3,8 @@ import { ILocation, LocationSchema } from "./common.model";
 import { MongoID } from "../../common";
 export enum PostType {
     POST = "post",
-    REVIEW = "review"
+    REVIEW = "review",
+    EVENT = "event"
 }
 enum MediaType {
     IMAGE = "image",
@@ -34,7 +35,15 @@ interface IReview {
     placeID: string;//used to map google business account or rating purpose
     reviews: Review[];
 }
-interface IPost extends IReview {
+interface IEvent {
+    name: string,
+    date: string,
+    time: string,
+    type: string,
+    streamingLink: string,
+    venue: string,
+}
+interface IPost extends IReview, IEvent, Document {
     userID: MongoID;
     businessProfileID?: MongoID;
     postType: PostType;
@@ -92,7 +101,13 @@ const PostSchema: Schema = new Schema<IPost>(
         placeID: {
             type: String,
         },
-        reviews: [ReviewSchema]
+        reviews: [ReviewSchema],
+        name: { type: String, },
+        date: { type: String, },
+        time: { type: String, },
+        type: { type: String, },
+        streamingLink: { type: String, },
+        venue: { type: String, },
     },
     {
         timestamps: true

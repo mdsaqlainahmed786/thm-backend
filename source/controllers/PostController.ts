@@ -151,7 +151,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 storeMedia(images, id, null, MediaType.IMAGE),
             ])
             if (imageList && imageList.length !== 0) {
-                imageList.map((video) => mediaIDs.push(video.id));
+                imageList.map((image) => mediaIDs.push(image.id));
             }
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => mediaIDs.push(video.id));

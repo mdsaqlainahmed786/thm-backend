@@ -197,6 +197,33 @@ export const businessQuestionsApiValidator = [
 export const businessQuestionAnswerApiValidator = [
     questionsIDsValidationRule
 ]
+export enum EventType {
+    ONLINE = 'online',
+    OFFLINE = 'offline',
+}
+const EventTypeValue = Object.values(EventType);
+export const createEventApiValidator = [
+    body("name", "Name is required field.").exists().bail().notEmpty().bail(),
+    body("description", "Description is required field.").exists().bail().notEmpty().bail(),
+    body("date", "Date is required field.").exists().bail().notEmpty().bail().isDate({
+        format: 'YYYY-MM-DD',
+        delimiters: ['-'],
+    }).withMessage("Invalid date. Please use YYYY-MM-DD format"),
+    body("time", "Time is required field.").exists().bail().notEmpty().bail().isTime({
+        hourFormat: 'hour24',
+    }).withMessage("Invalid time. Please use HH:MM:SS format"),
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(EventTypeValue).withMessage(`Type must be in  ${EventTypeValue.join(' | ')}`),
+    body('type').custom((value, { req }) => {
+        if (value === EventType.OFFLINE) {
+            return body("venue", "Event venue is required field.").exists().bail().notEmpty().bail().run(req);
+        }
+        if (value === EventType.ONLINE) {
+            return body("streamingLink", "Streaming link is required field.").exists().bail().notEmpty().bail().run(req);
+        }
+        return true;
+    }),
+
+]
 
 // export const subscriptionPlansApiValidator = [
 //     businessTypeIDValidationRule,
