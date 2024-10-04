@@ -11,9 +11,28 @@ enum MediaType {
     // CAROUSEL = "carousel",
 }
 
+export interface Review {
+    questionID: MongoID;
+    rating: number;
+}
+export const ReviewSchema = new Schema<Review>(
+    {
+        questionID: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
+        rating: { type: Number, default: 0 },
+    },
+    {
+        _id: false,
+    }
+)
+
 interface IReview {
     reviewedBusinessProfileID: MongoID;//used as a review id
     rating: number;
+    placeID: string;//used to map google business account or rating purpose
+    reviews: Review[];
 }
 interface IPost extends IReview {
     userID: MongoID;
@@ -28,7 +47,6 @@ interface IPost extends IReview {
 }
 
 
-// user_tags
 const PostSchema: Schema = new Schema<IPost>(
     {
         userID: {
@@ -69,8 +87,12 @@ const PostSchema: Schema = new Schema<IPost>(
             default: ''
         },
         rating: {
-            type: Number
-        }
+            type: Number,
+        },
+        placeID: {
+            type: String,
+        },
+        reviews: [ReviewSchema]
     },
     {
         timestamps: true

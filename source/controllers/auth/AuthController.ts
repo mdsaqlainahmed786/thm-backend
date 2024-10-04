@@ -14,7 +14,8 @@ import DevicesConfig, { addUserDevicesConfig } from "../../database/models/appDe
 import { verify } from "jsonwebtoken";
 import BusinessType from "../../database/models/businessType.model";
 import BusinessSubType from "../../database/models/businessSubType.model";
-import BusinessProfile, { GeoCoordinate } from "../../database/models/businessProfile.model";
+import BusinessProfile from "../../database/models/businessProfile.model";
+import { GeoCoordinate } from '../../database/models/common.model';
 import BusinessDocument from '../../database/models/businessDocument.model';
 import Subscription from '../../database/models/subscription.model';
 import { generateFromEmail } from "unique-username-generator";
