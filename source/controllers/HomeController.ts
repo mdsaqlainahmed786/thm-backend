@@ -1850,13 +1850,12 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
             const googleKey = "AIzaSyCp-X-z5geFn-8CBipvx310nH_VEaIbxlo";
             const apiResponse = await (await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${googleKey}`)).json();
             if (apiResponse.status === "OK") {
-
                 const data = apiResponse.result;
                 const name = data?.name ?? "";
                 const lat = data?.geometry?.location?.lat ?? 0;
                 const lng = data?.geometry?.location?.lng ?? 0;
 
-                const photoReference = data?.photos.length !== 0 ? data?.photos?.[0]?.photo_reference : null;
+                const photoReference = data?.photos && data?.photos?.length !== 0 ? data?.photos?.[0]?.photo_reference : null;
                 let street = "";
                 let city = "";
                 let state = "";
@@ -1865,7 +1864,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                 const address_components = data?.address_components as { long_name: string, short_name: string, types: string[] }[];
                 address_components.map((component) => {
                     const types = component.types;
-                    if (types.includes('street_number') || types.includes('route')) {
+                    if (types.includes('street_number') || types.includes('route') || types.includes("neighborhood") || types.includes("sublocality")) {
                         street = component.long_name;
                     } else if (types.includes('locality')) {
                         city = component.long_name;
@@ -1880,7 +1879,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                 });
                 let coverImage = "";
                 if (photoReference) {
-                    coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${googleKey}`;
+                    coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}`;
                 }
                 const businessProfileRef = {
                     "profilePic": {
