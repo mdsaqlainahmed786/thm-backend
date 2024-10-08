@@ -150,6 +150,7 @@ export function addPostedByInPost() {
                         "businessProfileRef.name": 1,
                         "businessProfileRef.profilePic": 1,
                         "businessProfileRef.businessTypeRef": 1,
+                        "businessProfileRef.businessSubtypeRef": 1,
                     }
                 }
             ],
