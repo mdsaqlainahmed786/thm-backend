@@ -138,6 +138,8 @@ export function addPostedByInPost() {
                 { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
+                addBusinessSubTypeInBusinessProfile().lookup,
+                addBusinessSubTypeInBusinessProfile().unwindLookup,
                 {
                     '$project': {
                         "name": 1,
