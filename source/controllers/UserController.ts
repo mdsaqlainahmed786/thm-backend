@@ -1,19 +1,17 @@
-import { addBusinessProfileInUser, Business, calculateProfileCompletion } from './../database/models/user.model';
-import { Request, Response, NextFunction, response } from "express";
+import { addBusinessProfileInUser, calculateProfileCompletion } from './../database/models/user.model';
+import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
-
 import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessDocument from '../database/models/businessDocument.model';
 import BusinessQuestion from '../database/models/businessQuestion.model';
 import { generateThumbnail } from './MediaController';
-
 import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
-import BusinessAnswer, { IBusinessAnswer } from '../database/models/businessAnswer.model';
+import BusinessAnswer from '../database/models/businessAnswer.model';
 import Post from '../database/models/post.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {

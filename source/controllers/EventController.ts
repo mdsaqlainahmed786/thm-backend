@@ -1,18 +1,11 @@
-import { ObjectId } from 'mongodb';
-import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
-import Subscription from "../database/models/subscription.model";
 import Post, { PostType, Review } from "../database/models/post.model";
-import DailyContentLimit from "../database/models/dailyContentLimit.model";
-import { countWords, isArray } from "../utils/helper/basic";
-import { deleteUnwantedFiles, storeMedia } from './MediaController';
+import { storeMedia } from './MediaController';
 import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
-import BusinessReviewQuestion from '../database/models/businessReviewQuestion.model';
-import NotIndexedReview from '../database/models/notIndexedReview.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 

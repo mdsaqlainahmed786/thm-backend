@@ -1,4 +1,3 @@
-import path from "path";
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
@@ -7,7 +6,6 @@ import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam } from "../utils/helper/basic";
 import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
-import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../database/models/user.model";
 import { addLikesInPost } from "../database/models/like.model";
 import { addCommentsInPost } from "../database/models/comment.model";
 import Like from "../database/models/like.model";

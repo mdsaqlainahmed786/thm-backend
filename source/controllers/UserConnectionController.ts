@@ -1,20 +1,7 @@
-
-import { param } from 'express-validator';
-import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpAcceptedOrUpdated, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { AccountType, addBusinessProfileInUser } from "../database/models/user.model";
-import Subscription from "../database/models/subscription.model";
-import Post, { PostType } from "../database/models/post.model";
-import DailyContentLimit from "../database/models/dailyContentLimit.model";
-import { countWords, isArray } from "../utils/helper/basic";
-import { deleteUnwantedFiles, storeMedia } from './MediaController';
-import { MediaType } from '../database/models/media.model';
-import { MongoID } from '../common';
-import Like from '../database/models/like.model';
-import { SuccessMessage } from '../utils/response-message/success';
-import Comment from '../database/models/comment.model';
+import { addBusinessProfileInUser } from "../database/models/user.model";
 import User from '../database/models/user.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';

@@ -56,8 +56,6 @@ const MAX_VIDEO_UPLOADS = 1;
 const MAX_IMAGE_UPLOADS = 2;
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
-
         const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };

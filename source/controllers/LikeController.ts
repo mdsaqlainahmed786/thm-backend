@@ -1,19 +1,10 @@
-import { param } from 'express-validator';
-import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { AccountType } from "../database/models/user.model";
-import Subscription from "../database/models/subscription.model";
-import Post, { PostType } from "../database/models/post.model";
-import DailyContentLimit from "../database/models/dailyContentLimit.model";
-import { countWords, isArray } from "../utils/helper/basic";
-import { deleteUnwantedFiles, storeMedia } from './MediaController';
-import { MediaType } from '../database/models/media.model';
-import { MongoID } from '../common';
+import Post from "../database/models/post.model";
 import Like from '../database/models/like.model';
-import { SuccessMessage } from '../utils/response-message/success';
 import Comment from '../database/models/comment.model';
+import Story from "../database/models/story.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         // let { pageNumber, documentLimit, query }: any = request.query;
@@ -107,6 +98,32 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
             await isLiked.deleteOne();
             return response.send(httpNoContent(null, 'Comment disliked successfully'));
+        }
+        //Like Story
+        if (new RegExp("/story/likes/").test(request.originalUrl)) {
+
+            const storyID = request.params.id;
+            const { id, accountType, businessProfileID } = request.user;
+            if (!id) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            }
+            const [story, isLiked] = await Promise.all([
+                Story.findOne({ _id: storyID }),
+                Like.findOne({ storyID: storyID, userID: id }),
+            ])
+            if (!story) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found"), "Story not found"));
+            }
+            if (!isLiked) {
+                const newLike = new Like();
+                newLike.userID = id;
+                newLike.storyID = storyID;
+                newLike.businessProfileID = businessProfileID ?? null;
+                const savedLike = await newLike.save();
+                return response.send(httpCreated(savedLike, "Story liked successfully"));
+            }
+            await isLiked.deleteOne();
+            return response.send(httpNoContent(null, 'Story disliked successfully'));
         }
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

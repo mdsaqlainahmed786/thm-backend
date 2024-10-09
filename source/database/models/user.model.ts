@@ -6,6 +6,7 @@ import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID } from "../../common";
+import { addMediaInStory } from "./story.model";
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -300,6 +301,42 @@ export function addBusinessSubTypeInBusinessProfile() {
         }
     }
     return { lookup, unwindLookup }
+}
+/**
+ * 
+ * @param likeIDs Those IDs which are liked by the requested user will determine whether the current post was liked by them or not.
+ * @returns 
+ */
+export function addStoriesInUser(likeIDs?: MongoID[] | null) {
+    console.log(likeIDs);
+    const lookup = {
+        '$lookup': {
+            'from': 'stories',
+            'let': { 'userID': '$_id' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$userID', '$$userID'] }, timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } },
+                {
+                    '$addFields': {
+                        'likedByMe': {
+                            $and: [
+                                { $ne: [likeIDs, null] },
+                                //FIXME Bro 
+                                {
+                                    $in: ['$_id', likeIDs]
+                                }
+                            ]
+                        }
+                    }
+                },
+                addMediaInStory().lookup,
+                addMediaInStory().unwindLookup,
+                addMediaInStory().replaceRootAndMergeObjects,
+                addMediaInStory().project,
+            ],
+            'as': 'storiesRef'
+        }
+    };
+    return { lookup }
 }
 
 export async function calculateProfileCompletion(userID: MongoID): Promise<number> {
