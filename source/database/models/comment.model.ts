@@ -51,6 +51,25 @@ export function addCommentsInPost() {
     };
     return { lookup, addCommentCount }
 }
+export function addSharedCountInPost() {
+    const lookup = {
+        $lookup: {
+            from: 'sharedcontents',
+            let: { postID: '$_id' },
+            pipeline: [
+                { $match: { $expr: { $eq: ['$postID', '$$postID'] } } },
+
+            ],
+            as: 'sharedRef'
+        }
+    };
+    const addSharedCount = {
+        $addFields: {
+            shared: { $cond: { if: { $isArray: "$sharedRef" }, then: { $size: "$sharedRef" }, else: 0 } }
+        }
+    };
+    return { lookup, addSharedCount }
+}
 
 import { addBusinessProfileInUser } from "./user.model";
 /**

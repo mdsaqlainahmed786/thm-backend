@@ -1,7 +1,7 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { ILocation, LocationSchema } from "./common.model";
 import { addLikesInPost } from "./like.model";
-import { addCommentsInPost } from "./comment.model";
+import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
 export enum PostType {
     POST = "post",
@@ -296,6 +296,8 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             addLikesInPost().addLikeCount,
             addCommentsInPost().lookup,
             addCommentsInPost().addCommentCount,
+            addSharedCountInPost().lookup,
+            addSharedCountInPost().addSharedCount,
             addReviewedBusinessProfileInPost().lookup,
             addReviewedBusinessProfileInPost().unwindLookup,
             {
@@ -324,6 +326,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             {
                 $project: {
                     isPublished: 0,
+                    sharedRef: 0,
                     commentsRef: 0,
                     likesRef: 0,
                     tagged: 0,
