@@ -222,4 +222,15 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-export default { index, store, update, destroy };
+const sharedPost = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+
+        let { postID, userID }: any = request.query;
+
+        // return response.send(httpOk({}, "Not implemented"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, store, update, destroy, sharedPost };

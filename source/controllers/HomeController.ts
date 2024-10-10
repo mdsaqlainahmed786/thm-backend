@@ -5,9 +5,7 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam } from "../utils/helper/basic";
-import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, } from "../database/models/post.model";
-import { addLikesInPost } from "../database/models/like.model";
-import { addCommentsInPost } from "../database/models/comment.model";
+import Post, { fetchPosts, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile from "../database/models/businessProfile.model";
@@ -25,59 +23,14 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const likedByMe = await Like.distinct('postID', { userID: id, postID: { $ne: null } });
-        const savedByMe = await SavedPost.distinct('postID', { userID: id, postID: { $ne: null } });
-        const documents = await Post.aggregate(
-            [
-                {
-                    $match: dbQuery
-                },
-                addMediaInPost().lookup,
-                addTaggedPeopleInPost().lookup,
-                addPostedByInPost().lookup,
-                addPostedByInPost().unwindLookup,
-                addLikesInPost().lookup,
-                addLikesInPost().addLikeCount,
-                addCommentsInPost().lookup,
-                addCommentsInPost().addCommentCount,
-                addReviewedBusinessProfileInPost().lookup,
-                addReviewedBusinessProfileInPost().unwindLookup,
-                {
-                    $addFields: {
-                        likedByMe: {
-                            $in: ['$_id', likedByMe]
-                        },
-                    }
-                },
-                {
-                    $addFields: {
-                        savedByMe: {
-                            $in: ['$_id', savedByMe]
-                        },
-                    }
-                },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                },
-                {
-                    $limit: documentLimit
-                },
-                {
-                    $project: {
-                        commentsRef: 0,
-                        likesRef: 0,
-                        tagged: 0,
-                        media: 0,
-                        updatedAt: 0,
-                        __v: 0,
-                    }
-                }
-            ]
-        ).exec();
-        const totalDocument = await Post.find(dbQuery).countDocuments();
+        const [likedByMe, savedByMe] = await Promise.all([
+            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+        ]);
+        const [documents, totalDocument] = await Promise.all([
+            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            Post.find(dbQuery).countDocuments()
+        ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {

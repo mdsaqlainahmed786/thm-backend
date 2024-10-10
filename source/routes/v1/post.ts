@@ -15,7 +15,7 @@ PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: '
 // PostEndpoints.delete('/:id', RankHistoryController.destroy);
 PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
 PostEndpoints.post('/saved-post/:id', savedPostApiValidator, validateRequest, SavedPostController.store);
-
+PostEndpoints.get('/shared-posts', PostController.sharedPost);
 /**
  * 
  * Comments

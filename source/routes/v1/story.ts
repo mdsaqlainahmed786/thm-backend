@@ -14,8 +14,8 @@ StoryEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, StoryCon
  * Comments
  * PostId
  */
-StoryEndpoints.get('/likes', StoryController.storyLikes);//TODO Do this tommorrow
-StoryEndpoints.get('/views', StoryController.storyViews);//TODO Do this tommorrow
+StoryEndpoints.get('/likes/:id', StoryController.storyLikes);
+StoryEndpoints.get('/views/:id', StoryController.storyViews);
 StoryEndpoints.post('/likes/:id', [paramIDValidationRule], validateRequest, LikeController.store);
 StoryEndpoints.post('/views/:id', [paramIDValidationRule], validateRequest, StoryController.storeViews);
 // StoryEndpoints.post('/comments/likes/:id', [paramIDValidationRule], validateRequest, LikeController.store);

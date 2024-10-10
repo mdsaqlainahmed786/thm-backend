@@ -65,39 +65,43 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Like.distinct('storyID', { userID: id, })
             ]
         );
-        const documents = await User.aggregate(
+        const [documents, totalDocument] = await Promise.all(
             [
-                {
-                    $match: dbQuery
-                },
-                addBusinessProfileInUser().lookup,
-                addBusinessProfileInUser().unwindLookup,
-                addStoriesInUser(likedByMe).lookup,
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                },
-                {
-                    $limit: documentLimit
-                },
-                {
-                    $project: {
-                        "name": 1,
-                        "username": 1,
-                        "accountType": 1,
-                        "profilePic": 1,
-                        'businessProfileRef._id': 1,
-                        'businessProfileRef.name': 1,
-                        'businessProfileRef.username': 1,
-                        'businessProfileRef.profilePic': 1,
-                        'storiesRef': 1,
-                    }
-                }
+                User.aggregate(
+                    [
+                        {
+                            $match: dbQuery
+                        },
+                        addBusinessProfileInUser().lookup,
+                        addBusinessProfileInUser().unwindLookup,
+                        addStoriesInUser(likedByMe).lookup,
+                        {
+                            $sort: { createdAt: -1, id: 1 }
+                        },
+                        {
+                            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                        },
+                        {
+                            $limit: documentLimit
+                        },
+                        {
+                            $project: {
+                                "name": 1,
+                                "username": 1,
+                                "accountType": 1,
+                                "profilePic": 1,
+                                'businessProfileRef._id': 1,
+                                'businessProfileRef.name': 1,
+                                'businessProfileRef.username': 1,
+                                'businessProfileRef.profilePic': 1,
+                                'storiesRef': 1,
+                            }
+                        }
+                    ]
+                ).exec(),
+                User.find(dbQuery).countDocuments()
             ]
-        ).exec();
-        const totalDocument = await User.find(dbQuery).countDocuments();
+        );
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         const responseData = {
             myStories: myStories,
@@ -155,17 +159,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // const ID = request?.params?.id;
-        // const { DTCODE, DTNAME, DTABBR } = request.body;
-        // const deathCode = await DeathCode.findOne({ _id: ID });
-        // if (!deathCode) {
-        //     return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Death code not found."), "Death code not found."));
-        // }
-        // deathCode.DTCODE = DTCODE ?? deathCode.DTCODE;
-        // deathCode.DTNAME = DTNAME ?? deathCode.DTNAME;
-        // deathCode.DTABBR = DTABBR ?? deathCode.DTABBR;
-        // const savedDeathCode = await deathCode.save();
-        // return response.send(httpAcceptedOrUpdated(savedDeathCode, 'Death code updated.'));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -201,7 +195,7 @@ const storeViews = async (request: Request, response: Response, next: NextFuncti
         const { id, accountType, businessProfileID } = request.user;
         const ID = request.params.id;
         const [story, isViewed] = await Promise.all([
-            Story.findOne({ _id: ID, userID: id }),
+            Story.findOne({ _id: ID, }),
             View.findOne({ storyID: ID, userID: id }),
         ])
         if (!story) {
@@ -223,14 +217,90 @@ const storeViews = async (request: Request, response: Response, next: NextFuncti
 
 const storyLikes = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        return response.send(httpOk({}, "Not implemented"));
+        const { id, accountType, businessProfileID } = request.user;
+        let { pageNumber, documentLimit, }: any = request.query;
+        const ID = request.params.id;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const story = await Story.findOne({ _id: ID, userID: id });
+        if (!story) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found."), "Story not found."));
+        }
+        let dbQuery = { storyID: story._id };
+        const [documents, totalDocument] = await Promise.all(
+            [
+                Like.aggregate(
+                    [
+                        {
+                            $match: dbQuery
+                        },
+                        addUserInLike().lookup,
+                        addUserInLike().unwindLookup,
+                        addUserInLike().replaceRoot,
+                        {
+                            $sort: { createdAt: -1, id: 1 }
+                        },
+                        {
+                            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                        },
+                        {
+                            $limit: documentLimit
+                        },
+                    ]
+                ).exec(),
+                Like.find(dbQuery).countDocuments()
+            ]
+        );
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Likes fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const storyViews = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        return response.send(httpOk({}, "Not implemented"));
+        const { id, accountType, businessProfileID } = request.user;
+        let { pageNumber, documentLimit, }: any = request.query;
+        const ID = request.params.id;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const story = await Story.findOne({ _id: ID, userID: id });
+        if (!story) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found."), "Story not found."));
+        }
+        let dbQuery = { storyID: story._id };
+        const [documents, totalDocument] = await Promise.all(
+            [
+                View.aggregate(
+                    [
+                        {
+                            $match: dbQuery
+                        },
+                        addUserInLike().lookup,
+                        addUserInLike().unwindLookup,
+                        addUserInLike().replaceRoot,
+                        {
+                            $sort: { createdAt: -1, id: 1 }
+                        },
+                        {
+                            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                        },
+                        {
+                            $limit: documentLimit
+                        },
+                    ]
+                ).exec(),
+                View.find(dbQuery).countDocuments()
+            ]
+        );
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Likes fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

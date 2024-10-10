@@ -1,5 +1,7 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { ILocation, LocationSchema } from "./common.model";
+import { addLikesInPost } from "./like.model";
+import { addCommentsInPost } from "./comment.model";
 import { MongoID } from "../../common";
 export enum PostType {
     POST = "post",
@@ -165,7 +167,11 @@ export function addPostedByInPost() {
     }
     return { lookup, unwindLookup }
 }
-
+/**
+ * 
+ * @returns 
+ * Return tagged people reference in post
+ */
 export function addTaggedPeopleInPost() {
     const lookup = {
         '$lookup': {
@@ -193,7 +199,11 @@ export function addTaggedPeopleInPost() {
     };
     return { lookup }
 }
-
+/**
+ * 
+ * @returns 
+ * Return total media reference in post
+ */
 export function addMediaInPost() {
     const lookup = {
         '$lookup': {
@@ -220,6 +230,12 @@ export function addMediaInPost() {
     };
     return { lookup }
 }
+
+/**
+ * 
+ * @returns 
+ * Return Business Profile
+ */
 export function addReviewedBusinessProfileInPost() {
     const lookup = {
         '$lookup': {
@@ -252,4 +268,70 @@ export function addReviewedBusinessProfileInPost() {
         }
     }
     return { lookup, unwindLookup }
+}
+
+
+/**
+ * 
+ * @param match  Used in an aggregation pipeline to filter documents.
+ * @param likedByMe To check which post request user liked or not
+ * @param savedByMe To check which post request user saved or not
+ * @param pageNumber Page number 
+ * @param documentLimit Return document limit
+ * @returns 
+ * 
+ * This will return post with like and comment count and also determine post saved or liked by requested user
+ */
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], pageNumber: number, documentLimit: number) {
+    return Post.aggregate(
+        [
+            {
+                $match: match
+            },
+            addMediaInPost().lookup,
+            addTaggedPeopleInPost().lookup,
+            addPostedByInPost().lookup,
+            addPostedByInPost().unwindLookup,
+            addLikesInPost().lookup,
+            addLikesInPost().addLikeCount,
+            addCommentsInPost().lookup,
+            addCommentsInPost().addCommentCount,
+            addReviewedBusinessProfileInPost().lookup,
+            addReviewedBusinessProfileInPost().unwindLookup,
+            {
+                $addFields: {
+                    likedByMe: {
+                        $in: ['$_id', likedByMe]
+                    },
+                }
+            },
+            {
+                $addFields: {
+                    savedByMe: {
+                        $in: ['$_id', savedByMe]
+                    },
+                }
+            },
+            {
+                $sort: { createdAt: -1, id: 1 }
+            },
+            {
+                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+            },
+            {
+                $limit: documentLimit
+            },
+            {
+                $project: {
+                    isPublished: 0,
+                    commentsRef: 0,
+                    likesRef: 0,
+                    tagged: 0,
+                    media: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            }
+        ]
+    ).exec();
 }
