@@ -1,6 +1,6 @@
 import { addBusinessProfileInUser, calculateProfileCompletion } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
@@ -12,8 +12,12 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
-import Post from '../database/models/post.model';
+import Post, { fetchPosts } from '../database/models/post.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
+import { parseQueryParam } from '../utils/helper/basic';
+import Like from '../database/models/like.model';
+import SavedPost from '../database/models/savedPost.model';
+import Media, { MediaType } from '../database/models/media.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID } = request.body;
@@ -304,5 +308,133 @@ const businessQuestionAnswer = async (request: Request, response: Response, next
     }
 }
 
+const userPosts = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const userID = request.params.id;
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        const dbQuery = { isPublished: true, userID: new ObjectId(id) };
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
+            [
+                User.findOne({ _id: userID }),
+                UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
+                Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            ]
+        );
+        if (!id || !user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (userID !== id && !inMyFollowing && user.privateAccount) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
+        }
+        const [documents, totalDocument] = await Promise.all([
+            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            Post.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, };
+//TODO Document properties here fix me
+const userPostMedia = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const userID = request.params.id;
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const [user, inMyFollowing, mediaIDs] = await Promise.all(
+            [
+                User.findOne({ _id: userID }),
+                UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
+                Post.distinct('media', { isPublished: true, userID: new ObjectId(id) })
+            ]
+        );
+        if (!id || !user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (userID !== id && !inMyFollowing && user.privateAccount) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
+        }
+        const dbQuery = { _id: { $in: mediaIDs }, };
+        //Return only videos if requested by the user through the videos endpoint
+        if (new RegExp("/user/videos/").test(request.originalUrl)) {
+            Object.assign(dbQuery, { mediaType: MediaType.VIDEO });
+        }
+        //Return only images if requested by the user through the images endpoint
+        if (new RegExp("/user/images/").test(request.originalUrl)) {
+            Object.assign(dbQuery, { mediaType: MediaType.IMAGE });
+        }
+        const [documents, totalDocument] = await Promise.all([
+            Media.aggregate([
+                {
+                    $match: dbQuery
+                },
+                {
+                    $sort: { createdAt: -1, id: 1 }
+                },
+                {
+                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                },
+                {
+                    $limit: documentLimit
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        mediaType: 1,
+                        mimeType: 1,
+                        sourceUrl: 1,
+                    }
+                }
+
+            ]),
+            Media.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+//TODO Do tomorrow 
+const userReviews = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const userID = request.params.id;
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        const dbQuery = { isPublished: true, userID: new ObjectId(id) };
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
+            [
+                User.findOne({ _id: userID }),
+                UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
+                Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            ]
+        );
+        if (!id || !user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (userID !== id && !inMyFollowing && user.privateAccount) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
+        }
+        const [documents, totalDocument] = await Promise.all([
+            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            Post.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia };

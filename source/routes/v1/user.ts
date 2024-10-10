@@ -16,4 +16,9 @@ UserEndpoints.post('/business-profile/subscription', buySubscriptionApiValidator
 UserEndpoints.get('/business-profile/subscription/plans', SubscriptionController.getSubscriptionPlans);
 UserEndpoints.post('/business-profile/subscription/checkout', subscriptionCheckoutApiValidator, validateRequest, SubscriptionController.subscriptionCheckout);
 UserEndpoints.get('/business-profile/subscription', SubscriptionController.index);//FIXME Remove this api
+
+UserEndpoints.get('/posts/:id', [paramIDValidationRule], validateRequest, UserController.userPosts);
+UserEndpoints.get('/videos/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);
+UserEndpoints.get('/images/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);
+
 export default UserEndpoints;

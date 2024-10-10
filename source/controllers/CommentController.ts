@@ -108,7 +108,10 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newComment.message = message;
         if (parentID !== undefined && parentID !== "") {
             newComment.isParent = false;
-            newComment.parentID = parentID;
+            const comment = await Comment.findOne({ _id: parentID });
+            if (comment) {
+                newComment.parentID = comment.id;
+            }
         }
         const savedComment = await newComment.save();
         return response.send(httpNoContent(savedComment, 'Comment posted successfully'));

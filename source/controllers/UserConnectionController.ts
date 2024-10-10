@@ -119,7 +119,7 @@ const unFollow = async (request: Request, response: Response, next: NextFunction
 const follower = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
-
+        //FIXME Private profile check pending 
         const { id } = request.user;
         const userID = request.params.id;
         let { pageNumber, documentLimit, query }: any = request.query;
@@ -191,6 +191,7 @@ const follower = async (request: Request, response: Response, next: NextFunction
 }
 const following = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        //FIXME Private profile check pending 
         const { id } = request.user;
         const userID = request.params.id;
         let { pageNumber, documentLimit, query }: any = request.query;
