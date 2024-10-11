@@ -1,6 +1,6 @@
 import { addBusinessProfileInUser, calculateProfileCompletion } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
@@ -12,12 +12,16 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
-import Post, { fetchPosts } from '../database/models/post.model';
+import Post, { fetchPosts, PostType } from '../database/models/post.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
 import Media, { MediaType } from '../database/models/media.model';
+import { MongoID } from '../common';
+import { storeMedia } from './MediaController';
+import { deleteUnwantedFiles } from './MediaController';
+import PropertyPictures from '../database/models/propertyPicture.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID } = request.body;
@@ -119,7 +123,6 @@ const profile = async (request: Request, response: Response, next: NextFunction)
 
 }
 const publicProfile = async (request: Request, response: Response, next: NextFunction) => {
-
     try {
         const { accountType } = request.user;
         const userID = request.params.id;
@@ -137,6 +140,7 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
                 },
                 {
                     $project: {
+                        "businessProfileRef.businessAnswerRef": 0,
                         isVerified: 0,
                         isApproved: 0,
                         isActivated: 0,
@@ -313,7 +317,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
         const userID = request.params.id;
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true, userID: new ObjectId(id) };
+        const dbQuery = { isPublished: true, userID: new ObjectId(userID) };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
@@ -341,7 +345,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
     }
 }
 
-//TODO Document properties here fix me
+
 const userPostMedia = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const userID = request.params.id;
@@ -349,11 +353,12 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [user, inMyFollowing, mediaIDs] = await Promise.all(
+        const [user, inMyFollowing, mediaIDs, propertyPictures] = await Promise.all(
             [
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
-                Post.distinct('media', { isPublished: true, userID: new ObjectId(id) })
+                Post.distinct('media', { isPublished: true, userID: new ObjectId(userID) }),
+                PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) })
             ]
         );
         if (!id || !user) {
@@ -362,7 +367,7 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
         }
-        const dbQuery = { _id: { $in: mediaIDs }, };
+        const dbQuery = { _id: { $in: [...mediaIDs, ...propertyPictures] }, };
         //Return only videos if requested by the user through the videos endpoint
         if (new RegExp("/user/videos/").test(request.originalUrl)) {
             Object.assign(dbQuery, { mediaType: MediaType.VIDEO });
@@ -398,18 +403,17 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
             Media.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended(documents, 'User media fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-//TODO Do tomorrow 
 const userReviews = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const userID = request.params.id;
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true, userID: new ObjectId(id) };
+
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
@@ -426,15 +430,61 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
         }
+        if (!user.businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const dbQuery = { isPublished: true, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended(documents, 'Business reviews fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const businessPropertyPictures = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const images = files && files.images as Express.Multer.S3File[];
+
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!images) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'))
+        }
+        if (accountType !== AccountType.BUSINESS && !businessProfileID) {
+            await deleteUnwantedFiles(images);
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."));
+        }
+        /**
+         * Handle media
+         */
+        let newPropertyPictures: {
+            userID: MongoID;
+            businessProfileID?: MongoID;
+            mediaID: MongoID;
+        }[] = []
+        if (images && images.length !== 0) {
+            const imageList = await storeMedia(images, id, null, MediaType.IMAGE);
+            if (imageList && imageList.length !== 0) {
+                imageList.map((image) => newPropertyPictures.push({
+                    userID: id,
+                    mediaID: image.id,
+                    businessProfileID: businessProfileID
+                }));
+            }
+        }
+        console.log(newPropertyPictures);
+        const propertyPictures = await PropertyPictures.create(newPropertyPictures);
+        return response.send(httpCreated(propertyPictures, 'Property pictures uploaded successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia };
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures };

@@ -151,6 +151,7 @@ export function addPostedByInPost() {
                         "businessProfileRef._id": 1,
                         "businessProfileRef.name": 1,
                         "businessProfileRef.profilePic": 1,
+                        "businessProfileRef.rating": 1,
                         "businessProfileRef.businessTypeRef": 1,
                         "businessProfileRef.businessSubtypeRef": 1,
                     }
@@ -253,6 +254,7 @@ export function addReviewedBusinessProfileInPost() {
                         "address": 1,
                         "name": 1,
                         "coverImage": 1,
+                        "rating": 1,
                         "businessTypeRef": 1,
                         "businessSubtypeRef": 1,
                     }
@@ -325,6 +327,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $project: {
+                    reviews: 0,
                     isPublished: 0,
                     sharedRef: 0,
                     commentsRef: 0,

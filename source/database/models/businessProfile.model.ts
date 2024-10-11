@@ -21,6 +21,7 @@ export interface IBusinessProfile extends Document {
     amenities: MongoID[];
     placeID: string;
     privateAccount: boolean;
+    rating: number;
 }
 
 const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
@@ -56,6 +57,9 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
         },
         coverImage: {
             type: String, default: ""
+        },
+        rating: {
+            type: Number, default: 0
         },
     },
     {

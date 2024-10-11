@@ -50,7 +50,8 @@ export abstract class AwsS3AccessEndpoints {
     static readonly USERS: string = AwsS3AccessEndpoints.getEndpoint("users/");
     static readonly BUSINESS_DOCUMENTS: string = AwsS3AccessEndpoints.getEndpoint("business-documents/");
     static readonly POST: string = AwsS3AccessEndpoints.getEndpoint("posts/");
-    static readonly STORY: string = AwsS3AccessEndpoints.getEndpoint("story/")
+    static readonly STORY: string = AwsS3AccessEndpoints.getEndpoint("story/");
+    static readonly BUSINESS_PROPERTY: string = AwsS3AccessEndpoints.getEndpoint("business-property/");
     private static getEndpoint(path: string): string {
         const environment = process.env.APP_ENV;
         if (environment === "dev") {

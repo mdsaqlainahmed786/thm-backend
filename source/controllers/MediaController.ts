@@ -60,6 +60,7 @@ async function storeMedia(files: Express.Multer.S3File[], userID: MongoID, busin
     let fileList: any[] = [];
     files && files.map((file) => {
         fileList.push({
+            businessProfileID: businessProfileID,
             userID: userID,
             fileName: file.originalname,
             width: 0,

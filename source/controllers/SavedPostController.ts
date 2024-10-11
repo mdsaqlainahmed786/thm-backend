@@ -1,10 +1,33 @@
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
+import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import Post from "../database/models/post.model";
 import SavedPost from '../database/models/savedPost.model';
+import { parseQueryParam } from "../utils/helper/basic";
+import Like from "../database/models/like.model";
+import { fetchPosts } from "../database/models/post.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const [likedByMe, savedByMe] = await Promise.all(
+            [
+                Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            ]
+        );
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const dbQuery = { isPublished: true, _id: { $in: savedByMe } };
+        const [documents, totalDocument] = await Promise.all([
+            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            Post.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

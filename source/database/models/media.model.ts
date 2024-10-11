@@ -23,6 +23,7 @@ export interface ThumbnailMediaFile extends MediaFile {
 }
 
 interface IMedia extends Document, MediaFile {
+    businessProfileID?: MongoID;
     userID: MongoID;
     mediaType: string,
     sizes?: ThumbnailMediaFile[],
@@ -48,6 +49,7 @@ const MediaSizeSchema: Schema = new Schema<ThumbnailMediaFile>(
 
 const MediaSchema: Schema = new Schema<IMedia>(
     {
+        businessProfileID: { type: Schema.Types.ObjectId, ref: "BusinessProfile", },
         userID: { type: Schema.Types.ObjectId, ref: "User", required: true },
         fileName: { type: String, required: true },
         width: { type: Number, required: true },
