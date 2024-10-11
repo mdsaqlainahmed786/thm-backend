@@ -389,3 +389,44 @@ function getTopLevelNestedFields(schema: Schema): string[] {
             return fieldSchema.schema !== undefined; // Check if the field has a nested schema
         });
 }
+/**
+ * 
+ * @param match  Used in an aggregation pipeline to filter documents.
+ * @param likedByMe To check which post request user liked or not
+ * @param savedByMe To check which post request user saved or not
+ * @returns 
+ * User Profile with some basic data like name username business profile reference 
+ */
+export function getUserProfile(match: { [key: string]: any; }, pageNumber: number, documentLimit: number) {
+    return User.aggregate(
+        [
+            {
+                $match: match
+            },
+            addBusinessProfileInUser().lookup,
+            addBusinessProfileInUser().unwindLookup,
+            {
+                $sort: { createdAt: -1, id: 1 }
+            },
+            {
+                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+            },
+            {
+                $limit: documentLimit
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    accountType: 1,
+                    username: 1,
+                    profilePic: 1,
+                    "businessProfileRef.name": 1,
+                    "businessProfileRef.profilePic": 1,
+                    "businessProfileRef.businessTypeRef": 1,
+                    "businessProfileRef.address": 1,
+                }
+            }
+        ]
+    ).exec()
+}

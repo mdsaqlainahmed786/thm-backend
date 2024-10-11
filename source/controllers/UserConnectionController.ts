@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpAcceptedOrUpdated, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { addBusinessProfileInUser } from "../database/models/user.model";
+import { addBusinessProfileInUser, getUserProfile } from "../database/models/user.model";
 import User from '../database/models/user.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
@@ -151,36 +151,7 @@ const follower = async (request: Request, response: Response, next: NextFunction
             )
         }
         const [documents, totalDocument] = await Promise.all([
-            User.aggregate(
-                [
-                    {
-                        $match: dbQuery
-                    },
-                    addBusinessProfileInUser().lookup,
-                    addBusinessProfileInUser().unwindLookup,
-                    {
-                        $sort: { createdAt: -1, id: 1 }
-                    },
-                    {
-                        $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                    },
-                    {
-                        $limit: documentLimit
-                    },
-                    {
-                        $project: {
-                            _id: 1,
-                            name: 1,
-                            accountType: 1,
-                            username: 1,
-                            "businessProfileRef.name": 1,
-                            "businessProfileRef.profilePic": 1,
-                            "businessProfileRef.businessTypeRef": 1,
-                            "businessProfileRef.address": 1,
-                        }
-                    }
-                ]
-            ).exec(),
+            getUserProfile(dbQuery, pageNumber, documentLimit),
             User.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -222,36 +193,7 @@ const following = async (request: Request, response: Response, next: NextFunctio
             )
         }
         const [documents, totalDocument] = await Promise.all([
-            User.aggregate(
-                [
-                    {
-                        $match: dbQuery
-                    },
-                    addBusinessProfileInUser().lookup,
-                    addBusinessProfileInUser().unwindLookup,
-                    {
-                        $sort: { createdAt: -1, id: 1 }
-                    },
-                    {
-                        $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                    },
-                    {
-                        $limit: documentLimit
-                    },
-                    {
-                        $project: {
-                            _id: 1,
-                            name: 1,
-                            accountType: 1,
-                            username: 1,
-                            "businessProfileRef.name": 1,
-                            "businessProfileRef.profilePic": 1,
-                            "businessProfileRef.businessTypeRef": 1,
-                            "businessProfileRef.address": 1,
-                        }
-                    }
-                ]
-            ).exec(),
+            getUserProfile(dbQuery, pageNumber, documentLimit),
             User.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

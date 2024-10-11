@@ -24,4 +24,5 @@ UserEndpoints.get('/posts/:id', [paramIDValidationRule], validateRequest, UserCo
 UserEndpoints.get('/videos/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);
 UserEndpoints.get('/images/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);
 UserEndpoints.get('/reviews/:id', [paramIDValidationRule], validateRequest, UserController.userReviews);
+UserEndpoints.get('/tag-people', UserController.tagPeople);
 export default UserEndpoints;

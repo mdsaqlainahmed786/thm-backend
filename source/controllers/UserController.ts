@@ -1,4 +1,4 @@
-import { addBusinessProfileInUser, calculateProfileCompletion } from './../database/models/user.model';
+import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -487,4 +487,58 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     }
 }
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures };
+
+const tagPeople = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const [inMyFollower] = await Promise.all(
+            [
+                UserConnection.distinct('follower', { following: id, status: ConnectionStatus.ACCEPTED })
+            ]
+        );
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const dbQuery: any[] = []
+        if (query !== undefined && query !== "") {
+            //Search business profile
+            const businessProfileIDs = await BusinessProfile.distinct('_id', {
+                $or: [
+                    { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                    { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                ]
+            });
+            dbQuery.push({
+                $or: [
+                    { _id: { $in: inMyFollower }, name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                    { _id: { $in: inMyFollower }, username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                    { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                    { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                    { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                ]
+            })
+        } else {
+            dbQuery.push({ _id: { $in: inMyFollower } })
+            dbQuery.push({ privateAccount: false, })
+        }
+        console.log(dbQuery);
+        const [documents, totalDocument] = await Promise.all([
+            getUserProfile({
+                $or: dbQuery
+            }, pageNumber, documentLimit),
+            User.find({
+                $or: dbQuery
+            }).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Tagged fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople };
