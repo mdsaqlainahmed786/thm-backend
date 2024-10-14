@@ -115,23 +115,35 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             const name = userData.name;
             const targetUserName = targetUserData.name;
 
-            let title: string = '';
-            let description: string = '';
+            let title: string = AppConfig.APP_NAME;
+            let description: string = 'Welcome to The Hotel Media';
             switch (type) {
                 case NotificationType.LIKE_A_STORY:
                     title = AppConfig.APP_NAME;
-                    description = `${name} liked your story`;
+                    description = `${name} liked your story.`;
                     break;
                 case NotificationType.LIKE_POST:
                     title = AppConfig.APP_NAME;
-                    description = `${name} liked your post`;
+                    description = `${name} liked your post.`;
                     break;
                 case NotificationType.LIKE_COMMENT:
                     title = AppConfig.APP_NAME;
                     const messageLength = 150;
                     let truncatedComment = metadata?.message ? metadata.message : '';
                     truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
-                    description = `${name} liked your comment: '${truncatedComment}'`;
+                    description = `${name} liked your comment: '${truncatedComment}'.`;
+                    break;
+                case NotificationType.FOLLOW_REQUEST:
+                    title = AppConfig.APP_NAME;
+                    description = `${name} requested to follow you.`;
+                    break;
+                case NotificationType.FOLLOWING:
+                    title = AppConfig.APP_NAME;
+                    description = `${name} started following you.`;
+                    break;
+                case NotificationType.ACCEPT_FOLLOW_REQUEST:
+                    title = AppConfig.APP_NAME;
+                    description = `${name} accepted your follow request.`;
                     break;
             }
             const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
@@ -181,7 +193,11 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
             case NotificationType.LIKE_POST:
                 Object.assign(dbQuery, { type: type, "metadata.commentID": metadata?.commentID })
                 break;
+            case NotificationType.FOLLOW_REQUEST:
+                Object.assign(dbQuery, { type: type, "metadata.connetionID": metadata?.connetionID })
+                break;
         }
+        console.log(dbQuery);
         const notification = await Notification.findOne(dbQuery);
         if (notification) {
             await notification.deleteOne();

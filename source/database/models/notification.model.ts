@@ -3,7 +3,10 @@ import { MongoID } from '../../common';
 export enum NotificationType {
     LIKE_A_STORY = "like-a-story",
     LIKE_POST = "like-post",
-    LIKE_COMMENT = "like-comment"
+    LIKE_COMMENT = "like-comment",
+    FOLLOW_REQUEST = "follow-request",
+    ACCEPT_FOLLOW_REQUEST = "accept-follow-request",
+    FOLLOWING = "following"
 }
 
 export interface INotification extends Document {
