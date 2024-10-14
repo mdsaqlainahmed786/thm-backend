@@ -16,39 +16,7 @@ import Like from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // let { pageNumber, documentLimit, query }: any = request.query;
-        // const dbQuery = {};
-        // pageNumber = parseQueryParam(pageNumber, 1);
-        // documentLimit = parseQueryParam(documentLimit, 20);
-        // if (query !== undefined && query !== "") {
-        //     Object.assign(dbQuery,
-        //         {
-        //             $or: [
-        //                 { DTNAME: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //                 { DTABBR: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //             ]
-        //         }
-        //     )
-        // }
-        // const documents = await DeathCode.aggregate(
-        //     [
-        //         {
-        //             $match: dbQuery
-        //         },
-        //         {
-        //             $sort: { _id: -1 }
-        //         },
-        //         {
-        //             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        //         },
-        //         {
-        //             $limit: documentLimit
-        //         },
-        //     ]
-        // ).exec();
-        // const totalDocument = await DeathCode.find(dbQuery).countDocuments();
-        // const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        // return response.send(httpOkExtended(documents, 'Death code fetched.', pageNumber, totalPagesCount, totalDocument));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

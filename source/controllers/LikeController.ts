@@ -5,41 +5,12 @@ import Post from "../database/models/post.model";
 import Like from '../database/models/like.model';
 import Comment from '../database/models/comment.model';
 import Story from "../database/models/story.model";
+import AppNotificationController from "../controllers/AppNotificationController";
+import Notification from "../database/models/notification.model";
+import { NotificationType } from "../database/models/notification.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // let { pageNumber, documentLimit, query }: any = request.query;
-        // const dbQuery = {};
-        // pageNumber = parseQueryParam(pageNumber, 1);
-        // documentLimit = parseQueryParam(documentLimit, 20);
-        // if (query !== undefined && query !== "") {
-        //     Object.assign(dbQuery,
-        //         {
-        //             $or: [
-        //                 { DTNAME: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //                 { DTABBR: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //             ]
-        //         }
-        //     )
-        // }
-        // const documents = await DeathCode.aggregate(
-        //     [
-        //         {
-        //             $match: dbQuery
-        //         },
-        //         {
-        //             $sort: { _id: -1 }
-        //         },
-        //         {
-        //             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        //         },
-        //         {
-        //             $limit: documentLimit
-        //         },
-        //     ]
-        // ).exec();
-        // const totalDocument = await DeathCode.find(dbQuery).countDocuments();
-        // const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        // return response.send(httpOkExtended(documents, 'Death code fetched.', pageNumber, totalPagesCount, totalDocument));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -67,15 +38,15 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.postID = postID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
+                AppNotificationController.store(id, post.userID, NotificationType.LIKE_POST, { postID: post.id, userID: post.userID }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Post liked successfully"));
             }
             await isLiked.deleteOne();
+            AppNotificationController.destroy(id, post.userID, NotificationType.LIKE_POST, { postID: post.id, userID: post.userID }).catch((error) => console.error(error));
             return response.send(httpNoContent(null, 'Post disliked successfully'));
         }
-
         //Like comment
         if (new RegExp("/posts/comments/likes/").test(request.originalUrl)) {
-
             const commentID = request.params.id;
             const { id, accountType, businessProfileID } = request.user;
             if (!id) {
@@ -94,14 +65,15 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.commentID = commentID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
+                AppNotificationController.store(id, comment.userID, NotificationType.LIKE_COMMENT, { commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Comment liked successfully"));
             }
             await isLiked.deleteOne();
+            AppNotificationController.destroy(id, comment.userID, NotificationType.LIKE_COMMENT, { commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
             return response.send(httpNoContent(null, 'Comment disliked successfully'));
         }
         //Like Story
         if (new RegExp("/story/likes/").test(request.originalUrl)) {
-
             const storyID = request.params.id;
             const { id, accountType, businessProfileID } = request.user;
             if (!id) {
@@ -120,8 +92,10 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.storyID = storyID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
+                AppNotificationController.store(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story.id, userID: story.userID }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Story liked successfully"));
             }
+            AppNotificationController.destroy(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story.id, userID: story.userID }).catch((error) => console.error(error));
             await isLiked.deleteOne();
             return response.send(httpNoContent(null, 'Story disliked successfully'));
         }
