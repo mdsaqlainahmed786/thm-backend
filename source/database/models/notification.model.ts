@@ -6,7 +6,9 @@ export enum NotificationType {
     LIKE_COMMENT = "like-comment",
     FOLLOW_REQUEST = "follow-request",
     ACCEPT_FOLLOW_REQUEST = "accept-follow-request",
-    FOLLOWING = "following"
+    FOLLOWING = "following",
+    COMMENT = "comment",
+    REPLY = "reply",
 }
 
 export interface INotification extends Document {

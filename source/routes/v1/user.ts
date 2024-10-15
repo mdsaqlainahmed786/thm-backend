@@ -6,6 +6,7 @@ import authenticateUser from "../../middleware/authenticate";
 import { uploadMedia } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 import { validateRequest } from '../../middleware/api-request-validator';
+import AuthController from "../../controllers/auth/AuthController";
 const UserEndpoints: Router = express.Router();
 UserEndpoints.get('/profile', UserController.profile);
 UserEndpoints.get('/profile/:id', [paramIDValidationRule], validateRequest, UserController.publicProfile);
@@ -25,4 +26,8 @@ UserEndpoints.get('/videos/:id', [paramIDValidationRule], validateRequest, UserC
 UserEndpoints.get('/images/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);
 UserEndpoints.get('/reviews/:id', [paramIDValidationRule], validateRequest, UserController.userReviews);
 UserEndpoints.get('/tag-people', UserController.tagPeople);
+UserEndpoints.delete('/account', UserController.deleteAccount);
+UserEndpoints.patch('/account/disable', UserController.deactivateAccount);
+UserEndpoints.get('/blocks', UserController.blockedUsers);
+UserEndpoints.post('/blocks/:id', UserController.blockUser);
 export default UserEndpoints;

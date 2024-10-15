@@ -1,0 +1,131 @@
+import { ObjectId } from 'mongodb';
+import { Request, Response, NextFunction } from "express";
+import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
+import { ErrorMessage } from "../utils/response-message/error";
+import Post, { fetchPosts, PostType } from "../database/models/post.model";
+import Like, { addUserInLike } from '../database/models/like.model';
+import Comment from '../database/models/comment.model';
+import Story from "../database/models/story.model";
+import User from "../database/models/user.model";
+import { MongoID } from "../common";
+import { NotificationType } from "../database/models/notification.model";
+import { AppConfig } from "../config/constants";
+import Notification from "../database/models/notification.model";
+import DevicesConfig from "../database/models/appDeviceConfig.model";
+import { Message } from "firebase-admin/lib/messaging/messaging-api";
+import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
+import { DevicePlatform } from "../validation/common-validation";
+import { parseQueryParam, truncate } from "../utils/helper/basic";
+import { httpOkExtended } from "../utils/response";
+import { addBusinessProfileInUser } from "../database/models/user.model";
+import { getUserProfile } from '../database/models/user.model';
+import BusinessProfile from '../database/models/businessProfile.model';
+import { activeUserQuery } from '../database/models/user.model';
+//FIXME deleted user and disabled user check
+const index = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        let { pageNumber, documentLimit, query, type }: any = request.query;
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        const dbQuery = {};
+        let documents = [];
+        let totalDocument = 0;
+        let totalPagesCount = 0;
+        switch (type) {
+            case "profile":
+                Object.assign(dbQuery, {});
+                if (query !== undefined && query !== "") {
+                    //Search business profile
+                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        ]
+                    });
+                    Object.assign(dbQuery,
+                        {
+                            $or: [
+                                { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                                { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                                { businessProfileID: { $in: businessProfileIDs } }
+                            ]
+                        }
+                    )
+                }
+                [documents, totalDocument] = await Promise.all([
+                    getUserProfile(dbQuery, pageNumber, documentLimit),
+                    User.find(dbQuery).countDocuments()
+                ])
+                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+                return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
+                break;
+            case "posts":
+                Object.assign(dbQuery, { postType: PostType.POST });
+                [documents, totalDocument] = await Promise.all([
+                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    User.find(dbQuery).countDocuments()
+                ])
+                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+                return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
+                break;
+            case "events":
+                Object.assign(dbQuery, { postType: PostType.EVENT });
+                [documents, totalDocument] = await Promise.all([
+                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    User.find(dbQuery).countDocuments()
+                ])
+                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+                return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
+                break;
+            case "reviews":
+                Object.assign(dbQuery, { postType: PostType.REVIEW });
+                [documents, totalDocument] = await Promise.all([
+                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    User.find(dbQuery).countDocuments()
+                ])
+                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+                return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
+                break;
+            default:
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be profile | posts | events | reviews"), "Invalid type. Type must be profile | posts | events | reviews"))
+        }
+
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+const store = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const update = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const destroy = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        // return response.send(httpOk({}, "Not implemented"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const show = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        // return response.send(httpOk({}, "Not implemented"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, store, update, destroy };

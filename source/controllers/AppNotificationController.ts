@@ -15,9 +15,10 @@ import DevicesConfig from "../database/models/appDeviceConfig.model";
 import { Message } from "firebase-admin/lib/messaging/messaging-api";
 import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
 import { DevicePlatform } from "../validation/common-validation";
-import { parseQueryParam } from "../utils/helper/basic";
+import { parseQueryParam, truncate } from "../utils/helper/basic";
 import { httpOkExtended } from "../utils/response";
 import { addBusinessProfileInUser } from "../database/models/user.model";
+import { v4 } from 'uuid';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -128,10 +129,10 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     break;
                 case NotificationType.LIKE_COMMENT:
                     title = AppConfig.APP_NAME;
-                    const messageLength = 150;
-                    let truncatedComment = metadata?.message ? metadata.message : '';
-                    truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
-                    description = `${name} liked your comment: '${truncatedComment}'.`;
+                    // const messageLength = 150;
+                    // let truncatedComment = metadata?.message ? metadata.message : '';
+                    // truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
+                    description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
                     break;
                 case NotificationType.FOLLOW_REQUEST:
                     title = AppConfig.APP_NAME;
@@ -145,6 +146,14 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     title = AppConfig.APP_NAME;
                     description = `${name} accepted your follow request.`;
                     break;
+                case NotificationType.COMMENT:
+                    title = AppConfig.APP_NAME
+                    description = `${name} commented on your post: '${truncate(metadata?.message)}'.`;
+                    break;
+                case NotificationType.REPLY:
+                    title = AppConfig.APP_NAME
+                    description = `${name}  replied to your comment: '${truncate(metadata?.message)}'.`;
+                    break;
             }
             const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
             const newNotification = new Notification();
@@ -157,7 +166,8 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             try {
                 await Promise.all(devicesConfigs.map(async (devicesConfig) => {
                     if (devicesConfig && devicesConfig.notificationToken) {
-                        const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, devicesConfig.devicePlatform, type);
+                        const notificationID = newNotification.id ? newNotification.id : v4();
+                        const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
                         await sendNotification(message);
                     }
                     return devicesConfig;
@@ -197,9 +207,21 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
                 Object.assign(dbQuery, { type: type, "metadata.connetionID": metadata?.connetionID })
                 break;
         }
-        console.log(dbQuery);
         const notification = await Notification.findOne(dbQuery);
         if (notification) {
+            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
+            try {
+                await Promise.all(devicesConfigs.map(async (devicesConfig) => {
+                    if (devicesConfig && devicesConfig.notificationToken) {
+                        const notificationID = notification.id ? notification?.id : v4();
+                        const message: Message = createMessagePayload(devicesConfig.notificationToken, 'New Message', 'Checking for New Messages ...', notificationID, devicesConfig.devicePlatform, 'destroy');
+                        await sendNotification(message);
+                    }
+                    return devicesConfig;
+                }));
+            } catch (error) {
+                console.error("Error sending one or more notifications:", error);
+            }
             await notification.deleteOne();
         }
     } catch (error: any) {

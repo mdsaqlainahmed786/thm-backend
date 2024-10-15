@@ -89,18 +89,6 @@ export function getRandomInteger(min: number, max: number, includeNegative?: boo
 }
 
 
-// export function isTimeInGivenRange(startTime: string, endTime: string, givenTime: string) {
-//     // Convert the combined given date-time to a Moment object
-//     const momentGivenTime = moment(givenTime, 'HH:mm');
-//     // Convert the start and end times to Moment objects
-//     const momentStartTime = moment(startTime, 'HH:mm');
-//     const momentEndTime = moment(endTime, 'HH:mm');
-//     // Check if the given time is between the start and end times (inclusive)
-//     console.log(momentGivenTime);
-//     console.log(momentStartTime);
-//     console.log(momentEndTime);
-//     return momentGivenTime.isBetween(momentStartTime, momentEndTime, null, '[]');
-// }
 
 
 export function parseFloatToFixed(number: any, precision?: number): number {
@@ -181,3 +169,9 @@ export function countWords(string: string) {
 const months = ["January", "February", "March", "April", "May", "June", "July"];
 
 const random = Math.floor(Math.random() * months.length);
+
+export function truncate(string: string, length?: number) {
+    const messageLength = length ?? 150;
+    let truncatedComment = string ? string : '';
+    return truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
+}

@@ -1,6 +1,6 @@
 import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
@@ -22,9 +22,12 @@ import { MongoID } from '../common';
 import { storeMedia } from './MediaController';
 import { deleteUnwantedFiles } from './MediaController';
 import PropertyPictures from '../database/models/propertyPicture.model';
+import { AppConfig } from '../config/constants';
+import { CookiePolicy } from '../config/constants';
+import BlockedUser from '../database/models/blockedUser.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -32,6 +35,8 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
         }
         if (user.accountType === AccountType.BUSINESS) {
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
+            user.privateAccount = privateAccount ?? user.privateAccount;
+            user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
 
             if (businessProfileRef) {
@@ -42,6 +47,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
                 businessProfileRef.name = name ?? businessProfileRef.name;
                 businessProfileRef.gstn = gstn ?? businessProfileRef.gstn;
                 businessProfileRef.email = email ?? businessProfileRef.email;
+                businessProfileRef.privateAccount = privateAccount ?? businessProfileRef.privateAccount;
                 /**
                  * 
                  * Ensure the business or business sub type is exits or not
@@ -59,6 +65,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
                 }
                 await businessProfileRef.save();
             }
+
             const savedUser = await user.save();
             return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef }, "Profile updated successfully"));
         } else {
@@ -67,6 +74,8 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
+            user.privateAccount = privateAccount ?? user.privateAccount;
+            user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
             const savedUser = await user.save();
             return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));
         }
@@ -541,4 +550,89 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
     }
 }
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople };
+const deactivateAccount = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        user.isActivated = false;
+        await user.save();
+        // You can reactivate it anytime by logging back in.
+        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
+        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        return response.send(httpNoContent(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const deleteAccount = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        user.isDeleted = true;
+        await user.save();
+        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
+        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        return response.send(httpNoContent(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const blockUser = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request.params.id;
+        const { id, accountType, businessProfileID } = request.user;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [user, isBlocked] = await Promise.all([
+            User.findOne({ _id: ID }),
+            BlockedUser.findOne({ blockedUserID: ID, userID: id }),
+        ])
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!isBlocked) {
+            const newBlockedUser = new BlockedUser();
+            newBlockedUser.userID = id;
+            newBlockedUser.blockedUserID = ID;
+            newBlockedUser.businessProfileID = businessProfileID ?? null;
+            const savedLike = await newBlockedUser.save();
+            return response.send(httpCreated(savedLike, "User blocked successfully"));
+        }
+        await isBlocked.deleteOne();
+        return response.send(httpNoContent(null, 'User unblocked successfully'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+//TODO remove deleted and disabled user
+const blockedUsers = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const userIDs = await BlockedUser.distinct('blockedUserID', { userID: id });
+        const dbQuery = { _id: { $in: userIDs } };
+        const [documents, totalDocument] = await Promise.all([
+            getUserProfile(dbQuery, pageNumber, documentLimit),
+            User.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Tagged fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers };

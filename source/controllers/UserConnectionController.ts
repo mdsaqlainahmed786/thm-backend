@@ -69,7 +69,6 @@ const sendFollowRequest = async (request: Request, response: Response, next: Nex
             newUserConnection.following = followingUser.id;
             if (!followingUser.privateAccount) {
                 newUserConnection.status = ConnectionStatus.ACCEPTED;
-                //TODO notification here //Sakshi Reddy Started following you. 10min send connection id in notification
             }
             const follow = await newUserConnection.save();
             if (follow.status === ConnectionStatus.ACCEPTED) {

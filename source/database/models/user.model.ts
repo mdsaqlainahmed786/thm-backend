@@ -29,6 +29,7 @@ export interface Individual {
     profilePic: IProfilePic;
     acceptedTerms: boolean;//User  accepted the terms
     privateAccount: boolean;
+    notificationEnabled: boolean;
 }
 
 export interface Business {
@@ -89,6 +90,9 @@ const UserSchema: Schema = new Schema<IUser>(
             type: Boolean, default: false,
         },
         privateAccount: {
+            type: Boolean, default: true,
+        },
+        notificationEnabled: {
             type: Boolean, default: true,
         }
     },
@@ -430,3 +434,5 @@ export function getUserProfile(match: { [key: string]: any; }, pageNumber: numbe
         ]
     ).exec()
 }
+
+export const activeUserQuery = { isDeleted: false, isActivated: true };

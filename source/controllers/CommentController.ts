@@ -6,6 +6,8 @@ import Post, { PostType } from "../database/models/post.model";
 import Like from '../database/models/like.model';
 import Comment, { addCommentedByInPost, addLikesInComment } from '../database/models/comment.model';
 import { parseQueryParam } from '../utils/helper/basic';
+import AppNotificationController from './AppNotificationController';
+import { NotificationType } from '../database/models/notification.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -111,9 +113,11 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             const comment = await Comment.findOne({ _id: parentID });
             if (comment) {
                 newComment.parentID = comment.id;
+                AppNotificationController.store(id, comment.userID, NotificationType.REPLY, { postID: post.id, userID: comment.userID, message: message }).catch((error) => console.error(error));
             }
         }
         const savedComment = await newComment.save();
+        AppNotificationController.store(id, post.userID, NotificationType.COMMENT, { postID: post.id, userID: post.userID, message: message }).catch((error) => console.error(error));
         return response.send(httpNoContent(savedComment, 'Comment posted successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
