@@ -1,3 +1,4 @@
+import { ContentType } from './../../database/models/reportedUser.model';
 
 import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
@@ -235,4 +236,25 @@ export const subscriptionCheckoutApiValidator = [
 ]
 export const buySubscriptionApiValidator = [
     subscriptionPlanIDValidationRule
+]
+
+
+export enum Type {
+    WEBSITE_REDIRECTION = 'website-redirection',
+}
+const TypeValue = Object.values(Type);
+export const collectDataApiValidator = [
+
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypeValue).withMessage(`Type must be in  ${TypeValue.join(' | ')}`),
+    body('type').custom((value, { req }) => {
+        if (value === Type.WEBSITE_REDIRECTION) {
+            return body("businessProfileID", "Business profile is required for website redirection.").exists().bail().notEmpty().bail().run(req);
+        }
+        return true;
+    }),
+]
+const ContentTypeValue = Object.values(ContentType);
+export const reportContentApiValidator = [
+    body("contentType", "Content Type is required field.").exists().bail().notEmpty().bail().isIn(ContentTypeValue).withMessage(`Content Type must be in  ${ContentTypeValue.join(' | ')}`),
+    body("contentID", "Content ID is required field.").exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID'),
 ]

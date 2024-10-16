@@ -11,39 +11,7 @@ import { NotificationType } from "../database/models/notification.model";
 
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // let { pageNumber, documentLimit, query }: any = request.query;
-        // const dbQuery = {};
-        // pageNumber = parseQueryParam(pageNumber, 1);
-        // documentLimit = parseQueryParam(documentLimit, 20);
-        // if (query !== undefined && query !== "") {
-        //     Object.assign(dbQuery,
-        //         {
-        //             $or: [
-        //                 { DTNAME: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //                 { DTABBR: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //             ]
-        //         }
-        //     )
-        // }
-        // const documents = await DeathCode.aggregate(
-        //     [
-        //         {
-        //             $match: dbQuery
-        //         },
-        //         {
-        //             $sort: { _id: -1 }
-        //         },
-        //         {
-        //             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        //         },
-        //         {
-        //             $limit: documentLimit
-        //         },
-        //     ]
-        // ).exec();
-        // const totalDocument = await DeathCode.find(dbQuery).countDocuments();
-        // const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        // return response.send(httpOkExtended(documents, 'Death code fetched.', pageNumber, totalPagesCount, totalDocument));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -128,8 +96,6 @@ const unFollow = async (request: Request, response: Response, next: NextFunction
 }
 const follower = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
-        //FIXME Private profile check pending 
         const { id } = request.user;
         const userID = request.params.id;
         let { pageNumber, documentLimit, query }: any = request.query;
@@ -139,8 +105,13 @@ const follower = async (request: Request, response: Response, next: NextFunction
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-
-        const followersIDs = await UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED });
+        const [followersIDs, inMyFollowing] = await Promise.all([
+            UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED }),
+            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
+        ]);
+        if (userID !== id && !inMyFollowing && user.privateAccount) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their following."), "This account is Private. Follow this account to see their following."))
+        }
         const dbQuery = { _id: { $in: followersIDs } };
         if (query !== undefined && query !== "") {
             //Search business profile
@@ -172,7 +143,6 @@ const follower = async (request: Request, response: Response, next: NextFunction
 }
 const following = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        //FIXME Private profile check pending 
         const { id } = request.user;
         const userID = request.params.id;
         let { pageNumber, documentLimit, query }: any = request.query;
@@ -182,7 +152,13 @@ const following = async (request: Request, response: Response, next: NextFunctio
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const followingIDs = await UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED });
+        const [followingIDs, inMyFollowing] = await Promise.all([
+            UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED }),
+            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
+        ]);
+        if (userID !== id && !inMyFollowing && user.privateAccount) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their following."), "This account is Private. Follow this account to see their following."))
+        }
         const dbQuery = { _id: { $in: followingIDs } };
         if (query !== undefined && query !== "") {
             //Search business profile

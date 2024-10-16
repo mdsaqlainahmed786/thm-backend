@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404 } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
@@ -10,6 +10,13 @@ import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
+import UserConnection from "../database/models/userConnection.model";
+import { AccountType } from "../database/models/user.model";
+import { ConnectionStatus } from "../database/models/userConnection.model";
+import { Type } from "../validation/rules/api-validation";
+import WebsiteRedirection from "../database/models/websiteRedirection.model";
+import Story, { addMediaInStory } from "../database/models/story.model";
+import { ObjectId } from "mongodb";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -1876,5 +1883,83 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID };
+const insights = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (accountType !== AccountType.BUSINESS) {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
+        }
+        const [totalFollowers, websiteRedirection, stories, posts] = await Promise.all([
+            UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            WebsiteRedirection.find({ businessProfileID: businessProfileID }).countDocuments(),
+            Story.aggregate([
+                {
+                    $match: { userID: new ObjectId(id), }
+                },
+                addMediaInStory().lookup,
+                addMediaInStory().unwindLookup,
+                addMediaInStory().replaceRootAndMergeObjects,
+                addMediaInStory().project,
+                {
+                    $sort: { createdAt: -1, id: 1 }
+                },
+                {
+                    $limit: 10
+                }
+            ]).exec(),
+            fetchPosts({ userID: new ObjectId(id), }, [], [], 1, 10)
+        ]);
+        const responseData = {
+            dashboard: {
+                accountReached: 0,
+                websiteRedirection,
+                totalFollowers,
+                engaged: 0,
+            },
+            data: [],
+            stories: stories,
+            posts: posts
+        }
+        return response.send(httpOk(responseData, 'Insights fetched'))
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const collectData = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType } = request.user;
+        const myBusinessProfile = request.user.businessProfileID;
+        const { type, businessProfileID } = request.body;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        // if (accountType !== AccountType.BUSINESS) {
+        //     return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
+        // }
+        if (businessProfileID.toString() === myBusinessProfile.toString()) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("The target Business Profile ID you entered matches your existing Business Profile ID. Please select a different target ID."), "The target Business Profile ID you entered matches your existing Business Profile ID. Please select a different target ID."))
+        }
+        switch (type) {
+            case Type.WEBSITE_REDIRECTION:
+                const business = await BusinessProfile.findOne({ _id: businessProfileID });
+                if (!business) {
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+                }
+                if (!business.website) {
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Website link not found"), "Website linkk not found"))
+                }
+                const newRedirecation = new WebsiteRedirection();
+                newRedirecation.userID = id;
+                newRedirecation.businessProfileID = business.id;
+                await newRedirecation.save();
+                return response.send(httpOk(newRedirecation, "Data collected"));
+        }
+        return response.send("");
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, insights, collectData };

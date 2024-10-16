@@ -14,6 +14,7 @@ import { MongoID } from '../common';
 import SharedContent from '../database/models/sharedContent.model';
 import Like from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
+import Report, { ContentType } from '../database/models/reportedUser.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -226,4 +227,39 @@ const sharedPost = async (request: Request, response: Response, next: NextFuncti
     }
 }
 
-export default { index, store, update, destroy, sharedPost };
+const reportContent = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        let { contentType, contentID } = request.body;
+        const { id, accountType, businessProfileID } = request.user;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [totalReports, isReportedBefore,] = await Promise.all([
+            Report.find({ contentID: contentID, contentType: contentType }),
+            Report.findOne({ contentID: contentID, contentType: contentType, reportedBy: id }),
+        ])
+        if (contentType === ContentType.POST) {
+            const post = await Post.findOne({ _id: contentID });
+            if (!post) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Content not found"), "Content not found"))
+            }
+            if (totalReports && totalReports.length >= 5) {//If some post is reported more then 5 time then remove from feed
+                post.isPublished = false;
+                await post.save();
+            }
+        }
+        if (!isReportedBefore) {
+            const newReport = new Report();
+            newReport.reportedBy = id;
+            newReport.contentID = contentID;
+            newReport.contentType = contentType;
+            const report = await newReport.save();
+            return response.send(httpCreated(report, "Content reported successfully"));
+        }
+        return response.send(httpNoContent(isReportedBefore, 'Content already reported'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, store, update, destroy, sharedPost, reportContent };

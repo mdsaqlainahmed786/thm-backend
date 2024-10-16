@@ -534,7 +534,6 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
             dbQuery.push({ _id: { $in: inMyFollower } })
             dbQuery.push({ privateAccount: false, })
         }
-        console.log(dbQuery);
         const [documents, totalDocument] = await Promise.all([
             getUserProfile({
                 $or: dbQuery
