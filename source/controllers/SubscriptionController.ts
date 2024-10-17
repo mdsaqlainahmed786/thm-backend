@@ -8,6 +8,8 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import moment from "moment";
+import PromoCode, { PriceType } from "../database/models/promoCode.model";
+import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
 /**
  * //FIXME hey bro fix me  
  * @param request 
@@ -187,7 +189,7 @@ const getSubscriptionPlans = async (request: Request, response: Response, next: 
 const subscriptionCheckout = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        const { subscriptionPlanID } = request.body;
+        const { subscriptionPlanID, promoCode } = request.body;
         const [user, subscriptionPlan] = await Promise.all([
             User.findOne({ _id: id }),
             SubscriptionPlan.findOne({ _id: subscriptionPlanID })
@@ -199,21 +201,113 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
         }
+
         const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
         if (!businessProfile) {
             return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
-        const subtotal = subscriptionPlan.price;
-        const gst = (subtotal * 18) / 100;
-        const total = (gst + subtotal);
+        //User Billing Address 
+        const billingAddress = {
+            name: businessProfile.name,
+            address: businessProfile.address,
+            dialCode: businessProfile.dialCode,
+            phoneNumber: businessProfile.phoneNumber,
+            gstn: businessProfile.gstn,
+        };
+
+        //Price related calculations
+        let subtotal = subscriptionPlan.price;
+        let gst = (subtotal * 18) / 100;
+        let total = (gst + subtotal);
+        const payment = {
+            subtotal: subtotal,
+            gst: gst,
+            total: total
+        }
+
+        const newOrder = new Order();
+        newOrder.orderID = await generateNextOrderID();
+        newOrder.userID = user.id;
+        newOrder.billingAddress = billingAddress;
+        newOrder.subscriptionID = subscriptionPlan.id;
+        newOrder.subTotal = subtotal;
+        newOrder.grandTotal = total;
+        newOrder.tax = gst;
+        newOrder.status = OrderStatus.ORDER_PLACED;
+
+        if (promoCode) {
+            const promocode = await PromoCode.findOne({ code: promoCode })
+            if (!promocode) {
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.INVALID_PROMOCODE), ErrorMessage.INVALID_PROMOCODE));
+            }
+            if (promocode.cartValue > parseFloat(`${subtotal}`)) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest(`To use this coupon minimum order value should be more than ₹ ${subtotal}.`), `To use this coupon minimum order value should be more than ₹ ${subtotal}.`));
+            }
+            const todayDate = new Date();
+            if (promocode.validTo <= todayDate) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.EXPIRED_PROMOCODE), ErrorMessage.EXPIRED_PROMOCODE));
+            }
+            if (promocode.quantity !== -1) {
+                console.log("Unlimited redeemed count")
+                if (promocode.quantity <= promocode.redeemedCount) {
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.PROMOCOD_USAGE_LIMIT_REACHED), ErrorMessage.PROMOCOD_USAGE_LIMIT_REACHED));
+                }
+            }
+            // promo code calculation
+            if (promocode.priceType === PriceType.FIXED) {
+                let discount = promocode.value;
+                console.log("calculated discount", discount, `${promocode.value}%`, promocode.maxDiscount);
+                if (discount > promocode.maxDiscount) {
+                    discount = promocode.maxDiscount;
+                    console.log("Maximum discount");
+                }
+                subtotal = (subtotal - discount);
+                gst = (subtotal * 18) / 100;
+                total = (gst + subtotal);
+                payment.gst = gst;
+                payment.total = total;
+
+                //Update  discount and total and tax
+                newOrder.promoCode = promocode.code;
+                newOrder.promoCodeID = promocode.id;
+                newOrder.discount = discount;
+                newOrder.grandTotal = total;
+                newOrder.tax = gst;
+
+                Object.assign(payment, { discount })
+            } else {
+                let discount = (subtotal * promocode.value) / 100;
+                console.log("calculated discount", discount, `${promocode.value}%`, promocode.maxDiscount);
+                if (discount > promocode.maxDiscount) {
+                    discount = promocode.maxDiscount;
+                    console.log("Maximum discount");
+                }
+                subtotal = (subtotal - discount);
+                gst = (subtotal * 18) / 100;
+                total = (gst + subtotal);
+                payment.gst = gst;
+                payment.total = total;
+
+                //Update  discount and total and tax
+                newOrder.promoCode = promocode.code;
+                newOrder.promoCodeID = promocode.id;
+                newOrder.discount = discount;
+                newOrder.grandTotal = total;
+                newOrder.tax = gst;
+                Object.assign(payment, { discount })
+            }
+            Object.assign(payment, {
+                "promoCode": {
+                    "code": promocode.code,
+                    "priceType": promocode.priceType,
+                    "value": promocode.value
+                }
+            })
+        }
+        const savedOrder = await newOrder.save();
         return response.send(httpOk({
-            billingAddress: {
-                name: businessProfile.name,
-                address: businessProfile.address,
-                dialCode: businessProfile.dialCode,
-                phoneNumber: businessProfile.phoneNumber,
-                gstn: businessProfile.gstn,
-            },
+            orderID: savedOrder.orderID,
+            billingAddress: billingAddress,
             plan: {
                 _id: subscriptionPlan._id,
                 name: subscriptionPlan.name,
@@ -221,11 +315,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 image: subscriptionPlan.image,
                 duration: subscriptionPlan.duration,
             },
-            payment: {
-                subtotal: subtotal,
-                gst: gst,
-                total: total
-            }
+            payment: payment
         }, "Checkout data fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

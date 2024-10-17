@@ -15,6 +15,9 @@ export class ErrorMessage {
     static readonly INVALID_OR_EXPIRED_TOKEN = "Access denied! Invalid or expired session, please try again";
     static readonly INSUFFICIENT_TO_GRANT_ACCESS = "Session token is insufficient to grant access, please try again"
     static readonly TOKEN_MISMATCH = 'Invalid token, please try again';
+    static readonly INVALID_PROMOCODE = "Invalid promo code, please try again";
+    static readonly EXPIRED_PROMOCODE = "Expired promo code, please try again";
+    static readonly PROMOCOD_USAGE_LIMIT_REACHED = "The maximum number of uses for this promo code has already been reached"
     static invalidRequest(message: string, errors?: any) {
         return {
             "errors": errors ?? null,
