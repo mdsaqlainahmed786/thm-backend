@@ -185,7 +185,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+        // return response.send(httpAcceptedOrUpdated(null, 'Not implemented'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -230,7 +230,7 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk({}, "Not implemented"));
+        // return response.send(httpOk(null, "Not implemented"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

@@ -72,14 +72,14 @@ const update = async (request: Request, response: Response, next: NextFunction) 
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
-        // return response.send(httpNoContent({}, 'Death code deleted.'));
+        // return response.send(httpNoContent(null, 'Death code deleted.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk({}, "Not implemented"));
+        // return response.send(httpOk(null, "Not implemented"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

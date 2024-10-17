@@ -105,21 +105,21 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+        // return response.send(httpAcceptedOrUpdated(null, 'Not implemented'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpNoContent({}, 'Not implemented'));
+        // return response.send(httpNoContent(null, 'Not implemented'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk({}, "Not implemented"));
+        // return response.send(httpOk(null, "Not implemented"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

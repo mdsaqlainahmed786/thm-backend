@@ -69,9 +69,9 @@ const acceptFollow = async (request: Request, response: Response, next: NextFunc
             AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connetionID: connection.id, userID: connection.following })
             //Notify the follower 
             AppNotificationController.store(id, connection.follower, NotificationType.ACCEPT_FOLLOW_REQUEST, { connetionID: connection.id, userID: connection.follower })
-            return response.send(httpAcceptedOrUpdated({}, "Follow request accepted"));
+            return response.send(httpAcceptedOrUpdated(null, "Follow request accepted"));
         }
-        return response.send(httpAcceptedOrUpdated({}, "You are already following"));
+        return response.send(httpAcceptedOrUpdated(null, "You are already following"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -89,7 +89,7 @@ const unFollow = async (request: Request, response: Response, next: NextFunction
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Following not found"), "Following not found"));
         }
         await connection.deleteOne();
-        return response.send(httpNoContent({}, 'Unfollowed user'));
+        return response.send(httpNoContent(null, 'Unfollowed user'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

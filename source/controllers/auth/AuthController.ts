@@ -290,11 +290,11 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
                 response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
                 return response.status(200).send(httpOk({ accessToken, refreshToken }, `Token Refreshed`));
             } else {
-                return response.status(403).send(httpUnauthorized({}, ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));
+                return response.status(403).send(httpUnauthorized(null, ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));
             }
         }
     } catch (error: any) {
-        return response.status(403).send(httpUnauthorized({}, ErrorMessage.INVALID_OR_EXPIRED_TOKEN));
+        return response.status(403).send(httpUnauthorized(null, ErrorMessage.INVALID_OR_EXPIRED_TOKEN));
     }
 }
 
