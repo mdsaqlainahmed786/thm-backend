@@ -9,7 +9,21 @@ export interface DeliveryInstruction {
 export enum OrderStatus {
     ORDER_PLACED = "order-placed"
 }
+// Order Placed: The subscription order has been successfully submitted.
 
+// Processing: The order is being processed, and the payment is being verified.
+
+// Completed: The order has been successfully completed, and the subscription is active.
+
+// Failed: The order was not successful due to payment issues or other errors.
+
+// Canceled: The order was canceled by the user or the service provider before it was completed.
+
+// Refunded: The order has been refunded after payment was processed.
+
+// Awaiting Payment: The order is pending until payment is received.
+
+// Renewal Order: This status indicates that a subscription is set to renew, and the payment is being processed for the renewal.
 
 export interface PaymentDetail {
     transactionID: string;

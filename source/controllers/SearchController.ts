@@ -62,34 +62,69 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
                 return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
-                break;
+
             case "posts":
-                Object.assign(dbQuery, { postType: PostType.POST });
+
+                /***
+                 * Base query
+                 */
+                Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
+                if (query !== undefined && query !== "") {
+                    Object.assign(dbQuery,
+                        {
+                            $or: [
+                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                            ]
+                        }
+                    )
+                }
                 [documents, totalDocument] = await Promise.all([
                     fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
-                    User.find(dbQuery).countDocuments()
+                    Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
                 return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
-                break;
+
             case "events":
-                Object.assign(dbQuery, { postType: PostType.EVENT });
+                Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
+                if (query !== undefined && query !== "") {
+                    Object.assign(dbQuery,
+                        {
+                            $or: [
+                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                            ]
+                        }
+                    )
+                }
                 [documents, totalDocument] = await Promise.all([
                     fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
-                    User.find(dbQuery).countDocuments()
+                    Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
                 return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
                 break;
             case "reviews":
-                Object.assign(dbQuery, { postType: PostType.REVIEW });
+                Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
+                if (query !== undefined && query !== "") {
+                    Object.assign(dbQuery,
+                        {
+                            $or: [
+                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                            ]
+                        }
+                    )
+                }
                 [documents, totalDocument] = await Promise.all([
                     fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
-                    User.find(dbQuery).countDocuments()
+                    Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
                 return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
-                break;
             default:
                 return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be profile | posts | events | reviews"), "Invalid type. Type must be profile | posts | events | reviews"))
         }
