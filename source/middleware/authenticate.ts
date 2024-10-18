@@ -6,6 +6,7 @@ import { AppConfig } from "../config/constants";
 import User, { AccountType } from "../database/models/user.model";
 import { AuthenticateUser } from "../common";
 import AuthToken from "../database/models/authToken.model";
+import Subscription from "../database/models/subscription.model";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
     const cookies = request?.cookies;
     const authKey = AppConfig.USER_AUTH_TOKEN_KEY;
@@ -18,8 +19,24 @@ export default async function authenticateUser(request: Request, response: Respo
     try {
         const decoded: any = verify(token, AppConfig.APP_ACCESS_TOKEN_SECRET);
         if (decoded) {
-            const auth_user = await User.findOne({ _id: decoded.id });
+            const [auth_user, subscription] = await Promise.all([
+                User.findOne({ _id: decoded.id }),
+                Subscription.findOne({ businessProfileID: decoded.businessProfileID }).sort({ createdAt: -1, id: 1 })
+            ])
             if (auth_user) {
+                console.log(request.url, request.path);
+                console.log(subscription)
+                console.log(decoded.businessProfileID)
+                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/business-profile/subscription/plans', '/business-profile/subscription/checkout', '/business-profile/subscription'];
+                const now = new Date();
+                if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
+                    console.log("ErrorMessage.NO_SUBSCRIPTION");
+                    return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
+                }
+                if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
+                    console.log("ErrorMessage.SUBSCRIPTION_EXPIRED");
+                    return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
+                }
                 request.user = {
                     id: auth_user.id,
                     accountType: auth_user.accountType,

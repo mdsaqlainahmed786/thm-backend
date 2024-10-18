@@ -40,9 +40,9 @@ const sendFollowRequest = async (request: Request, response: Response, next: Nex
             }
             const follow = await newUserConnection.save();
             if (follow.status === ConnectionStatus.ACCEPTED) {
-                AppNotificationController.store(id, followingUser.id, NotificationType.FOLLOWING, { connetionID: newUserConnection.id, userID: followingUser.id }).catch((error) => console.error(error));
+                AppNotificationController.store(id, followingUser.id, NotificationType.FOLLOWING, { connectionID: newUserConnection.id, userID: followingUser.id }).catch((error) => console.error(error));
             } else {
-                AppNotificationController.store(id, followingUser.id, NotificationType.FOLLOW_REQUEST, { connetionID: newUserConnection.id, userID: followingUser.id }).catch((error) => console.error(error));
+                AppNotificationController.store(id, followingUser.id, NotificationType.FOLLOW_REQUEST, { connectionID: newUserConnection.id, userID: followingUser.id }).catch((error) => console.error(error));
             }
             return response.send(httpCreated(follow, "A follow request has already been sent"))
         } else {
@@ -66,9 +66,9 @@ const acceptFollow = async (request: Request, response: Response, next: NextFunc
             connection.status = ConnectionStatus.ACCEPTED;
             await connection.save();
             //Remove connection request notification from app notification
-            AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connetionID: connection.id, userID: connection.following })
+            AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.following })
             //Notify the follower 
-            AppNotificationController.store(id, connection.follower, NotificationType.ACCEPT_FOLLOW_REQUEST, { connetionID: connection.id, userID: connection.follower })
+            AppNotificationController.store(id, connection.follower, NotificationType.ACCEPT_FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.follower })
             return response.send(httpAcceptedOrUpdated(null, "Follow request accepted"));
         }
         return response.send(httpAcceptedOrUpdated(null, "You are already following"));

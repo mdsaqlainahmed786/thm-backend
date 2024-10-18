@@ -17,7 +17,9 @@ export class ErrorMessage {
     static readonly TOKEN_MISMATCH = 'Invalid token, please try again';
     static readonly INVALID_PROMOCODE = "Invalid promo code, please try again";
     static readonly EXPIRED_PROMOCODE = "Expired promo code, please try again";
-    static readonly PROMOCOD_USAGE_LIMIT_REACHED = "The maximum number of uses for this promo code has already been reached"
+    static readonly PROMOCODE_USAGE_LIMIT_REACHED = "The maximum number of uses for this promo code has already been reached";
+    static readonly SUBSCRIPTION_EXPIRED = "Your subscription has expired. Please renew your subscription to access this resource.";
+    static readonly NO_SUBSCRIPTION = "You do not have an active subscription. Please subscribe to access this resource.";
     static invalidRequest(message: string, errors?: any) {
         return {
             "errors": errors ?? null,
@@ -29,6 +31,13 @@ export class ErrorMessage {
         return {
             "errors": errors ?? null,
             "name": "UnauthenticatedRequest",
+            "message": message
+        } as Object
+    }
+    static subscriptionExpired(message: string, errors?: any) {
+        return {
+            "errors": errors ?? null,
+            "name": "SubscriptionExpired",
             "message": message
         } as Object
     }

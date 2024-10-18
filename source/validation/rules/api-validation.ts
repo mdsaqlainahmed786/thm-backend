@@ -204,7 +204,7 @@ export enum EventType {
 }
 const EventTypeValue = Object.values(EventType);
 export const createEventApiValidator = [
-    body("name", "Name is required field.").exists().bail().notEmpty().bail(),
+    nameValidationRule,
     body("description", "Description is required field.").exists().bail().notEmpty().bail(),
     body("date", "Date is required field.").exists().bail().notEmpty().bail().isDate({
         format: 'YYYY-MM-DD',
@@ -258,3 +258,9 @@ export const reportContentApiValidator = [
     body("contentType", "Content Type is required field.").exists().bail().notEmpty().bail().isIn(ContentTypeValue).withMessage(`Content Type must be in  ${ContentTypeValue.join(' | ')}`),
     body("contentID", "Content ID is required field.").exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID'),
 ]
+
+export const createContactApiValidator = [
+    nameValidationRule,
+    emailValidationRule,
+    messageValidationRule,
+];

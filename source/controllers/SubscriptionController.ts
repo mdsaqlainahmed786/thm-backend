@@ -250,7 +250,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
             if (promocode.quantity !== -1) {
                 console.log("Unlimited redeemed count")
                 if (promocode.quantity <= promocode.redeemedCount) {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.PROMOCOD_USAGE_LIMIT_REACHED), ErrorMessage.PROMOCOD_USAGE_LIMIT_REACHED));
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.PROMOCODE_USAGE_LIMIT_REACHED), ErrorMessage.PROMOCODE_USAGE_LIMIT_REACHED));
                 }
             }
             // promo code calculation

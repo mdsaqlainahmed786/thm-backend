@@ -22,6 +22,7 @@ import BusinessTypeSeeder from "../database/seeders/BusinessTypeSeeder";
 import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
 import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
+import FAQSeeder from "../database/seeders/FAQSeeder";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -104,6 +105,11 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
         const shouldRunReviewQuestionSeeder = await reviewQuestionSeeder.shouldRun();
         if (shouldRunReviewQuestionSeeder) {
             await reviewQuestionSeeder.run();
+        }
+        const faqSeeder = new FAQSeeder();
+        const shouldRunFAQSeeder = await faqSeeder.shouldRun();
+        if (shouldRunFAQSeeder) {
+            await faqSeeder.run();
         }
         return response.send(httpOk(null, "Done"));
     } catch (error: any) {

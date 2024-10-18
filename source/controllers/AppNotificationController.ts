@@ -2,10 +2,6 @@ import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import Post from "../database/models/post.model";
-import Like, { addUserInLike } from '../database/models/like.model';
-import Comment from '../database/models/comment.model';
-import Story from "../database/models/story.model";
 import User from "../database/models/user.model";
 import { MongoID } from "../common";
 import { NotificationType } from "../database/models/notification.model";
@@ -14,7 +10,6 @@ import Notification from "../database/models/notification.model";
 import DevicesConfig from "../database/models/appDeviceConfig.model";
 import { Message } from "firebase-admin/lib/messaging/messaging-api";
 import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
-import { DevicePlatform } from "../validation/common-validation";
 import { parseQueryParam, truncate } from "../utils/helper/basic";
 import { httpOkExtended } from "../utils/response";
 import { addBusinessProfileInUser } from "../database/models/user.model";
@@ -204,7 +199,7 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
                 Object.assign(dbQuery, { type: type, "metadata.commentID": metadata?.commentID })
                 break;
             case NotificationType.FOLLOW_REQUEST:
-                Object.assign(dbQuery, { type: type, "metadata.connetionID": metadata?.connetionID })
+                Object.assign(dbQuery, { type: type, "metadata.connectionID": metadata?.connectionID })
                 break;
         }
         const notification = await Notification.findOne(dbQuery);

@@ -20,7 +20,7 @@ import { Readable } from "stream"
 
 export const PUBLIC_DIR = `public/files`;
 import { StreamingBlobPayloadInputTypes } from '@smithy/types'
-const s3Client = new S3Client({
+export const s3Client = new S3Client({
     credentials: {
         accessKeyId: AppConfig.AWS_ACCESS_KEY,
         secretAccessKey: AppConfig.AWS_SECRET_KEY

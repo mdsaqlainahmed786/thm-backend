@@ -55,11 +55,11 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 [
                     BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                     BusinessProfile.findOne({ _id: user.businessProfileID }),
-                    Subscription.findOne({ businessProfileID: user.businessProfileID })
+                    Subscription.findOne({ businessProfileID: user.businessProfileID }).sort({ createdAt: -1, id: 1 })
                 ]
             )
             businessProfileRef = businessProfile;
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
             if (!businessDocument || businessDocument.length === 0) {
@@ -76,16 +76,16 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
             }
-            //TODO is subscription is expired then user can't use application.
             const now = new Date();
             if (subscription && subscription.expirationDate < now) {
+                hasSubscription = false;
                 return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
             }
         }
         if (!user.isApproved) {
             return response.status(200).send(httpForbidden(null, "Your account is currently under review. We will notify you once it has been verified."))
         }
-        const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+        const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
@@ -195,12 +195,12 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
         //Check the account and send response based on their profile 
         if (savedUser.accountType === AccountType.BUSINESS) {
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
             return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, accessToken }, SuccessMessage.OTP_VERIFIED));
         } else {
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
             const accessToken = await generateAccessToken(authenticateUser);
             const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
             response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
@@ -282,7 +282,7 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
         if (decoded) {
             const userData = await User.findOne({ _id: authToken.userID, })
             if (userData) {
-                const userWithRole: AuthenticateUser = { id: userData?.id, accountType: authToken?.accountType }
+                const userWithRole: AuthenticateUser = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID }
                 const accessToken = await generateAccessToken(userWithRole);
                 const refreshToken = await generateRefreshToken(userWithRole, deviceID);
                 response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
