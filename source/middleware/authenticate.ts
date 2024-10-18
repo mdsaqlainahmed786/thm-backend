@@ -24,17 +24,14 @@ export default async function authenticateUser(request: Request, response: Respo
                 Subscription.findOne({ businessProfileID: decoded.businessProfileID }).sort({ createdAt: -1, id: 1 })
             ])
             if (auth_user) {
-                console.log(request.url, request.path);
-                console.log(subscription)
-                console.log(decoded.businessProfileID)
                 const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/business-profile/subscription/plans', '/business-profile/subscription/checkout', '/business-profile/subscription'];
                 const now = new Date();
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
-                    console.log("ErrorMessage.NO_SUBSCRIPTION");
+                    console.error("ErrorMessage.NO_SUBSCRIPTION");
                     return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
                 }
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
-                    console.log("ErrorMessage.SUBSCRIPTION_EXPIRED");
+                    console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
                     return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
                 }
                 request.user = {
