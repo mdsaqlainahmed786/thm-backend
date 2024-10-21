@@ -11,6 +11,7 @@ import moment from "moment";
 import PromoCode, { PriceType } from "../database/models/promoCode.model";
 import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
 import RazorPayService from "../services/RazorPayService";
+import { parseFloatToFixed } from "../utils/helper/basic";
 const razorPayService = new RazorPayService();
 /**
  * //FIXME hey bro fix me  
@@ -25,7 +26,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         const { orderID, paymentID, signature } = request.body;
         const [user, order] = await Promise.all([
             User.findOne({ _id: id }),
-            Order.findOne({ orderID: orderID })
+            Order.findOne({ orderID: orderID, status: OrderStatus.CREATED })
         ]);
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -33,22 +34,33 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         if (!order) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Order not found"), "Order not found"));
         }
-        const [subscriptionPlan] = await Promise.all([
+        const [subscriptionPlan, isPaymentVerified, razorPayOrder, payment] = await Promise.all([
             SubscriptionPlan.findOne({ _id: order.subscriptionID }),
-            // razorPayService.verifyPayment(order.id, paymentID, signature),
-            // razorPayService.fetchOrder(order.id)
+            razorPayService.verifyPayment(order.razorPayOrderID, paymentID, signature),
+            razorPayService.fetchOrder(order.razorPayOrderID),
+            razorPayService.fetchPayment(paymentID)
         ]);
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
         }
-        //TODO TADA
-        // console.log(isPaymentVerified);
-        // console.log("\n\n\n")
-        // console.log(razorPayOrder);
-        // console.log("SUBSCRIPTION")
-        // if (!isPaymentVerified) {
-        //     // order.status = OrderStatus.C
-        // }
+        if (!isPaymentVerified && razorPayOrder.status !== "paid") {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Payment not verified. please try again"), "Payment not verified. please try again"))
+        }
+        //FIXME remove console logs
+        console.log(isPaymentVerified);
+        console.log("\n\n\n")
+        console.log(razorPayOrder);
+        console.log("SUBSCRIPTION")
+        console.log(payment);
+        console.log("\n\n\n");
+        order.status = OrderStatus.COMPLETED;
+        const amount = parseInt(`${payment.amount}`) / 100;
+        order.paymentDetail = {
+            transactionID: payment.id,
+            paymentMethod: payment.method,
+            transactionAmount: parseFloatToFixed(amount, 2)
+        }
+        await order.save();
         const hasSubscription = await Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } });
         if (!hasSubscription) {
             const newSubscription = new Subscription();
@@ -323,8 +335,9 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
             })
         }
         const razorPayOrder = await razorPayService.createOrder(payment.total, { ...billingAddress, email: businessProfile.email, description: `Subscription (${subscriptionPlan.name} RS ${subscriptionPlan.price})` });
+        const data = await razorPayService.fetchOrder(razorPayOrder.id);
         newOrder.razorPayOrderID = razorPayOrder.id;
-        console.log(razorPayOrder, "razorPayOrder");
+        console.log(razorPayOrder, "razorPayOrder", data);
         const savedOrder = await newOrder.save();
         return response.send(httpOk({
             orderID: savedOrder.orderID,

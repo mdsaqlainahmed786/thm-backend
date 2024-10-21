@@ -88,6 +88,23 @@ class RazorPayService {
             throw error;
         }
     }
+    async fetchPayments(orderID: string) {
+        try {
+            const payments = await this.instance.orders.fetchPayments(orderID);
+            return payments;
+        } catch (error) {
+            throw error;
+        }
+    }
+    async fetchPayment(paymentID: string) {
+        try {
+            const payment = await this.instance.payments.fetch(paymentID);
+            return payment;
+        } catch (error) {
+            throw error;
+        }
+    }
+
 }
 
 
