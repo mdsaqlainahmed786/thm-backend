@@ -133,9 +133,10 @@ const profile = async (request: Request, response: Response, next: NextFunction)
 }
 const publicProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const { id } = request.user;
         const { accountType } = request.user;
         const userID = request.params.id;
-        const [user, posts, follower, following] = await Promise.all([
+        const [user, posts, follower, following, inMyFollowing] = await Promise.all([
             User.aggregate([
                 {
                     $match: {
@@ -168,19 +169,19 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
                     }
                 }
             ]),
-
             Post.find({ userID: userID }).countDocuments(),
             UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
         ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
         let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
-            Object.assign(responseData, { ...user[0] })
+            Object.assign(responseData, { ...user[0], inMyFollowing: inMyFollowing ? true : false })
         } else {
-            Object.assign(responseData, { ...user[0] })
+            Object.assign(responseData, { ...user[0], inMyFollowing: inMyFollowing ? true : false })
         }
         return response.send(httpOk(responseData, 'User profile fetched'));
     } catch (error: any) {

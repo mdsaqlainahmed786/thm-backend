@@ -33,22 +33,22 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         if (!order) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Order not found"), "Order not found"));
         }
-        const [subscriptionPlan, isPaymentVerified, razorPayOrder] = await Promise.all([
+        const [subscriptionPlan] = await Promise.all([
             SubscriptionPlan.findOne({ _id: order.subscriptionID }),
-            razorPayService.verifyPayment(order.id, paymentID, signature),
-            razorPayService.fetchOrder(order.id)
-
+            // razorPayService.verifyPayment(order.id, paymentID, signature),
+            // razorPayService.fetchOrder(order.id)
         ]);
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
         }
-        console.log(isPaymentVerified);
-        console.log("\n\n\n")
-        console.log(razorPayOrder);
-        console.log("SUBSCRIPTION")
-        if (!isPaymentVerified) {
-            // order.status = OrderStatus.C
-        }
+        //TODO TADA
+        // console.log(isPaymentVerified);
+        // console.log("\n\n\n")
+        // console.log(razorPayOrder);
+        // console.log("SUBSCRIPTION")
+        // if (!isPaymentVerified) {
+        //     // order.status = OrderStatus.C
+        // }
         const hasSubscription = await Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } });
         if (!hasSubscription) {
             const newSubscription = new Subscription();
@@ -322,7 +322,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 }
             })
         }
-        const razorPayOrder = await razorPayService.createOrder(payment.total);
+        const razorPayOrder = await razorPayService.createOrder(payment.total, { ...billingAddress, email: businessProfile.email, description: `Subscription (${subscriptionPlan.name} RS ${subscriptionPlan.price})` });
         newOrder.razorPayOrderID = razorPayOrder.id;
         console.log(razorPayOrder, "razorPayOrder");
         const savedOrder = await newOrder.save();
