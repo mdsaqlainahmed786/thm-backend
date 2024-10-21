@@ -285,7 +285,7 @@ const transactions = async (request: Request, response: Response, next: NextFunc
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true };
+        const dbQuery = { userID: new ObjectId(id), status: OrderStatus.COMPLETED };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         if (query !== undefined && query !== "") {
@@ -297,7 +297,7 @@ const transactions = async (request: Request, response: Response, next: NextFunc
             Order.aggregate(
                 [
                     {
-                        $match: { userID: new ObjectId(id), status: OrderStatus.COMPLETED }
+                        $match: dbQuery
                     },
                     {
                         '$lookup': {

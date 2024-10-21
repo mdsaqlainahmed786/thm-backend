@@ -38,7 +38,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             SubscriptionPlan.findOne({ _id: order.subscriptionPlanID }),
             razorPayService.verifyPayment(order.razorPayOrderID, paymentID, signature),
             razorPayService.fetchOrder(order.razorPayOrderID),
-            razorPayService.fetchPayment(paymentID)
+            razorPayService.fetchPayment(paymentID),
         ]);
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
@@ -220,9 +220,10 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
     try {
         const { id } = request.user;
         const { subscriptionPlanID, promoCode } = request.body;
-        const [user, subscriptionPlan] = await Promise.all([
+        const [user, subscriptionPlan, oldOrders] = await Promise.all([
             User.findOne({ _id: id }),
-            SubscriptionPlan.findOne({ _id: subscriptionPlanID })
+            SubscriptionPlan.findOne({ _id: subscriptionPlanID }),
+            Order.deleteMany({ userID: id, status: OrderStatus.CREATED, subscriptionPlanID: subscriptionPlanID })//remove un process order 
         ])
 
         if (!user) {
