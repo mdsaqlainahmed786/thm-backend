@@ -39,6 +39,12 @@ export abstract class AppConfig {
         PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY!,
         CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL!,
     }
+    //RazorPay
+    static readonly RAZOR_PAY = {
+        KEY_ID: process.env.RAZORPAY_KEY_ID!,
+        KEY_SECRET: process.env.RAZORPAY_KEY_SECRET!,
+        MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID!
+    }
 }
 
 

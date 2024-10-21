@@ -2,12 +2,14 @@ import mongoose, { Schema, Types, Document, Model } from 'mongoose';
 import { ObjectId } from 'mongoose';
 import { Address, AddressSchema } from './common.model';
 import moment from 'moment';
+import { MongoID } from '../../common';
 export interface DeliveryInstruction {
     instruction: string;
     remarks: string;
 }
 export enum OrderStatus {
-    ORDER_PLACED = "order-placed"
+    CREATED = "order-created",
+    COMPLETED = "order-completed"
 }
 // Order Placed: The subscription order has been successfully submitted.
 
@@ -41,11 +43,12 @@ export interface IBillingAddress {
 
 export interface IOrder extends Document {
     orderID: string;
-    userID: Types.ObjectId | string;
-    subscriptionID: string;
+    userID: MongoID;
+    subscriptionID: MongoID;
+    razorPayOrderID: string;
     billingAddress: IBillingAddress,
     promoCode: string;
-    promoCodeID: Types.ObjectId | string;
+    promoCodeID: MongoID;
     subTotal: number;
     grandTotal: number;
     tax: number;
@@ -104,6 +107,11 @@ const OrderSchema: Schema = new Schema<IOrder>(
             required: true,
             unique: true,
         },
+        razorPayOrderID: {
+            type: String,
+            required: true,
+            unique: true,
+        },
         billingAddress: DeliveryAddressSchema,
         promoCode: {
             type: String,
@@ -112,6 +120,10 @@ const OrderSchema: Schema = new Schema<IOrder>(
         promoCodeID: {
             type: Schema.Types.ObjectId,
             ref: "Coupon"
+        },
+        subscriptionID: {
+            type: Schema.Types.ObjectId,
+            ref: "Subscription"
         },
         subTotal: {
             type: Number,
@@ -157,7 +169,7 @@ export async function generateNextOrderID(): Promise<string> {
     let minute = moment().get('minute');
     let second = moment().get('second');
     let millisecond = moment().get('millisecond');
-    let orderID = `${millisecond}${minute}${second}${hour}`;
+    let orderID = `${millisecond}${year}${date}${month}${minute}${second}${hour}`;
     const isAvailable = await Order.findOne({ orderID: orderID });
     if (!isAvailable) {
         return orderID;

@@ -133,6 +133,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newBusinessProfile.website = businessWebsite;
             newBusinessProfile.gstn = gstn;
             newBusinessProfile.placeID = placeID;
+            newBusinessProfile.privateAccount = false;
             const savedBusinessProfile = await newBusinessProfile.save();
 
             const newUser = new User();
@@ -145,6 +146,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newUser.password = password;
             newUser.isActivated = true;
             newUser.isApproved = false;
+            newUser.privateAccount = false;//Business profile is public profile
             newUser.businessProfileID = savedBusinessProfile.id;
             newUser.otp = generateOTP();
             const savedUser = await newUser.save();

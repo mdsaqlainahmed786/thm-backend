@@ -235,7 +235,9 @@ export const subscriptionCheckoutApiValidator = [
     subscriptionPlanIDValidationRule
 ]
 export const buySubscriptionApiValidator = [
-    subscriptionPlanIDValidationRule
+    body("orderID", "Order ID is required field.").exists().bail().notEmpty().bail(),
+    body("paymentID", "Payment ID is required field.").exists().bail().notEmpty().bail(),
+    body("signature", "Payment Signature is required field.").exists().bail().notEmpty().bail(),
 ]
 
 

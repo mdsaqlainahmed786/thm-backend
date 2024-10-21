@@ -10,6 +10,8 @@ import BusinessProfile from "../database/models/businessProfile.model";
 import moment from "moment";
 import PromoCode, { PriceType } from "../database/models/promoCode.model";
 import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
+import RazorPayService from "../services/RazorPayService";
+const razorPayService = new RazorPayService();
 /**
  * //FIXME hey bro fix me  
  * @param request 
@@ -20,16 +22,32 @@ import Order, { generateNextOrderID, OrderStatus } from "../database/models/orde
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        const { subscriptionPlanID } = request.body;
-        const [user, subscriptionPlan] = await Promise.all([
+        const { orderID, paymentID, signature } = request.body;
+        const [user, order] = await Promise.all([
             User.findOne({ _id: id }),
-            SubscriptionPlan.findOne({ _id: subscriptionPlanID })
-        ])
+            Order.findOne({ orderID: orderID })
+        ]);
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
+        if (!order) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Order not found"), "Order not found"));
+        }
+        const [subscriptionPlan, isPaymentVerified, razorPayOrder] = await Promise.all([
+            SubscriptionPlan.findOne({ _id: order.subscriptionID }),
+            razorPayService.verifyPayment(order.id, paymentID, signature),
+            razorPayService.fetchOrder(order.id)
+
+        ]);
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
+        }
+        console.log(isPaymentVerified);
+        console.log("\n\n\n")
+        console.log(razorPayOrder);
+        console.log("SUBSCRIPTION")
+        if (!isPaymentVerified) {
+            // order.status = OrderStatus.C
         }
         const hasSubscription = await Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } });
         if (!hasSubscription) {
@@ -233,7 +251,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         newOrder.subTotal = subtotal;
         newOrder.grandTotal = total;
         newOrder.tax = gst;
-        newOrder.status = OrderStatus.ORDER_PLACED;
+        newOrder.status = OrderStatus.CREATED;
 
         if (promoCode) {
             const promocode = await PromoCode.findOne({ code: promoCode })
@@ -304,9 +322,13 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 }
             })
         }
+        const razorPayOrder = await razorPayService.createOrder(payment.total);
+        newOrder.razorPayOrderID = razorPayOrder.id;
+        console.log(razorPayOrder, "razorPayOrder");
         const savedOrder = await newOrder.save();
         return response.send(httpOk({
             orderID: savedOrder.orderID,
+            razorPayOrder: razorPayOrder,
             billingAddress: billingAddress,
             plan: {
                 _id: subscriptionPlan._id,
