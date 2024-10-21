@@ -23,6 +23,7 @@ import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
 import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
 import FAQSeeder from "../database/seeders/FAQSeeder";
+import Order, { OrderStatus } from "../database/models/order.model";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -280,4 +281,74 @@ const collectData = async (request: Request, response: Response, next: NextFunct
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, insights, collectData };
+const transactions = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query }: any = request.query;
+        const dbQuery = { isPublished: true };
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (query !== undefined && query !== "") {
+        }
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [documents, totalDocument] = await Promise.all([
+            Order.aggregate(
+                [
+                    {
+                        $match: { userID: new ObjectId(id), status: OrderStatus.COMPLETED }
+                    },
+                    {
+                        '$lookup': {
+                            'from': 'subscriptionplans',
+                            'let': { 'subscriptionPlanID': '$subscriptionPlanID' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$subscriptionPlanID'] } } },
+                                {
+                                    '$project': {
+                                        _id: 1,
+                                        image: 1,
+                                        name: 1,
+                                    }
+                                }
+                            ],
+                            'as': 'subscriptionPlanRef'
+                        }
+                    },
+                    {
+                        '$unwind': {
+                            'path': '$subscriptionPlanRef',
+                            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                        }
+                    },
+                    {
+                        $sort: { createdAt: -1, id: 1 }
+                    },
+                    {
+                        $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                    },
+                    {
+                        $limit: documentLimit
+                    },
+                    {
+                        $project: {
+                            id: 1,
+                            orderID: 1,
+                            grandTotal: 1,
+                            paymentDetail: 1,
+                            subscriptionPlanRef: 1,
+                            createdAt: 1,
+                        }
+                    }
+                ]
+            ).exec(),
+            Order.find(dbQuery).countDocuments()
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Transactions fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, insights, collectData, transactions };

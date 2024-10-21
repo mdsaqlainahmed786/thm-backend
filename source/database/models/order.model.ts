@@ -44,7 +44,7 @@ export interface IBillingAddress {
 export interface IOrder extends Document {
     orderID: string;
     userID: MongoID;
-    subscriptionID: MongoID;
+    subscriptionPlanID: MongoID;
     razorPayOrderID: string;
     billingAddress: IBillingAddress,
     promoCode: string;
@@ -121,7 +121,7 @@ const OrderSchema: Schema = new Schema<IOrder>(
             type: Schema.Types.ObjectId,
             ref: "Coupon"
         },
-        subscriptionID: {
+        subscriptionPlanID: {
             type: Schema.Types.ObjectId,
             ref: "Subscription"
         },

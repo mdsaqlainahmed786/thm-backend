@@ -35,7 +35,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Order not found"), "Order not found"));
         }
         const [subscriptionPlan, isPaymentVerified, razorPayOrder, payment] = await Promise.all([
-            SubscriptionPlan.findOne({ _id: order.subscriptionID }),
+            SubscriptionPlan.findOne({ _id: order.subscriptionPlanID }),
             razorPayService.verifyPayment(order.razorPayOrderID, paymentID, signature),
             razorPayService.fetchOrder(order.razorPayOrderID),
             razorPayService.fetchPayment(paymentID)
@@ -259,7 +259,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         newOrder.orderID = await generateNextOrderID();
         newOrder.userID = user.id;
         newOrder.billingAddress = billingAddress;
-        newOrder.subscriptionID = subscriptionPlan.id;
+        newOrder.subscriptionPlanID = subscriptionPlan.id;
         newOrder.subTotal = subtotal;
         newOrder.grandTotal = total;
         newOrder.tax = gst;

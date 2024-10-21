@@ -20,4 +20,5 @@ HomeEndpoints.get('/insights', authenticateUser, HomeController.insights);
 HomeEndpoints.post('/insights/collect-data', authenticateUser, collectDataApiValidator, validateRequest, HomeController.collectData)
 HomeEndpoints.get('/db', HomeController.dbSeeder);
 HomeEndpoints.get('/db/s', SubscriptionController.index);
+HomeEndpoints.get('/transactions', authenticateUser, HomeController.transactions);
 export default HomeEndpoints;
