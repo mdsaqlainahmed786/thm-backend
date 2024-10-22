@@ -14,6 +14,7 @@ import { parseQueryParam, truncate } from "../utils/helper/basic";
 import { httpOkExtended } from "../utils/response";
 import { addBusinessProfileInUser } from "../database/models/user.model";
 import { v4 } from 'uuid';
+import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -34,6 +35,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 // }
             )
         }
+        const [isRequested, isConnected] = await Promise.all(
+            [
+                UserConnection.distinct('following', { follower: id, status: ConnectionStatus.PENDING }),
+                UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED })
+            ]
+        );
         const documents = await Notification.aggregate(
             [
                 {
@@ -67,6 +74,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     '$unwind': {
                         'path': '$usersRef',
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
+                    $addFields: {
+                        isConnected: { $in: ['$userID', isConnected] },
+                        isRequested: { $in: ['$userID', isRequested] },
                     }
                 },
                 {
