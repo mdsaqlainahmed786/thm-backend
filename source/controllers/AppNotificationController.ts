@@ -98,10 +98,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
 const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationType, metadata: { [key: string]: any; }) => {
     try {
-        if (userID.toString() === targetUserID.toString()) {
-            console.log("Same user no need to perform further action");
-            return null;
-        }
+
         const [userData, targetUserData] = await Promise.all([
             User.findOne({ _id: userID }),
             User.findOne({ _id: targetUserID })
@@ -159,14 +156,17 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             newNotification.type = type;
             newNotification.metadata = metadata;
             try {
-                await Promise.all(devicesConfigs.map(async (devicesConfig) => {
-                    if (devicesConfig && devicesConfig.notificationToken) {
-                        const notificationID = newNotification.id ? newNotification.id : v4();
-                        const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
-                        await sendNotification(message);
-                    }
-                    return devicesConfig;
-                }));
+                if (userID.toString() !== targetUserID.toString()) {
+                    console.log("No Same user no need to perform further action");
+                    await Promise.all(devicesConfigs.map(async (devicesConfig) => {
+                        if (devicesConfig && devicesConfig.notificationToken) {
+                            const notificationID = newNotification.id ? newNotification.id : v4();
+                            const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
+                            await sendNotification(message);
+                        }
+                        return devicesConfig;
+                    }));
+                }
             } catch (error) {
                 console.error("Error sending one or more notifications:", error);
             }

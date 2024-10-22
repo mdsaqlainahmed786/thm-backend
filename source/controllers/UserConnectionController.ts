@@ -62,9 +62,14 @@ const acceptFollow = async (request: Request, response: Response, next: NextFunc
         if (!connection) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Follow request not found"), "Follow request not found"));
         }
+        console.log(id);
         if (connection.status !== ConnectionStatus.ACCEPTED) {
             connection.status = ConnectionStatus.ACCEPTED;
             await connection.save();
+            //Send self notification
+            AppNotificationController.store(connection.follower, id, NotificationType.FOLLOWING, { connectionID: connection.id, userID: connection.follower }).catch((error) => console.error(error));
+            //Remove connection request notification from app notification
+            AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.following })
             //Notify the follower 
             AppNotificationController.store(id, connection.follower, NotificationType.ACCEPT_FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.follower })
             return response.send(httpAcceptedOrUpdated(null, "Follow request accepted"));
