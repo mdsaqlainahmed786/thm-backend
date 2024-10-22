@@ -12,6 +12,7 @@ import NotificationEndpoints from "./notification";
 import SearchEndpoints from "./search";
 import FAQEndpoints from "./faq";
 import ContactUsEndpoints from "./contact";
+import AdminApiEndpoints from "./admin";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
 ApiEndpoints.use('/auth', AuthEndpoint);
@@ -25,4 +26,8 @@ ApiEndpoints.use('/events', authenticateUser, EventEndpoints);
 ApiEndpoints.use('/story', authenticateUser, StoryEndpoints);
 ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
+
+//Admin Routes
+ApiEndpoints.use('/admin', authenticateUser, AdminApiEndpoints)
+
 export default ApiEndpoints;

@@ -3,7 +3,8 @@ import { MongoID } from '../../common';
 
 export enum ConnectionStatus {
     PENDING = "pending",
-    ACCEPTED = "accepted"
+    ACCEPTED = "accepted",
+    REJECT = "reject"
 }
 
 export interface IUserConnection extends Document {
