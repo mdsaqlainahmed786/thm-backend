@@ -136,7 +136,7 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
         const { id } = request.user;
         const { accountType } = request.user;
         const userID = request.params.id;
-        const [user, posts, follower, following, inMyFollowing] = await Promise.all([
+        const [user, posts, follower, following, myConnection] = await Promise.all([
             User.aggregate([
                 {
                     $match: {
@@ -172,16 +172,16 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
             Post.find({ userID: userID }).countDocuments(),
             UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
-            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
+            UserConnection.findOne({ following: userID, follower: id, }),
         ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
         let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
-            Object.assign(responseData, { ...user[0], inMyFollowing: inMyFollowing ? true : false })
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false })
         } else {
-            Object.assign(responseData, { ...user[0], inMyFollowing: inMyFollowing ? true : false })
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false })
         }
         return response.send(httpOk(responseData, 'User profile fetched'));
     } catch (error: any) {
