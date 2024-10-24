@@ -62,7 +62,6 @@ const acceptFollow = async (request: Request, response: Response, next: NextFunc
         if (!connection) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Follow request not found"), "Follow request not found"));
         }
-        console.log(id);
         if (connection.status !== ConnectionStatus.ACCEPTED) {
             connection.status = ConnectionStatus.ACCEPTED;
             await connection.save();
@@ -72,9 +71,9 @@ const acceptFollow = async (request: Request, response: Response, next: NextFunc
             AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.following })
             //Notify the follower 
             AppNotificationController.store(id, connection.follower, NotificationType.ACCEPT_FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.follower })
-            return response.send(httpAcceptedOrUpdated(null, "Follow request accepted"));
+            return response.send(httpAcceptedOrUpdated(connection, "Follow request accepted"));
         }
-        return response.send(httpAcceptedOrUpdated(null, "You are already following"));
+        return response.send(httpAcceptedOrUpdated(connection, "You are already following"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -89,10 +88,11 @@ const rejectFollow = async (request: Request, response: Response, next: NextFunc
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Follow request not found"), "Follow request not found"));
         }
         if (connection.status !== ConnectionStatus.ACCEPTED) {
-            connection.status = ConnectionStatus.REJECT;
-            await connection.save();
+
             //Remove connection request notification from app notification
             AppNotificationController.destroy(connection.follower, connection.following, NotificationType.FOLLOW_REQUEST, { connectionID: connection.id, userID: connection.following })
+            // connection.status = ConnectionStatus.REJECT;
+            await connection.deleteOne();
             return response.send(httpAcceptedOrUpdated(null, "Follow request rejected"));
         }
         return response.send(httpAcceptedOrUpdated(null, "Follow request rejected"));
@@ -106,8 +106,6 @@ const followBack = async (request: Request, response: Response, next: NextFuncti
     try {
         const { id } = request.user;
         const connectionID = request.params.id;
-        console.log(connectionID);
-        console.log(id);
         const connection = await UserConnection.findOne({ _id: connectionID, following: id, status: ConnectionStatus.ACCEPTED });
         if (!connection) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Follow request not found"), "Follow request not found"));
@@ -139,7 +137,7 @@ const followBack = async (request: Request, response: Response, next: NextFuncti
             return response.send(httpCreated(follow, "A follow request has already been sent"))
         } else {
             let Message = (haveConnectedBefore.status === ConnectionStatus.ACCEPTED) ? "You are already following" : "Follow request already sent!";
-            return response.send(httpAcceptedOrUpdated(null, Message))
+            return response.send(httpAcceptedOrUpdated(connection, Message))
         }
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
