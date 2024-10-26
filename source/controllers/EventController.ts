@@ -51,7 +51,6 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));
             }
-
         }
         newPost.media = mediaIDs;
         newPost.isPublished = true;

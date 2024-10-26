@@ -39,15 +39,54 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $match: dbQuery
                 },
+
                 {
-                    $project: {
-                        password: 0,
-                        updatedAt: 0,
-                        __v: 0,
+                    '$lookup': {
+                        'from': 'businesstypes',
+                        'let': { 'businessTypeID': '$businessTypeID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$in': ['$_id', '$$businessTypeID'] } } },
+                            {
+                                '$project': {
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'businessTypeRef'
                     }
                 },
-                addBusinessProfileInUser().lookup,
-                addBusinessProfileInUser().unwindLookup,
+                {
+                    '$unwind': {
+                        'path': '$businessTypeRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
+                    '$lookup': {
+                        'from': 'businesssubtypes',
+                        'let': { 'businessSubtypeID': '$businessSubtypeID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$in': ['$_id', '$$businessSubtypeID'] } } },
+                            {
+                                '$project': {
+                                    'businessTypeID': 0,
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'businessSubtypeRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$businessSubtypeRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
@@ -56,6 +95,15 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     $limit: documentLimit
+                },
+                {
+                    $project: {
+                        businessSubtypeID: 0,
+                        businessTypeID: 0,
+                        password: 0,
+                        updatedAt: 0,
+                        __v: 0,
+                    }
                 },
             ]),
             SubscriptionPlan.find(dbQuery).countDocuments()

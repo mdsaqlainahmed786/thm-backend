@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../../utils/response";
+import { httpAcceptedOrUpdated, httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
 import { parseQueryParam } from "../../utils/helper/basic";
 import User, { AccountType, addBusinessProfileInUser } from "../../database/models/user.model";
@@ -13,7 +13,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         let { pageNumber, documentLimit, query, accountType }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-
         const dbQuery = {};
         if (query !== undefined && query !== "") {
             Object.assign(dbQuery,
@@ -77,7 +76,19 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+        let { id } = request.params;
+        const { name, bio, isVerified, isApproved, isActivated } = request.body;
+        const user = await User.findOne({ _id: id })
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        user.name = name ?? user.name;
+        user.bio = bio ?? user.bio;
+        user.isVerified = isVerified ?? user.isVerified;
+        user.isApproved = isApproved ?? user.isApproved;
+        user.isActivated = isActivated ?? user.isActivated;
+        const savedUser = await user.save();
+        return response.send(httpAcceptedOrUpdated(savedUser, 'User updated'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -107,6 +118,23 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
+                {
+                    '$lookup': {
+                        'from': 'businessdocuments',
+                        'let': { 'businessProfileID': '$businessProfileID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$businessProfileID', '$$businessProfileID'] } } },
+                            {
+                                '$project': {
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'businessDocumentsRef'
+                    }
+                },
                 {
                     $sort: { _id: -1 }
                 },

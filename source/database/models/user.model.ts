@@ -106,6 +106,8 @@ UserSchema.set('toJSON', { virtuals: true });
 type SafeUserData = Omit<IUserModel, 'password otp'>;
 
 export interface IUserModel extends IUser {
+    createdAt: Date;
+    updatedAt: Date;
     comparePassword(password: string): Promise<boolean>;
     hidePasswordAndAddTokens(accessToken: any, refreshToken: any): IUserModel;
     hideSensitiveData(): SafeUserData;

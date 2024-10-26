@@ -119,9 +119,11 @@ PostSchema.set('toObject', { virtuals: true });
 PostSchema.set('toJSON', { virtuals: true });
 
 export interface IPostModel extends IPost {
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const Post = model<IPost>('Post', PostSchema);
+const Post = model<IPostModel>('Post', PostSchema);
 export default Post;
 
 import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile } from "./user.model";
