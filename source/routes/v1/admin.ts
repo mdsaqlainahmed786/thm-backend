@@ -7,6 +7,6 @@ import authenticateUser from "../../middleware/authenticate";
 const AdminApiEndpoints: Router = express.Router();
 AdminApiEndpoints.use('/auth', AuthEndpoint);
 AdminApiEndpoints.use('/', authenticateUser, HomeEndpoints);
-// AdminApiEndpoints.use('/users', authenticateUser, UserEndpoints);
-// AdminApiEndpoints.use('/subscriptions/plans', authenticateUser, SubscriptionPlanEndpoints);
+AdminApiEndpoints.use('/users', authenticateUser, UserEndpoints);
+AdminApiEndpoints.use('/subscriptions/plans', authenticateUser, SubscriptionPlanEndpoints);
 export default AdminApiEndpoints;

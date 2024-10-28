@@ -223,7 +223,7 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
                     if (devicesConfig && devicesConfig.notificationToken) {
                         const notificationID = notification.id ? notification?.id : v4();
                         const message: Message = createMessagePayload(devicesConfig.notificationToken, 'New Message', 'Checking for New Messages ...', notificationID, devicesConfig.devicePlatform, 'destroy');
-                        await sendNotification(message);
+                        // await sendNotification(message);
                     }
                     return devicesConfig;
                 }));
