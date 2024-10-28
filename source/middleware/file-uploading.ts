@@ -13,6 +13,7 @@ import fs from "fs/promises";
 import sharp from "sharp";
 import { addStringBeforeExtension } from "../utils/helper/basic";
 import { Readable } from "stream"
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 // import ffmpeg from "fluent-ffmpeg";
 // import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 // ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -107,6 +108,16 @@ export async function getS3Object(s3Key: string): Promise<GetObjectCommandOutput
     });
     return await s3Client.send(getCommand);
 }
+export async function generatePresignedUrl(s3Key: string) {
+    // Create a command for the object you want to access
+    const command = new GetObjectCommand({
+        Bucket: AppConfig.AWS_BUCKET_NAME,
+        Key: s3Key,
+    });
+
+    // Generate the presigned URL, valid for 1 hour (3600 seconds)
+    return await getSignedUrl(s3Client, command);
+}
 export async function putS3Object(body: StreamingBlobPayloadInputTypes, contentType: string, path: string): Promise<CompleteMultipartUploadCommandOutput> {
     const upload = new Upload({
         client: s3Client,
@@ -119,6 +130,7 @@ export async function putS3Object(body: StreamingBlobPayloadInputTypes, contentT
     });
     return await upload.done();
 }
+
 
 // export async function generateScreenshotBuffer(videoData: Uint8Array, fileName: string, thumbnailExtName: string) {
 //     const thumbnail = path.parse(fileName);

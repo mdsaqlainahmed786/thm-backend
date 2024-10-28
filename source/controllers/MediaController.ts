@@ -1,6 +1,6 @@
 
 import sharp from "sharp";
-import { getS3Object } from "../middleware/file-uploading";
+import { generatePresignedUrl, getS3Object } from "../middleware/file-uploading";
 import { addStringBeforeExtension } from "../utils/helper/basic";
 import { putS3Object } from "../middleware/file-uploading";
 import S3Object, { IS3Object } from "../database/models/s3Object.model";
@@ -13,11 +13,18 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
         const body = s3Image.Body;
         const rawToByteArray = await body.transformToByteArray();
         const sharpImage = await sharp(rawToByteArray);
+        console.log(sharpImage)
         // const metadata = await sharpImage.metadata();
         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-        const thumbnailPath = addStringBeforeExtension(media.key, `-${width}x${height}`)
+        console.log(thumbnail);
+        const thumbnailPath = addStringBeforeExtension(media.key, `-${width}-${height}`)
+        console.log(thumbnailPath);
         const s3Upload = await putS3Object(thumbnail, media.mimetype, thumbnailPath);
-        return s3Upload;
+        let url = media.location;
+        if (s3Upload && s3Upload.Key) {
+            url = await generatePresignedUrl(s3Upload.Key);
+        }
+        return url;
     }
     return null;
     // if (s3Image.Body && media.mimetype.startsWith('video/') && thumbnailFor === "video") {
