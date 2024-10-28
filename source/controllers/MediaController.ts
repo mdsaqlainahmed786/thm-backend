@@ -13,12 +13,9 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
         const body = s3Image.Body;
         const rawToByteArray = await body.transformToByteArray();
         const sharpImage = await sharp(rawToByteArray);
-        console.log(sharpImage)
         // const metadata = await sharpImage.metadata();
         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-        console.log(thumbnail);
         const thumbnailPath = addStringBeforeExtension(media.key, `-${width}-${height}`)
-        console.log(thumbnailPath);
         const s3Upload = await putS3Object(thumbnail, media.mimetype, thumbnailPath);
         let url = media.location;
         if (s3Upload && s3Upload.Key) {
