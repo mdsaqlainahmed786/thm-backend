@@ -203,19 +203,19 @@ const changeProfilePic = async (request: Request, response: Response, next: Next
             const image = images[0];
             const smallThumb = await generateThumbnail(image, "image", 200, 200);
             const mediumThumb = await generateThumbnail(image, "image", 480, 480);
-            if (accountType === AccountType.BUSINESS && smallThumb && mediumThumb && image && image.location) {
+            if (accountType === AccountType.BUSINESS && smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
                 const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
                 if (!businessProfile) {
                     return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
                 }
-                businessProfile.profilePic = { small: smallThumb, medium: mediumThumb, large: image.location };
+                businessProfile.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location };
                 const savedBusinessProfile = await businessProfile.save();
                 user.hasProfilePicture = true;
                 const savedUser = await user.save();
                 return response.send(httpOk(savedBusinessProfile, "Profile picture changed successfully"))
             }
-            if (smallThumb && mediumThumb && image && image.location) {
-                user.profilePic = { small: smallThumb, medium: mediumThumb, large: image.location }
+            if (smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
+                user.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location }
                 user.hasProfilePicture = true;
                 const savedUser = await user.save();
                 return response.send(httpOk(savedUser, "Profile picture changed successfully"))
