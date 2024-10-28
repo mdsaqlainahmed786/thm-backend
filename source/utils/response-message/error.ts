@@ -20,6 +20,7 @@ export class ErrorMessage {
     static readonly PROMOCODE_USAGE_LIMIT_REACHED = "The maximum number of uses for this promo code has already been reached";
     static readonly SUBSCRIPTION_EXPIRED = "Your subscription has expired. Please renew your subscription to access this resource.";
     static readonly NO_SUBSCRIPTION = "You do not have an active subscription. Please subscribe to access this resource.";
+    static readonly UNAUTHORIZED_ACCESS_ERROR = 'You do not have permission to access this resource.';
     static invalidRequest(message: string, errors?: any) {
         return {
             "errors": errors ?? null,

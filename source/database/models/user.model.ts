@@ -5,7 +5,7 @@ import { getAllKeysFromSchema } from "../../utils/helper/basic";
 import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { IProfilePic, ProfileSchema } from "./common.model";
-import { MongoID } from "../../common";
+import { MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
 export enum AccountType {
     INDIVIDUAL = "individual",
@@ -30,6 +30,7 @@ export interface Individual {
     acceptedTerms: boolean;//User  accepted the terms
     privateAccount: boolean;
     notificationEnabled: boolean;
+    role: Role;
 }
 
 export interface Business {
@@ -94,6 +95,9 @@ const UserSchema: Schema = new Schema<IUser>(
         },
         notificationEnabled: {
             type: Boolean, default: true,
+        },
+        role: {
+            type: String, enum: Role, default: Role.USER,
         }
     },
     {

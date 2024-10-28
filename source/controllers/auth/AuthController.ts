@@ -6,7 +6,7 @@ import User, { AccountType } from "../../database/models/user.model";
 import { SuccessMessage } from "../../utils/response-message/success";
 import { generateOTP } from "../../utils/helper/basic";
 import { AppConfig } from "../../config/constants";
-import { AuthenticateUser } from "../../common";
+import { AuthenticateUser, Role } from "../../common";
 import { generateAccessToken, generateRefreshToken } from "../../middleware/authenticate";
 import { CookiePolicy } from "../../config/constants";
 import AuthToken from "../../database/models/authToken.model";
@@ -41,6 +41,13 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (user.isDeleted) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
         }
+        //If this is called from admin endpoint
+        console.log(request.baseUrl);
+        console.log(user.role)
+        console.log(user)
+        if (['/api/v1/admin/auth'].includes(request.baseUrl) && user.role !== Role.ADMINISTRATOR) {
+            return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.UNAUTHORIZED_ACCESS_ERROR), ErrorMessage.UNAUTHORIZED_ACCESS_ERROR));
+        }
 
         await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
         if (deviceID) {
@@ -59,7 +66,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 ]
             )
             businessProfileRef = businessProfile;
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
             if (!businessDocument || businessDocument.length === 0) {
@@ -85,7 +92,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (!user.isApproved) {
             return response.status(200).send(httpForbidden(null, "Your account is currently under review. We will notify you once it has been verified."))
         }
-        const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
+        const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
@@ -197,12 +204,12 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
         //Check the account and send response based on their profile 
         if (savedUser.accountType === AccountType.BUSINESS) {
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
             response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
             return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, accessToken }, SuccessMessage.OTP_VERIFIED));
         } else {
-            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID };
+            const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = await generateAccessToken(authenticateUser);
             const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
             response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
@@ -284,7 +291,7 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
         if (decoded) {
             const userData = await User.findOne({ _id: authToken.userID, })
             if (userData) {
-                const userWithRole: AuthenticateUser = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID }
+                const userWithRole: AuthenticateUser = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID, role: userData.role }
                 const accessToken = await generateAccessToken(userWithRole);
                 const refreshToken = await generateRefreshToken(userWithRole, deviceID);
                 response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);

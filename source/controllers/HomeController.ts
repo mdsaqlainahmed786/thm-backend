@@ -82,12 +82,13 @@ const businessQuestions = async (request: Request, response: Response, next: Nex
 
 const dbSeeder = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const hostAddress = request.protocol + "://" + request.get("host");
         const promoCodeSeeder = new PromoCodeSeeder();
         const shouldRunPromoCodeSeeder = await promoCodeSeeder.shouldRun();
         if (shouldRunPromoCodeSeeder) {
             await promoCodeSeeder.run();
         }
-        const businessTypeSeeder = new BusinessTypeSeeder();
+        const businessTypeSeeder = new BusinessTypeSeeder(hostAddress);
         const shouldRunBusinessTypeSeeder = await businessTypeSeeder.shouldRun();
         if (shouldRunBusinessTypeSeeder) {
             await businessTypeSeeder.run();
@@ -97,12 +98,12 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
         if (shouldRunBusinessSubtypeSeeder) {
             await businessSubtypeSeeder.run();
         }
-        const businessQuestionSeeder = new BusinessQuestionSeeder();
+        const businessQuestionSeeder = new BusinessQuestionSeeder(hostAddress);
         const shouldRunBusinessQuestionSeeder = await businessQuestionSeeder.shouldRun();
         if (shouldRunBusinessQuestionSeeder) {
             await businessQuestionSeeder.run();
         }
-        const reviewQuestionSeeder = new ReviewQuestionSeeder();
+        const reviewQuestionSeeder = new ReviewQuestionSeeder(hostAddress);
         const shouldRunReviewQuestionSeeder = await reviewQuestionSeeder.shouldRun();
         if (shouldRunReviewQuestionSeeder) {
             await reviewQuestionSeeder.run();

@@ -33,7 +33,7 @@ const verifyOTP = async (request: Request, response: Response, next: NextFunctio
         }
         account.otp = generateOTP();
         const savedUser = await account.save();
-        const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType };
+        const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, role: savedUser.role };
         const resetToken = await sign(authenticateUser, "BilxD9BFfd", { algorithm: "HS256" });
         const hasPasswordResetToken = await PasswordResetToken.findOne({ userID: savedUser._id });
 

@@ -28,6 +28,6 @@ ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
 
 //Admin Routes
-ApiEndpoints.use('/admin', authenticateUser, AdminApiEndpoints)
+ApiEndpoints.use('/admin', AdminApiEndpoints)
 
 export default ApiEndpoints;
