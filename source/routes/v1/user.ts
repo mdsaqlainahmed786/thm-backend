@@ -24,6 +24,7 @@ UserEndpoints.get('/subscription', SubscriptionController.subscription);
 UserEndpoints.post('/subscription', buySubscriptionApiValidator, validateRequest, SubscriptionController.buySubscription);
 UserEndpoints.get('/subscription/plans', SubscriptionController.getSubscriptionPlans);
 UserEndpoints.post('/subscription/checkout', subscriptionCheckoutApiValidator, validateRequest, SubscriptionController.subscriptionCheckout);
+UserEndpoints.delete('/subscription', SubscriptionController.cancelSubscription);
 
 UserEndpoints.get('/posts/:id', [paramIDValidationRule], validateRequest, UserController.userPosts);
 UserEndpoints.get('/videos/:id', [paramIDValidationRule], validateRequest, UserController.userPostMedia);

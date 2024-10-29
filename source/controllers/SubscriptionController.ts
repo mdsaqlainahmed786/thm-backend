@@ -13,13 +13,6 @@ import Order, { generateNextOrderID, OrderStatus } from "../database/models/orde
 import RazorPayService from "../services/RazorPayService";
 import { parseFloatToFixed } from "../utils/helper/basic";
 const razorPayService = new RazorPayService();
-/**
- * //FIXME hey bro fix me  
- * @param request 
- * @param response 
- * @param next 
- * @returns 
- */
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -243,31 +236,124 @@ const subscription = async (request: Request, response: Response, next: NextFunc
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        let findQuery = {};
+        let findSubscriptionPlanQuery = {};
+        let findSubscriptionQuery = {}
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
             const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
             if (!businessProfile) {
                 return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
             }
-            Object.assign(findQuery,
+            Object.assign(findSubscriptionPlanQuery,
                 {
                     businessTypeID: { $in: [businessProfile.businessTypeID] },
                     businessSubtypeID: { $in: [businessProfile.businessSubTypeID] },
                     type: AccountType.BUSINESS
                 }
-            )
+            );
+            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
         } else {
-            Object.assign(findQuery, { type: AccountType.INDIVIDUAL });
+            Object.assign(findSubscriptionPlanQuery, { type: AccountType.INDIVIDUAL });
+            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() } })
         }
         const [subscriptionPlans, subscription] = await Promise.all([
-            SubscriptionPlan.find(findQuery),
-            Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
+            SubscriptionPlan.find(findSubscriptionPlanQuery),
+            Subscription.aggregate([
+                {
+                    $match: findSubscriptionQuery
+                },
+                {
+                    '$lookup': {
+                        'from': 'subscriptionplans',
+                        'let': { 'subscriptionPlanID': '$subscriptionPlanID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$subscriptionPlanID'] } } },
+                            {
+                                '$project': {
+                                    '_id': 0,
+                                    'name': 1,
+                                    'image': 1,
+                                }
+                            }
+                        ],
+                        'as': 'subscriptionPlansRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$subscriptionPlansRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
+                    '$replaceRoot': {
+                        'newRoot': {
+                            '$mergeObjects': ["$$ROOT", "$subscriptionPlansRef"] // Merge subscriptionPlansRef with the main object
+                        }
+                    }
+                },
+                {
+                    "$addFields": {
+                        "remainingDays": {
+                            '$toInt': {
+                                "$divide": [
+                                    {
+                                        "$subtract": [
+                                            "$expirationDate",
+                                            new Date()
+                                        ]
+                                    },
+                                    24 * 60 * 60 * 1000 // Milliseconds in a day
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    '$project': {
+                        'subscriptionPlansRef': 0,
+                        '__v': 0,
+                    }
+                },
+                {
+                    '$limit': 1,
+                }
+            ])
         ]);
         const responseData = {
-            subscription: subscription,
+            subscription: subscription.length !== 0 ? subscription[0] : null,
             plans: subscriptionPlans,
         }
         return response.send(httpOk(responseData, "Active subscription fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const cancelSubscription = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const [user] = await Promise.all([
+            User.findOne({ _id: id }),
+        ])
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        let findSubscriptionQuery = {}
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+            if (!businessProfile) {
+                return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            }
+            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
+        } else {
+
+            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() } })
+        }
+        const subscription = await Subscription.findOne(findSubscriptionQuery)
+        if (!subscription) {
+            return response.send(httpBadRequest(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
+        }
+        await subscription.deleteOne();
+        return response.send(httpOk(null, "Subscription Cancelled"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -417,4 +503,4 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
 }
 
 
-export default { buySubscription, subscription, index, getSubscriptionPlans, subscriptionCheckout };
+export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout };
