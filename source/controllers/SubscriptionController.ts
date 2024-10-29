@@ -65,6 +65,8 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         if (!hasSubscription) {
             const newSubscription = new Subscription();
             newSubscription.businessProfileID = user.businessProfileID;
+            newSubscription.userID = user.id;
+            newSubscription.subscriptionPlanID = subscriptionPlan.id;
             switch (subscriptionPlan.duration) {
                 case SubscriptionDuration.YEARLY:
                     newSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
@@ -81,7 +83,21 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             const savedSubscription = await newSubscription.save();
             return response.send(httpOk(savedSubscription, "Subscription added."));
         }
-        return response.send(httpOk(hasSubscription, "Subscription added."));
+        switch (subscriptionPlan.duration) {
+            case SubscriptionDuration.YEARLY:
+                hasSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
+                break;
+            case SubscriptionDuration.HALF_YEARLY:
+                hasSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
+                break;
+            case SubscriptionDuration.QUARTERLY:
+                hasSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                break;
+            default:
+                hasSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
+        }
+        hasSubscription.subscriptionPlanID = order.subscriptionPlanID;
+        return response.send(httpOk(hasSubscription, "Subscription updated."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -216,6 +232,48 @@ const getSubscriptionPlans = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
+const subscription = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const [user] = await Promise.all([
+            User.findOne({ _id: id }),
+        ])
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        let findQuery = {};
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+            if (!businessProfile) {
+                return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            }
+            Object.assign(findQuery,
+                {
+                    businessTypeID: { $in: [businessProfile.businessTypeID] },
+                    businessSubtypeID: { $in: [businessProfile.businessSubTypeID] },
+                    type: AccountType.BUSINESS
+                }
+            )
+        } else {
+            Object.assign(findQuery, { type: AccountType.INDIVIDUAL });
+        }
+        const [subscriptionPlans, subscription] = await Promise.all([
+            SubscriptionPlan.find(findQuery),
+            Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
+        ]);
+        const responseData = {
+            subscription: subscription,
+            plans: subscriptionPlans,
+        }
+        return response.send(httpOk(responseData, "Active subscription fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+
 const subscriptionCheckout = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -359,4 +417,4 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
 }
 
 
-export default { buySubscription, index, getSubscriptionPlans, subscriptionCheckout };
+export default { buySubscription, subscription, index, getSubscriptionPlans, subscriptionCheckout };

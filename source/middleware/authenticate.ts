@@ -24,7 +24,7 @@ export default async function authenticateUser(request: Request, response: Respo
                 Subscription.findOne({ businessProfileID: decoded.businessProfileID }).sort({ createdAt: -1, id: 1 })
             ])
             if (auth_user) {
-                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/business-profile/subscription/plans', '/business-profile/subscription/checkout', '/business-profile/subscription', '/business-profile/property-picture'];
+                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture'];
                 const now = new Date();
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
                     console.error("ErrorMessage.NO_SUBSCRIPTION");

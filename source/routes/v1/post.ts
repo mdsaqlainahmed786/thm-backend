@@ -10,10 +10,10 @@ import SavedPostController from "../../controllers/SavedPostController";
 import CommentController from "../../controllers/CommentController";
 
 const PostEndpoints: Router = express.Router();
-// PostEndpoints.get('/', RankHistoryController.index);
+// PostEndpoints.get('/', LikeController.index);
 PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
-// PostEndpoints.put('/:id', RankHistoryController.update);
-// PostEndpoints.delete('/:id', RankHistoryController.destroy);
+// PostEndpoints.put('/:id', LikeController.update);
+// PostEndpoints.delete('/:id', LikeController.destroy);
 PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
 
 /**

@@ -10,15 +10,17 @@ const SubscriptionSchema: Schema = new Schema<ISubscription>(
     {
         userID: {
             type: Schema.Types.ObjectId,
-            ref: "User"
+            ref: "User",
+            required: true,
         },
         businessProfileID: {
             type: Schema.Types.ObjectId,
-            ref: "BusinessProfile"
+            ref: "BusinessProfile",
         },
         subscriptionPlanID: {
             type: Schema.Types.ObjectId,
-            ref: "SubscriptionPlan"
+            ref: "SubscriptionPlan",
+            required: true,
         },
         expirationDate: {
             type: Date,
