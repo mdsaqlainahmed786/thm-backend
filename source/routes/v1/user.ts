@@ -15,6 +15,7 @@ UserEndpoints.post('/edit-profile-pic', uploadMedia(AwsS3AccessEndpoints.USERS).
 UserEndpoints.post('/business-profile/property-picture',
     uploadMedia(AwsS3AccessEndpoints.BUSINESS_PROPERTY).fields([{ name: 'images', maxCount: 6 }]),
     authenticateUser, UserController.businessPropertyPictures);
+UserEndpoints.get('/business-profile/documents', UserController.businessDocument);
 UserEndpoints.post('/business-profile/documents', uploadMedia(AwsS3AccessEndpoints.USERS).fields([{ name: 'businessRegistration', maxCount: 1 }, { name: 'addressProof', maxCount: 1 }]), UserController.businessDocumentUpload);
 UserEndpoints.post('/business-profile/subscription', buySubscriptionApiValidator, validateRequest, SubscriptionController.buySubscription);
 UserEndpoints.get('/business-profile/subscription/plans', SubscriptionController.getSubscriptionPlans);

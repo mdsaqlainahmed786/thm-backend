@@ -136,7 +136,7 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
         const { id } = request.user;
         const { accountType } = request.user;
         const userID = request.params.id;
-        const [user, posts, follower, following, myConnection] = await Promise.all([
+        const [user, posts, follower, following, myConnection, isBlocked] = await Promise.all([
             User.aggregate([
                 {
                     $match: {
@@ -173,15 +173,16 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
             UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.findOne({ following: userID, follower: id, }),
+            BlockedUser.findOne({ blockedUserID: userID, userID: id })
         ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
         let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
-            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false })
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });
         } else {
-            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false })
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });
         }
         return response.send(httpOk(responseData, 'User profile fetched'));
     } catch (error: any) {
@@ -235,6 +236,8 @@ const changeProfilePic = async (request: Request, response: Response, next: Next
 const businessDocumentUpload = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
+        const { action } = request.body;
+        console.log(action)
         const user = await User.findOne({ _id: id });
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -248,22 +251,59 @@ const businessDocumentUpload = async (request: Request, response: Response, next
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const businessRegistration = files && files.businessRegistration as Express.Multer.S3File[];
         const addressProof = files && files.addressProof as Express.Multer.S3File[];
-        if (!(businessRegistration && files && businessRegistration.length !== 0)) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload business registration certificate"), "Please upload business registration certificate"));
+        if (!action && action !== "update") {
+            if (!(businessRegistration && files && businessRegistration.length !== 0)) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload business registration certificate"), "Please upload business registration certificate"));
+            }
+            if (!(addressProof && files && addressProof.length !== 0)) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload address proof"), "Please upload address proof"));
+            }
         }
-        if (!(addressProof && files && addressProof.length !== 0)) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Please upload address proof"), "Please upload address proof"));
+        const document = await BusinessDocument.findOne({ businessProfileID: user.businessProfileID });
+        if (!document) {
+            const newBusinessDocument = new BusinessDocument();
+            newBusinessDocument.businessProfileID = user.businessProfileID;
+            newBusinessDocument.businessRegistration = businessRegistration[0].location;
+            newBusinessDocument.addressProof = addressProof[0].location;
+            const savedBusinessProfile = await newBusinessDocument.save();
+            return response.send(httpOk(savedBusinessProfile, 'Business document uploaded.'));
         }
-        const newBusinessDocument = new BusinessDocument();
-        newBusinessDocument.businessProfileID = user.businessProfileID;
-        newBusinessDocument.businessRegistration = businessRegistration[0].location;
-        newBusinessDocument.addressProof = addressProof[0].location;
-        const savedBusinessProfile = await newBusinessDocument.save();
-        return response.send(httpOk(savedBusinessProfile, 'Business document uploaded.'));
+        if (action && action === "update") {
+            if (files && businessRegistration && businessRegistration.length !== 0) {
+                document.businessRegistration = businessRegistration[0].location;
+            }
+            if (files && addressProof && addressProof.length !== 0) {
+                document.addressProof = addressProof[0].location;
+            }
+        }
+        const savedDocument = await document.save();
+        return response.send(httpOk(savedDocument, 'Business document updated.'))
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+const businessDocument = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const user = await User.findOne({ _id: id });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (user.accountType !== AccountType.BUSINESS) {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
+        }
+        if (!user.businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const businessDocuments = await BusinessDocument.find({ businessProfileID: user.businessProfileID });
+        return response.send(httpOk(businessDocuments, 'Business document fetched.'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+
 const businessQuestionAnswer = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -635,4 +675,5 @@ const blockedUsers = async (request: Request, response: Response, next: NextFunc
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers };
+
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers };
