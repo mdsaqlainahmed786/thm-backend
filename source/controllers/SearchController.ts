@@ -70,11 +70,25 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                  */
                 Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
                 if (query !== undefined && query !== "") {
+                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        ]
+                    });
+                    const users = await User.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                        ]
+                    })
                     Object.assign(dbQuery,
                         {
                             $or: [
                                 { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { userID: { $in: users }, isPublished: true }
                             ]
                         }
                     )
@@ -89,13 +103,27 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             case "events":
                 Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
                 if (query !== undefined && query !== "") {
+                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        ]
+                    });
+                    const users = await User.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                        ]
+                    })
                     Object.assign(dbQuery,
                         {
                             $or: [
                                 { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
                                 { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
                                 { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { userID: { $in: users }, isPublished: true }
                             ]
                         }
                     )
@@ -110,11 +138,26 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             case "reviews":
                 Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
                 if (query !== undefined && query !== "") {
+                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        ]
+                    });
+                    const users = await User.distinct('_id', {
+                        $or: [
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
+                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false },
+
+                        ]
+                    })
                     Object.assign(dbQuery,
                         {
                             $or: [
                                 { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
+                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                                { userID: { $in: users }, isPublished: true }
                             ]
                         }
                     )
