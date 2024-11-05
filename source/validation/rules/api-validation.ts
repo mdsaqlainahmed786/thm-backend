@@ -1,3 +1,4 @@
+import { questionValidationRule, questionTypeValidationRule, answerValidationRule } from './../common-validation';
 import { ContentType } from './../../database/models/reportedUser.model';
 
 import { body, param } from "express-validator";
@@ -266,3 +267,9 @@ export const createContactApiValidator = [
     emailValidationRule,
     messageValidationRule,
 ];
+
+export const createQuestionApiValidator = [
+    questionValidationRule,
+    questionTypeValidationRule,
+    answerValidationRule
+]

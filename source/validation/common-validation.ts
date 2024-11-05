@@ -1,6 +1,7 @@
 
 import { body } from "express-validator";
 import { AccountType } from "../database/models/user.model";
+import { QuestionType } from "../database/models/faq.model";
 export enum LogInWith {
     EMAIL = "email",
     PHONE = "phone",
@@ -65,3 +66,9 @@ export const businessTypeIDValidationRule = body("businessTypeID", `Business Typ
 export const questionsIDsValidationRule = body("questionsIDs", `Question id's is a required field.`).exists().bail().notEmpty().bail().isArray().withMessage('Question id\'s is a array field like ["66d8543e96535f73da1498de","66d8543e96535f73da1498de"]');
 
 export const subscriptionPlanIDValidationRule = body("subscriptionPlanID", `Subscription Plan ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Type ID');
+
+
+const QuestionTypeValues = Object.values(QuestionType);
+export const questionValidationRule = body("question", "Question is a required field.").exists().bail().notEmpty().bail();
+export const answerValidationRule = body("answer", "Answer is a required field.").exists().bail().notEmpty().bail();
+export const questionTypeValidationRule = body("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(QuestionTypeValues).withMessage(`Social Type must ${QuestionTypeValues.join(' | ')}.`);

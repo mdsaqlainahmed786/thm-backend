@@ -1,5 +1,11 @@
 import express, { Router } from "express";
 import FrequentlyAskedQuestionsController from "../../controllers/FrequentlyAskedQuestionsController";
+import authenticateUser, { isAdministrator } from "../../middleware/authenticate";
+import { createQuestionApiValidator, paramIDValidationRule } from "../../validation/rules/api-validation";
+import { validateRequest } from "../../middleware/api-request-validator";
 const FAQEndpoints: Router = express.Router();
 FAQEndpoints.get('', FrequentlyAskedQuestionsController.index);
+FAQEndpoints.post('/', authenticateUser, isAdministrator, createQuestionApiValidator, validateRequest, FrequentlyAskedQuestionsController.store);
+FAQEndpoints.put('/:id', authenticateUser, isAdministrator, [paramIDValidationRule], validateRequest, FrequentlyAskedQuestionsController.update);
+FAQEndpoints.delete('/:id', authenticateUser, isAdministrator, [paramIDValidationRule], validateRequest, FrequentlyAskedQuestionsController.destroy);
 export default FAQEndpoints;

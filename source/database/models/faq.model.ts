@@ -1,6 +1,6 @@
 import { Schema, Model, model, Types, Document, ObjectId } from 'mongoose';
 
-enum QuestionType {
+export enum QuestionType {
     GENERAL = "general",
     ACCOUNT = "account",
     PRIVACY = "privacy",

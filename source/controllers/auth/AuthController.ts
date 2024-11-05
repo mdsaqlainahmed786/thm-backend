@@ -30,7 +30,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         }
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            return response.status(200).send(httpUnauthorized(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
+            return response.status(403).send(httpForbidden(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }
         if (!user.isVerified) {
             return response.status(200).send(httpForbidden({ ...user.hideSensitiveData() }, ErrorMessage.UNVERIFIED_ACCOUNT))
@@ -46,7 +46,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         console.log(user.role)
         console.log(user)
         if (['/api/v1/admin/auth'].includes(request.baseUrl) && user.role !== Role.ADMINISTRATOR) {
-            return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.UNAUTHORIZED_ACCESS_ERROR), ErrorMessage.UNAUTHORIZED_ACCESS_ERROR));
+            return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.UNAUTHORIZED_ACCESS_ERROR), ErrorMessage.UNAUTHORIZED_ACCESS_ERROR));
         }
 
         await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);

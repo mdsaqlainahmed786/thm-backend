@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { verify, sign, } from "jsonwebtoken";
-import { httpUnauthorized } from "../utils/response";
+import { httpForbidden, httpUnauthorized } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AppConfig } from "../config/constants";
 import User, { AccountType } from "../database/models/user.model";
-import { AuthenticateUser } from "../common";
+import { AuthenticateUser, Role } from "../common";
 import AuthToken from "../database/models/authToken.model";
 import Subscription from "../database/models/subscription.model";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
@@ -28,23 +28,31 @@ export default async function authenticateUser(request: Request, response: Respo
                 const now = new Date();
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
                     console.error("ErrorMessage.NO_SUBSCRIPTION");
-                    return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
+                    return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
                 }
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
                     console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
-                    return response.status(403).send(httpUnauthorized(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
+                    return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
                 }
                 request.user = {
                     id: auth_user.id,
                     accountType: auth_user.accountType,
                     businessProfileID: auth_user.accountType === AccountType.BUSINESS ? auth_user.businessProfileID : null,
+                    role: auth_user.role
                 }
             } else {
-                return response.status(403).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS), ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));
+                return response.status(401).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS), ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));
             }
         }
     } catch (error) {
         return response.status(401).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.INVALID_OR_EXPIRED_TOKEN));
+    }
+    return next();
+}
+export async function isAdministrator(request: Request, response: Response, next: NextFunction) {
+    const hasRole = request.user?.role;
+    if (!hasRole || (hasRole && hasRole !== Role.ADMINISTRATOR)) {
+        return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
     }
     return next();
 }
