@@ -10,18 +10,11 @@ import SavedPostController from "../../controllers/SavedPostController";
 import CommentController from "../../controllers/CommentController";
 
 const PostEndpoints: Router = express.Router();
-// PostEndpoints.get('/', LikeController.index);
-PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
-// PostEndpoints.put('/:id', LikeController.update);
-// PostEndpoints.delete('/:id', LikeController.destroy);
-PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
-
 /**
  * Saved post endpoints
  */
 PostEndpoints.get('/saved-posts', SavedPostController.index);
-PostEndpoints.post('/saved-post/:id', savedPostApiValidator, validateRequest, SavedPostController.store);
-
+PostEndpoints.post('/saved-posts/:id', savedPostApiValidator, validateRequest, SavedPostController.store);
 PostEndpoints.get('/shared-posts', PostController.sharedPost);
 /**
  * 
@@ -32,4 +25,9 @@ PostEndpoints.post('/comments', createCommentApiValidator, validateRequest, Comm
 PostEndpoints.get('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.index);
 PostEndpoints.post('/comments/likes/:id', [paramIDValidationRule], validateRequest, LikeController.store);
 PostEndpoints.post('/reports', reportContentApiValidator, validateRequest, PostController.reportContent);
+PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
+
+//Posts
+PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
+PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
 export default PostEndpoints;

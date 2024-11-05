@@ -1,20 +1,21 @@
 import { ObjectId } from 'mongodb';
 import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent } from "../utils/response";
+import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
-import Post, { fetchPosts, PostType } from "../database/models/post.model";
+import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
 import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import SharedContent from '../database/models/sharedContent.model';
-import Like from '../database/models/like.model';
+import Like, { addLikesInPost } from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
 import Report, { ContentType } from '../database/models/reportedUser.model';
+import { addCommentsInPost, addLikesInComment, addSharedCountInPost } from '../database/models/comment.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -189,7 +190,71 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk({}, "Not implemented"));
+        const postID = request?.params?.id;
+        const { id } = request.user;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [likedByMe, savedByMe] = await Promise.all([
+            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+        ]);
+        const post = await Post.aggregate(
+            [
+                {
+                    $match: { _id: new ObjectId(postID) }
+                },
+                addMediaInPost().lookup,
+                addTaggedPeopleInPost().lookup,
+                addPostedByInPost().lookup,
+                addPostedByInPost().unwindLookup,
+                addLikesInPost().lookup,
+                addLikesInPost().addLikeCount,
+                addCommentsInPost().lookup,
+                addCommentsInPost().addCommentCount,
+                addSharedCountInPost().lookup,
+                addSharedCountInPost().addSharedCount,
+                addReviewedBusinessProfileInPost().lookup,
+                addReviewedBusinessProfileInPost().unwindLookup,
+                {
+                    $addFields: {
+                        likedByMe: {
+                            $in: ['$_id', likedByMe]
+                        },
+                    }
+                },
+                {
+                    $addFields: {
+                        savedByMe: {
+                            $in: ['$_id', savedByMe]
+                        },
+                    }
+                },
+                {
+                    $sort: { createdAt: -1, id: 1 }
+                },
+                {
+                    $limit: 1,
+                },
+                {
+                    $project: {
+                        reviews: 0,
+                        isPublished: 0,
+                        sharedRef: 0,
+                        commentsRef: 0,
+                        likesRef: 0,
+                        tagged: 0,
+                        media: 0,
+                        updatedAt: 0,
+                        __v: 0,
+                    }
+                }
+            ]
+        ).exec()
+        if (post.length === 0) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+        }
+        return response.send(httpOk(post, "Post Fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -262,4 +327,4 @@ const reportContent = async (request: Request, response: Response, next: NextFun
     }
 }
 
-export default { index, store, update, destroy, sharedPost, reportContent };
+export default { index, store, update, destroy, sharedPost, reportContent, show };

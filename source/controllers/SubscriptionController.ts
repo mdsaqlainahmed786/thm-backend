@@ -379,7 +379,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
 
         const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
         if (!businessProfile) {
-            return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         //User Billing Address 
         const billingAddress = {

@@ -1,10 +1,9 @@
-import express, { Express, Request, Response, NextFunction, response } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from 'cors';
 import path from "path";
 import { httpInternalServerError } from "./utils/response";
 import ApiEndpoints from "./routes/api";
-import { AppConfig } from "./config/constants";
 import { connectDB } from "./database/Database";
 const App: Express = express();
 App.use(express.json());
@@ -19,7 +18,9 @@ connectDB();
  */
 const allowedOrigins: Array<string> = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://127.0.0.1:3000",
+    "ec2-13-202-52-159.ap-south-1.compute.amazonaws.com",
+    "13.202.52.159"
 ];
 const options: cors.CorsOptions = {
     origin: allowedOrigins,
