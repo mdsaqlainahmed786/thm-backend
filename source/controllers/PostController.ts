@@ -5,7 +5,7 @@ import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
-import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, PostType } from "../database/models/post.model";
+import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
@@ -16,6 +16,7 @@ import Like, { addLikesInPost } from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
 import Report, { ContentType } from '../database/models/reportedUser.model';
 import { addCommentsInPost, addLikesInComment, addSharedCountInPost } from '../database/models/comment.model';
+import EventJoin from '../database/models/eventJoin.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -195,9 +196,10 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
         ]);
         const post = await Post.aggregate(
             [
@@ -216,20 +218,11 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 addSharedCountInPost().addSharedCount,
                 addReviewedBusinessProfileInPost().lookup,
                 addReviewedBusinessProfileInPost().unwindLookup,
-                {
-                    $addFields: {
-                        likedByMe: {
-                            $in: ['$_id', likedByMe]
-                        },
-                    }
-                },
-                {
-                    $addFields: {
-                        savedByMe: {
-                            $in: ['$_id', savedByMe]
-                        },
-                    }
-                },
+                isLikedByMe(likedByMe),
+                isSavedByMe(savedByMe),
+                imJoining(joiningEvents),
+                addInterestedPeopleInPost().lookup,
+                addInterestedPeopleInPost().addInterestedCount,
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
@@ -267,12 +260,13 @@ const sharedPost = async (request: Request, response: Response, next: NextFuncti
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
         ]);
         const [post, isSharedBefore,] = await Promise.all([
-            fetchPosts({ _id: new ObjectId(postID) }, likedByMe, savedByMe, 1, 1),
+            fetchPosts({ _id: new ObjectId(postID) }, likedByMe, savedByMe, joiningEvents, 1, 1),
             SharedContent.findOne({ postID: postID, userID: userID }),
         ])
         if (!post || post?.length === 0) {

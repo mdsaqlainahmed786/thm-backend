@@ -25,6 +25,7 @@ import PropertyPictures from '../database/models/propertyPicture.model';
 import { AppConfig } from '../config/constants';
 import { CookiePolicy } from '../config/constants';
 import BlockedUser from '../database/models/blockedUser.model';
+import EventJoin from '../database/models/eventJoin.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled } = request.body;
@@ -370,12 +371,13 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
         const dbQuery = { isPublished: true, userID: new ObjectId(userID) };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
+        const [user, inMyFollowing, likedByMe, savedByMe, joiningEvents] = await Promise.all(
             [
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
         if (!id || !user) {
@@ -385,7 +387,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
         }
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -466,12 +468,13 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
 
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [user, inMyFollowing, likedByMe, savedByMe] = await Promise.all(
+        const [user, inMyFollowing, likedByMe, savedByMe, joiningEvents] = await Promise.all(
             [
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
         if (!id || !user) {
@@ -485,7 +488,7 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         }
         const dbQuery = { isPublished: true, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

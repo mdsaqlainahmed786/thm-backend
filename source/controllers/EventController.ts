@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNotFoundOr404 } from "../utils/response";
+import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNoContent, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
 import Post, { PostType, Review } from "../database/models/post.model";
 import { storeMedia } from './MediaController';
 import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
+import EventJoin from "../database/models/eventJoin.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -15,9 +16,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 }
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
         const { id, accountType } = request.user;
-        const { name, date, time, type, venue, streamingLink, description } = request.body;
+        const { name, type, venue, streamingLink, description, placeName, lat, lng, startDate, startTime, endDate, endTime } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         // const videos = files && files.videos as Express.Multer.S3File[];
@@ -38,10 +38,16 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.name = name;
         newPost.venue = venue;
         newPost.streamingLink = streamingLink;
-        newPost.time = time;
-        newPost.date = date;
+        newPost.startDate = startDate;
+        newPost.startTime = startTime;
+        newPost.endDate = endDate;
+        newPost.endTime = endTime;
         newPost.type = type;
-        newPost.location = null;
+        if (placeName && lat && lng) {
+            newPost.location = { placeName, lat, lng };
+        } else {
+            newPost.location = null;
+        }
         newPost.tagged = [];
         let mediaIDs: MongoID[] = []
         if (images && images.length !== 0) {
@@ -84,4 +90,32 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-export default { index, store, update, destroy };
+const joinEvent = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType } = request.user;
+        const { postID } = request.body;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [post, joinedAllReady] = await Promise.all([
+            Post.findOne({ _id: postID, postType: PostType.EVENT }),
+            EventJoin.findOne({ postID: postID, userID: id }),
+        ])
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+        }
+        if (!joinedAllReady) {
+            const eventJoin = new EventJoin();
+            eventJoin.userID = id;
+            eventJoin.postID = postID;
+            const savedEventJoin = await eventJoin.save();
+            return response.send(httpCreated(savedEventJoin, "Your action saved successfully"));
+        }
+        await joinedAllReady.deleteOne();
+        return response.send(httpNoContent(null, 'Your action saved successfully'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, store, update, destroy, joinEvent };

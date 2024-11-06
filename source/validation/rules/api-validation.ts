@@ -207,11 +207,18 @@ const EventTypeValue = Object.values(EventType);
 export const createEventApiValidator = [
     nameValidationRule,
     body("description", "Description is required field.").exists().bail().notEmpty().bail(),
-    body("date", "Date is required field.").exists().bail().notEmpty().bail().isDate({
+    body("startDate", "Start date is required field.").exists().bail().notEmpty().bail().isDate({
         format: 'YYYY-MM-DD',
         delimiters: ['-'],
     }).withMessage("Invalid date. Please use YYYY-MM-DD format"),
-    body("time", "Time is required field.").exists().bail().notEmpty().bail().isTime({
+    body("endDate", "End date is required field.").exists().bail().notEmpty().bail().isDate({
+        format: 'YYYY-MM-DD',
+        delimiters: ['-'],
+    }).withMessage("Invalid date. Please use YYYY-MM-DD format"),
+    body("startTime", "Start time is required field.").exists().bail().notEmpty().bail().isTime({
+        hourFormat: 'hour24',
+    }).withMessage("Invalid time. Please use HH:MM:SS format"),
+    body("endTime", "End time is required field.").exists().bail().notEmpty().bail().isTime({
         hourFormat: 'hour24',
     }).withMessage("Invalid time. Please use HH:MM:SS format"),
     body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(EventTypeValue).withMessage(`Type must be in  ${EventTypeValue.join(' | ')}`),
@@ -272,4 +279,7 @@ export const createQuestionApiValidator = [
     questionValidationRule,
     questionTypeValidationRule,
     answerValidationRule
+]
+export const joinEventApiValidator = [
+    postIDValidationRule
 ]

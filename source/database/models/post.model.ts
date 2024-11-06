@@ -39,8 +39,10 @@ interface IReview {
 }
 interface IEvent {
     name: string,
-    date: string,
-    time: string,
+    startDate: string,
+    startTime: string,
+    endDate: string,
+    endTime: string,
     type: string,
     streamingLink: string,
     venue: string,
@@ -105,8 +107,10 @@ const PostSchema: Schema = new Schema<IPost>(
         },
         reviews: [ReviewSchema],
         name: { type: String, },
-        date: { type: String, },
-        time: { type: String, },
+        startDate: { type: String, },
+        startTime: { type: String, },
+        endDate: { type: String, },
+        endTime: { type: String, },
         type: { type: String, },
         streamingLink: { type: String, },
         venue: { type: String, },
@@ -277,6 +281,103 @@ export function addReviewedBusinessProfileInPost() {
 
 /**
  * 
+ * @returns 
+ * Return interested people count which is interested to join event
+ */
+export function addInterestedPeopleInPost() {
+    const lookup = {
+        $lookup: {
+            from: 'eventjoins',
+            let: { postID: '$_id' },
+            pipeline: [
+                { $match: { $expr: { $eq: ['$postID', '$$postID'] } } },
+                {
+                    '$lookup': {
+                        'from': 'users',
+                        'let': { 'userID': '$userID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
+                            addBusinessProfileInUser().lookup,
+                            addBusinessProfileInUser().unwindLookup,
+                            {
+                                '$replaceRoot': {
+                                    'newRoot': {
+                                        '$mergeObjects': ["$$ROOT", "$businessProfileRef"] // Merge businessProfileRef with the user object
+                                    }
+                                }
+                            },
+                            {
+                                '$project': {
+                                    "_id": 0,
+                                    "profilePic": 1,
+                                }
+                            }
+                        ],
+                        'as': 'usersRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$usersRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
+                    '$replaceRoot': {
+                        'newRoot': {
+                            '$mergeObjects': ["$$ROOT", "$usersRef"] // Merge businessProfileRef with the user object
+                        }
+                    }
+                },
+                {
+                    '$project': {
+                        "_id": 0,
+                        "userID": 1,
+                        "profilePic": 1,
+                    }
+                }
+            ],
+            as: 'eventJoinsRef'
+        },
+    };
+    const addInterestedCount = {
+        $addFields: {
+            interestedPeople: { $cond: { if: { $isArray: "$eventJoinsRef" }, then: { $size: "$eventJoinsRef" }, else: 0 } }
+        }
+    };
+    return { lookup, addInterestedCount }
+}
+
+export function isLikedByMe(likedByMe: MongoID[]) {
+    return {
+        $addFields: {
+            likedByMe: {
+                $in: ['$_id', likedByMe]
+            },
+        }
+    };
+}
+export function isSavedByMe(savedByMe: MongoID[]) {
+    return {
+        $addFields: {
+            savedByMe: {
+                $in: ['$_id', savedByMe]
+            },
+        }
+    };
+}
+export function imJoining(joiningEvents: MongoID[]) {
+    return {
+        $addFields: {
+            imJoining: {
+                $in: ['$_id', joiningEvents]
+            },
+        }
+    };
+}
+
+/**
+ * 
  * @param match  Used in an aggregation pipeline to filter documents.
  * @param likedByMe To check which post request user liked or not
  * @param savedByMe To check which post request user saved or not
@@ -286,7 +387,7 @@ export function addReviewedBusinessProfileInPost() {
  * 
  * This will return post with like and comment count and also determine post saved or liked by requested user
  */
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], pageNumber: number, documentLimit: number) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number) {
     return Post.aggregate(
         [
             {
@@ -304,20 +405,32 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             addSharedCountInPost().addSharedCount,
             addReviewedBusinessProfileInPost().lookup,
             addReviewedBusinessProfileInPost().unwindLookup,
-            {
-                $addFields: {
-                    likedByMe: {
-                        $in: ['$_id', likedByMe]
-                    },
-                }
-            },
-            {
-                $addFields: {
-                    savedByMe: {
-                        $in: ['$_id', savedByMe]
-                    },
-                }
-            },
+            addInterestedPeopleInPost().lookup,
+            addInterestedPeopleInPost().addInterestedCount,
+            isLikedByMe(likedByMe),
+            isSavedByMe(savedByMe),
+            imJoining(joiningEvents),
+            // {
+            //     $addFields: {
+            //         likedByMe: {
+            //             $in: ['$_id', likedByMe]
+            //         },
+            //     }
+            // },
+            // {
+            //     $addFields: {
+            //         savedByMe: {
+            //             $in: ['$_id', savedByMe]
+            //         },
+            //     }
+            // },
+            // {
+            //     $addFields: {
+            //         imJoining: {
+            //             $in: ['$_id', joiningEvents]
+            //         },
+            //     }
+            // },
             {
                 $sort: { createdAt: -1, id: 1 }
             },
@@ -329,6 +442,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $project: {
+                    eventJoinsRef: 0,
                     reviews: 0,
                     isPublished: 0,
                     sharedRef: 0,

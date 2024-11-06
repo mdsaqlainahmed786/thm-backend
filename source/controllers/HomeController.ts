@@ -24,6 +24,7 @@ import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
 import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
 import FAQSeeder from "../database/seeders/FAQSeeder";
 import Order, { OrderStatus } from "../database/models/order.model";
+import EventJoin from "../database/models/eventJoin.model";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -37,12 +38,13 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
         ]);
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -230,7 +232,7 @@ const insights = async (request: Request, response: Response, next: NextFunction
                     $limit: 10
                 }
             ]).exec(),
-            fetchPosts({ userID: new ObjectId(id), }, [], [], 1, 10)
+            fetchPosts({ userID: new ObjectId(id), }, [], [], [], 1, 10)
         ]);
         const responseData = {
             dashboard: {

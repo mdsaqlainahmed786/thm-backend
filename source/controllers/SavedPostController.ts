@@ -6,24 +6,27 @@ import SavedPost from '../database/models/savedPost.model';
 import { parseQueryParam } from "../utils/helper/basic";
 import Like from "../database/models/like.model";
 import { fetchPosts } from "../database/models/post.model";
+import EventJoin from "../database/models/eventJoin.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [likedByMe, savedByMe] = await Promise.all(
+        const [likedByMe, savedByMe, joiningEvents] = await Promise.all(
             [
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } })
+                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
+
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         const dbQuery = { isPublished: true, _id: { $in: savedByMe } };
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

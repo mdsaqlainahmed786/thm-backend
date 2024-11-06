@@ -94,7 +94,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     )
                 }
                 [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
                     Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -129,7 +129,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     )
                 }
                 [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
                     Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -163,7 +163,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     )
                 }
                 [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], pageNumber, documentLimit),
+                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
                     Post.find(dbQuery).countDocuments()
                 ])
                 totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
