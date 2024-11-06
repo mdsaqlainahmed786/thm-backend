@@ -2,6 +2,8 @@
 import { body } from "express-validator";
 import { AccountType } from "../database/models/user.model";
 import { QuestionType } from "../database/models/faq.model";
+import { SubscriptionDuration, SubscriptionLevel } from "../database/models/subscriptionPlan.model";
+import { CurrencyCode } from "../database/models/subscriptionPlan.model";
 export enum LogInWith {
     EMAIL = "email",
     PHONE = "phone",
@@ -18,13 +20,21 @@ export enum DevicePlatform {
     ANDROID = 'android',
     WEB = 'web',
 }
+const SubscriptionLevelValues = Object.values(SubscriptionLevel);
 const AccountTypeValues = Object.values(AccountType);
 const DevicePlatformValues = Object.values(DevicePlatform);
+const SubscriptionDurationValues = Object.values(SubscriptionDuration);
+const CurrencyCodeValues = Object.values(CurrencyCode);
 export const accountTypeValidationRule = body("accountType", "Account type is required field.").exists().bail().notEmpty().bail().isIn(AccountTypeValues).withMessage(`Account type must be in  ${AccountTypeValues.join(' | ')}`);
 export const emailValidationRule = body("email", "Email is a required field.").exists().bail().notEmpty().bail().isEmail().withMessage("Please enter valid email address.");
 export const phoneNumberValidationRule = body("phoneNumber", "Phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
 export const dialCodeValidationRule = body("dialCode", "Dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
 export const nameValidationRule = body("name", "Name is a required field.").exists().bail().notEmpty().bail();
+export const descriptionValidationRule = body("description", "Description is required field.").exists().bail().notEmpty().bail();
+export const priceValidationRule = body("price", "Price is required field.").exists().bail().notEmpty().bail().isDecimal({ decimal_digits: '2', force_decimal: true }).withMessage('Price must be a decimal number with two decimal digits');
+export const levelValidationRule = body("level", "Subscription type is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionLevelValues).withMessage(`Subscription type must be in ${SubscriptionLevelValues.join(' | ')}`);
+export const durationValidationRule = body("duration", "Duration is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionDurationValues).withMessage(`Subscription type must be in ${SubscriptionDurationValues.join(' | ')}`);;
+export const currencyValidationRule = body("currency", "Currency is required field.").exists().bail().notEmpty().bail().isIn(CurrencyCodeValues).withMessage(`Currency must be in ${CurrencyCodeValues.join(' | ')}`);
 
 const isStrongPassword = (value: string) => {
     // Implement your password strength criteria using a regular expression
@@ -69,6 +79,10 @@ export const subscriptionPlanIDValidationRule = body("subscriptionPlanID", `Subs
 
 
 const QuestionTypeValues = Object.values(QuestionType);
+const SubscriptionTypeValues = Object.values(AccountType);
 export const questionValidationRule = body("question", "Question is a required field.").exists().bail().notEmpty().bail();
 export const answerValidationRule = body("answer", "Answer is a required field.").exists().bail().notEmpty().bail();
 export const questionTypeValidationRule = body("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(QuestionTypeValues).withMessage(`Social Type must ${QuestionTypeValues.join(' | ')}.`);
+
+export const subscriptionTypeValidationRule = body("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(SubscriptionTypeValues).withMessage(`Type must ${SubscriptionTypeValues.join(' | ')}.`);
+

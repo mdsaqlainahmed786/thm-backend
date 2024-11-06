@@ -1,4 +1,4 @@
-import { questionValidationRule, questionTypeValidationRule, answerValidationRule } from './../common-validation';
+import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule } from './../common-validation';
 import { ContentType } from './../../database/models/reportedUser.model';
 
 import { body, param } from "express-validator";
@@ -206,7 +206,7 @@ export enum EventType {
 const EventTypeValue = Object.values(EventType);
 export const createEventApiValidator = [
     nameValidationRule,
-    body("description", "Description is required field.").exists().bail().notEmpty().bail(),
+    descriptionValidationRule,
     body("startDate", "Start date is required field.").exists().bail().notEmpty().bail().isDate({
         format: 'YYYY-MM-DD',
         delimiters: ['-'],
@@ -282,4 +282,16 @@ export const createQuestionApiValidator = [
 ]
 export const joinEventApiValidator = [
     postIDValidationRule
+]
+
+export const createSubscriptionPlanApiValidator = [
+    nameValidationRule,
+    descriptionValidationRule,
+    priceValidationRule,
+    levelValidationRule,
+    durationValidationRule,
+    currencyValidationRule,
+    subscriptionTypeValidationRule,
+
+
 ]

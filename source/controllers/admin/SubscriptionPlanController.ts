@@ -1,13 +1,13 @@
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../../utils/response";
+import { httpAcceptedOrUpdated, httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
-import { parseQueryParam } from "../../utils/helper/basic";
+import { isArray, parseQueryParam } from "../../utils/helper/basic";
 import User, { addBusinessProfileInUser } from "../../database/models/user.model";
 import Post from '../../database/models/post.model';
 import { ConnectionStatus } from '../../database/models/userConnection.model';
 import UserConnection from '../../database/models/userConnection.model';
-import SubscriptionPlan from '../../database/models/subscriptionPlan.model';
+import SubscriptionPlan, { SubscriptionLevel } from '../../database/models/subscriptionPlan.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -39,7 +39,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $match: dbQuery
                 },
-
                 {
                     '$lookup': {
                         'from': 'businesstypes',
@@ -98,9 +97,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     $project: {
-                        businessSubtypeID: 0,
-                        businessTypeID: 0,
-                        password: 0,
                         updatedAt: 0,
                         __v: 0,
                     }
@@ -117,22 +113,79 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
-        // return response.send(httpNoContent(null, 'Not implemented'));
+        const hostAddress = request.protocol + "://" + request.get("host");
+        const { name, description, price, duration, type, currency, level, businessSubtypeID, businessTypeID, features } = request.body;
+        const newSubscriptionPlan = new SubscriptionPlan();
+        newSubscriptionPlan.name = name;
+        newSubscriptionPlan.description = description;
+        newSubscriptionPlan.price = price;
+        newSubscriptionPlan.duration = duration;
+        if (level === SubscriptionLevel.BASIC) {
+            newSubscriptionPlan.image = hostAddress + '/public/files/basic-subscription-plan.png';
+        }
+        if (level === SubscriptionLevel.STANDARD) {
+            newSubscriptionPlan.image = hostAddress + '/public/files/standard-subscription-plan.png';
+        }
+        if (level === SubscriptionLevel.PREMIUM) {
+            newSubscriptionPlan.image = hostAddress + '/public/files/premium-subscription-plan.png';
+        }
+        newSubscriptionPlan.type = type;
+        newSubscriptionPlan.level = level;
+        newSubscriptionPlan.currency = currency;
+        if (features && isArray(features)) {
+            newSubscriptionPlan.features = features;
+        }
+        if (businessTypeID) {
+            newSubscriptionPlan.businessTypeID = [businessTypeID];
+        }
+        if (businessSubtypeID) {
+            newSubscriptionPlan.businessSubtypeID = [businessSubtypeID];
+        }
+        const savedSubscriptionPlan = await newSubscriptionPlan.save();
+        return response.send(httpCreated(savedSubscriptionPlan, 'Subscription created'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpAcceptedOrUpdated({}, 'Not implemented'));
+        const ID = request?.params?.id;
+        const { name, description, price, duration, type, currency, level, businessSubtypeID, businessTypeID, features } = request.body;
+        const subscriptionPlan = await SubscriptionPlan.findOne({ _id: ID });
+        if (!subscriptionPlan) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Subscription plan not found"), "Subscription plan not found"));
+        }
+        subscriptionPlan.name = name ?? subscriptionPlan.name;
+        subscriptionPlan.description = description ?? subscriptionPlan.description;
+        subscriptionPlan.price = price ?? subscriptionPlan.price;
+        subscriptionPlan.duration = duration ?? subscriptionPlan.duration;
+        subscriptionPlan.type = type ?? subscriptionPlan.type;
+        subscriptionPlan.currency = currency ?? subscriptionPlan.currency;
+        subscriptionPlan.level = level ?? subscriptionPlan.level;
+        if (businessTypeID) {
+            subscriptionPlan.businessSubtypeID = [businessSubtypeID];
+        }
+        if (businessSubtypeID) {
+            subscriptionPlan.businessTypeID = [businessTypeID];
+        }
+        if (features && isArray(features)) {
+            subscriptionPlan.features = features;
+        }
+        const savedSubscriptionPlan = await subscriptionPlan.save();
+        return response.send(httpAcceptedOrUpdated(savedSubscriptionPlan, 'Subscription plan updated.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpNoContent({}, 'Not implemented'));
+        const ID = request?.params?.id;
+        const subscriptionPlan = await SubscriptionPlan.findOne({ _id: ID });
+        if (!subscriptionPlan) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Subscription plan not found"), "Subscription plan not found"));
+        }
+        await subscriptionPlan.deleteOne();
+        return response.send(httpNoContent(null, 'Subscription plan deleted'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

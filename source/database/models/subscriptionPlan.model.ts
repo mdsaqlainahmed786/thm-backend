@@ -17,6 +17,9 @@ export interface IBusinessSubscription {
     businessSubtypeID: MongoID[];
 }
 
+export enum CurrencyCode {
+    INR = "INR"
+}
 
 
 export interface ISubscriptionPlan extends Document, IBusinessSubscription {
@@ -35,7 +38,7 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
         name: { type: String, required: true },
         description: { type: String, required: true },
         price: { type: Number, required: true },
-        currency: { type: String, required: true },
+        currency: { type: String, required: true, enum: CurrencyCode },
         duration: { type: String, required: true },// Duration in months, for example
         features: [{ type: String, required: true }],
         // isPopular: { type: Boolean, default: false },
@@ -50,7 +53,8 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
         },
         type: {
             type: String,
-            enum: AccountType
+            enum: AccountType,
+            required: true,
         },
         businessSubtypeID: [
             {
