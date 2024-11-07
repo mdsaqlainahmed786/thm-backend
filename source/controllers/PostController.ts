@@ -3,7 +3,7 @@ import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { AccountType } from "../database/models/user.model";
+import { AccountType, addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
 import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
@@ -208,7 +208,41 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 addMediaInPost().lookup,
                 addTaggedPeopleInPost().lookup,
-                addPostedByInPost().lookup,
+                {
+                    '$lookup': {
+                        'from': 'users',
+                        'let': { 'userID': '$userID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
+                            addBusinessProfileInUser().lookup,
+                            addBusinessProfileInUser().unwindLookup,
+                            addBusinessSubTypeInBusinessProfile().lookup,
+                            addBusinessSubTypeInBusinessProfile().unwindLookup,
+                            {
+                                '$project': {
+                                    "name": 1,
+                                    "profilePic": 1,
+                                    "accountType": 1,
+                                    "businessProfileID": 1,
+                                    "businessProfileRef._id": 1,
+                                    "businessProfileRef.name": 1,
+                                    "businessProfileRef.profilePic": 1,
+                                    "businessProfileRef.rating": 1,
+                                    "businessProfileRef.businessTypeRef": 1,
+                                    "businessProfileRef.businessSubtypeRef": 1,
+                                    "businessProfileRef.address": 1,
+                                }
+                            }
+                        ],
+                        'as': 'postedBy'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$postedBy',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
                 addPostedByInPost().unwindLookup,
                 addLikesInPost().lookup,
                 addLikesInPost().addLikeCount,
