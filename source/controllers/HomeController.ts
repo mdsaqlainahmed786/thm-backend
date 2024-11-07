@@ -25,6 +25,7 @@ import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
 import FAQSeeder from "../database/seeders/FAQSeeder";
 import Order, { OrderStatus } from "../database/models/order.model";
 import EventJoin from "../database/models/eventJoin.model";
+import { AppConfig } from "../config/constants";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -127,8 +128,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
         const { placeID } = request.params;
         const businessProfileRef = await BusinessProfile.findOne({ placeID: placeID }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
         if (!businessProfileRef) {
-            const googleKey = "AIzaSyCp-X-z5geFn-8CBipvx310nH_VEaIbxlo";
-            const apiResponse = await (await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${googleKey}`)).json();
+            const apiResponse = await (await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`)).json();
             if (apiResponse.status === "OK") {
                 const data = apiResponse.result;
                 const name = data?.name ?? "";

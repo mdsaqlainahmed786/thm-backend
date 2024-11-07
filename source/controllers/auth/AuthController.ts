@@ -19,8 +19,10 @@ import { GeoCoordinate } from '../../database/models/common.model';
 import BusinessDocument from '../../database/models/businessDocument.model';
 import Subscription from '../../database/models/subscription.model';
 import { generateFromEmail } from "unique-username-generator";
+import EmailNotificationService from '../../services/EmailNotificationService';
+import { Types } from '../../validation/rules/api-validation';
 
-
+const emailNotificationService = new EmailNotificationService();
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, password, deviceID, notificationToken, devicePlatform } = request.body;
@@ -30,9 +32,13 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         }
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
-            return response.status(403).send(httpForbidden(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
+            return response.status(200).send(httpForbidden(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }
         if (!user.isVerified) {
+            const otp = generateOTP();
+            emailNotificationService.sendEmailOTP(otp, user.email, 'verify-email');
+            user.otp = otp;
+            await user.save();
             return response.status(200).send(httpForbidden({ ...user.hideSensitiveData() }, ErrorMessage.UNVERIFIED_ACCOUNT))
         }
         if (!user.isActivated) {
@@ -42,13 +48,9 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
         }
         //If this is called from admin endpoint
-        console.log(request.baseUrl);
-        console.log(user.role)
-        console.log(user)
         if (['/api/v1/admin/auth'].includes(request.baseUrl) && user.role !== Role.ADMINISTRATOR) {
             return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.UNAUTHORIZED_ACCESS_ERROR), ErrorMessage.UNAUTHORIZED_ACCESS_ERROR));
         }
-
         await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
         if (deviceID) {
             response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
@@ -155,7 +157,9 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             newUser.isApproved = false;
             newUser.privateAccount = false;//Business profile is public profile
             newUser.businessProfileID = savedBusinessProfile.id;
-            newUser.otp = generateOTP();
+            const otp = generateOTP();
+            emailNotificationService.sendEmailOTP(otp, newUser.email, 'verify-email');
+            newUser.otp = otp;
             const savedUser = await newUser.save();
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
@@ -169,7 +173,9 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         newUser.phoneNumber = phoneNumber;
         newUser.password = password;
         newUser.isActivated = true;
-        newUser.otp = generateOTP();
+        const otp = generateOTP();
+        emailNotificationService.sendEmailOTP(otp, newUser.email, 'verify-email');
+        newUser.otp = otp;
         const savedUser = await newUser.save();
         return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL));
     } catch (error: any) {
@@ -224,12 +230,19 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
 
 const resendOTP = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email } = request.body;
+        const { email, type } = request.body;
         const user = await User.findOne({ email: email }).select("+otp");
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        user.otp = generateOTP();
+        const otp = generateOTP();
+        if (type === Types.FORGOT_PASSWORD) {
+            emailNotificationService.sendEmailOTP(otp, user.email, 'forgot-password');
+        }
+        if (type === Types.EMAIL_VERIFICATION) {
+            emailNotificationService.sendEmailOTP(otp, user.email, 'verify-email');
+        }
+        user.otp = otp;
         await user.save();
         return response.send(httpOk(null, 'Otp Sent'));
     } catch (error: any) {

@@ -169,7 +169,7 @@ export const createCommentApiValidator = [
     messageValidationRule,
 ]
 
-enum Types {
+export enum Types {
     EMAIL_VERIFICATION = "email-verification",
     FORGOT_PASSWORD = "forgot-password"
 }

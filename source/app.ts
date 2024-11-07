@@ -41,8 +41,12 @@ App.use((request: Request, response: Response, next: NextFunction) => {
     return response.sendStatus(404);
 });
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
-    console.log(request.path);
-    console.error('Logger ::::', err.stack)
+    console.error(
+        'RunTime Error',
+        '\nRequest Path => ', request.path,
+        '\nUser Data =>', request.user,
+        '\nError ::::', err
+    )
     next(err)
 });
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {

@@ -230,6 +230,11 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                     $limit: 1,
                 },
                 {
+                    $addFields: {
+                        eventJoinsRef: { $slice: ["$eventJoinsRef", 7] },
+                    }
+                },
+                {
                     $project: {
                         reviews: 0,
                         isPublished: 0,
@@ -247,7 +252,7 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         if (post.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
         }
-        return response.send(httpOk(post, "Post Fetched"));
+        return response.send(httpOk(post[0], "Post Fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
