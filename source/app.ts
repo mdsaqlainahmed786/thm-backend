@@ -16,7 +16,7 @@ connectDB();
 /**
  * Cors Policy
  */
-const allowedOrigins: Array<string> = [
+export const allowedOrigins: Array<string> = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "ec2-13-202-52-159.ap-south-1.compute.amazonaws.com",
@@ -30,6 +30,10 @@ const options: cors.CorsOptions = {
 App.use(cors(options));
 App.use(`/public`, express.static(path.join(__dirname, "../public")));
 App.use('', ApiEndpoints);
+App.get('/chat-app', function (request: Request, response: Response) {
+    const filePath = path.join(__dirname, "../public/files/index.html");
+    return response.sendFile(filePath);
+})
 App.use((request: Request, response: Response, next: NextFunction) => {
     console.log(request.path);
     console.log(request.headers.forwarded)

@@ -31,6 +31,7 @@ export interface Individual {
     privateAccount: boolean;
     notificationEnabled: boolean;
     role: Role;
+    lastSeen: Date;
 }
 
 export interface Business {
@@ -98,7 +99,8 @@ const UserSchema: Schema = new Schema<IUser>(
         },
         role: {
             type: String, enum: Role, default: Role.USER,
-        }
+        },
+        lastSeen: { type: Date, default: Date.now },
     },
     {
         timestamps: true

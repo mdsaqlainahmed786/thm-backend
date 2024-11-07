@@ -56,6 +56,22 @@ export abstract class AppConfig {
     }
 }
 
+export abstract class SocketChannel {
+    static readonly USER_CONNECTED = "user connected";
+    static readonly USER_DISCONNECTED = "user disconnected";
+    static readonly PRIVATE_MESSAGE = "private message";
+    static readonly USERS = "users";
+    static readonly SESSION = "session";
+    static readonly CHAT_SCREEN = "chat screen";
+    static readonly FETCH_CONVERSATIONS = "fetch conversations";
+    static readonly FETCH_LAST_SEEN = "fetch last seen";
+    static readonly LAST_SEEN = "last seen"
+    static readonly TYPING = "typing";
+    static readonly STOP_TYPING = "stop typing";
+    static readonly MESSAGE_SEEN = "message seen";
+    static readonly IN_CHAT = "in chat";
+    static readonly LEAVE_CHAT = "leave chat";
+}
 
 
 
