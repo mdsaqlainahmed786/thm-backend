@@ -258,10 +258,7 @@ const collectData = async (request: Request, response: Response, next: NextFunct
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        // if (accountType !== AccountType.BUSINESS) {
-        //     return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
-        // }
-        if (businessProfileID.toString() === myBusinessProfile.toString()) {
+        if (myBusinessProfile && myBusinessProfile?.toString() === businessProfileID.toString()) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("The target Business Profile ID you entered matches your existing Business Profile ID. Please select a different target ID."), "The target Business Profile ID you entered matches your existing Business Profile ID. Please select a different target ID."))
         }
         switch (type) {

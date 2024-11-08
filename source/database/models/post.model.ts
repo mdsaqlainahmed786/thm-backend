@@ -410,27 +410,6 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             isLikedByMe(likedByMe),
             isSavedByMe(savedByMe),
             imJoining(joiningEvents),
-            // {
-            //     $addFields: {
-            //         likedByMe: {
-            //             $in: ['$_id', likedByMe]
-            //         },
-            //     }
-            // },
-            // {
-            //     $addFields: {
-            //         savedByMe: {
-            //             $in: ['$_id', savedByMe]
-            //         },
-            //     }
-            // },
-            // {
-            //     $addFields: {
-            //         imJoining: {
-            //             $in: ['$_id', joiningEvents]
-            //         },
-            //     }
-            // },
             {
                 $sort: { createdAt: -1, id: 1 }
             },
