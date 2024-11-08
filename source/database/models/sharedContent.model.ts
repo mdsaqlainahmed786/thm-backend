@@ -1,24 +1,23 @@
 import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
 import { PostType } from "./post.model";
-
-enum Content {
-    STORY = 'story'
-}
-
-type ContentType = PostType | Content;
+import { ContentType } from "../../common";
 
 interface ISharedContent extends Document {
     contentType: ContentType,
+    contentID: MongoID;
     userID: MongoID;
-    postID: MongoID;
     businessProfileID?: MongoID;
 }
 const SharedContentSchema: Schema = new Schema<ISharedContent>(
     {
         userID: { type: Schema.Types.ObjectId, ref: "User", required: true },
-        postID: { type: Schema.Types.ObjectId, ref: "Post", required: true },
+        contentID: { type: Schema.Types.ObjectId, required: true },
         businessProfileID: { type: Schema.Types.ObjectId, ref: "BusinessProfile", },
+        contentType: {
+            type: String,
+            required: true
+        }
     },
     {
         timestamps: true

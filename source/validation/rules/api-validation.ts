@@ -1,6 +1,5 @@
 import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule } from './../common-validation';
-import { ContentType } from './../../database/models/reportedUser.model';
-
+import { ContentType } from '../../common';
 import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
 import { AccountType } from "../../database/models/user.model";
@@ -251,6 +250,7 @@ export const buySubscriptionApiValidator = [
 
 export enum Type {
     WEBSITE_REDIRECTION = 'website-redirection',
+    ACCOUNT_REACH = "account-reach"
 }
 const TypeValue = Object.values(Type);
 export const collectDataApiValidator = [

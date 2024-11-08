@@ -46,3 +46,15 @@ export interface Messages {
     totalPages: number;
     totalMessages: number;
 }
+
+export enum ContentType {
+    POST = "post",
+    STORY = 'story',
+    ANONYMOUS = "anonymous"
+}
+
+// enum Content {
+//     STORY = 'story'
+// }
+
+// type ContentType = PostType | Content;

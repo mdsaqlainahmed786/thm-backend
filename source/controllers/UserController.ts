@@ -630,14 +630,17 @@ const deleteAccount = async (request: Request, response: Response, next: NextFun
 }
 const blockUser = async (request: Request, response: Response, next: NextFunction) => {
     try {
+
+
         const ID = request.params.id;
         const { id, accountType, businessProfileID } = request.user;
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [user, isBlocked] = await Promise.all([
+        const [user, isBlocked, inMyFollowing] = await Promise.all([
             User.findOne({ _id: ID }),
             BlockedUser.findOne({ blockedUserID: ID, userID: id }),
+            UserConnection.findOne({ following: ID, follower: id, status: ConnectionStatus.ACCEPTED }),
         ])
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -647,6 +650,9 @@ const blockUser = async (request: Request, response: Response, next: NextFunctio
             newBlockedUser.userID = id;
             newBlockedUser.blockedUserID = ID;
             newBlockedUser.businessProfileID = businessProfileID ?? null;
+            if (inMyFollowing) {
+                await inMyFollowing.deleteOne();
+            }
             const savedLike = await newBlockedUser.save();
             return response.send(httpCreated(savedLike, "User blocked successfully"));
         }

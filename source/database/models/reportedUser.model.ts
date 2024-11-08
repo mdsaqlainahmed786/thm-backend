@@ -1,9 +1,5 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
-import { MongoID } from '../../common';
-export enum ContentType {
-    POST = "post",
-    ANONYMOUS = "anonymous"
-}
+import { MongoID, ContentType } from '../../common';
 interface IReport extends Document {
     reportedBy: MongoID;
     contentID: MongoID;
