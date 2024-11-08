@@ -698,7 +698,6 @@ function fetchAccountReach(query: { [key: string]: any; }, groupFormat: string, 
 }
 
 async function fetchEngagedData(businessProfileID: string) {
-    const businessUser = await User.findOne({ businessProfileID: businessProfileID });
     const likes = await Like.aggregate([
         {
             $match: { businessProfileID: new ObjectId(businessProfileID) }
@@ -712,7 +711,7 @@ async function fetchEngagedData(businessProfileID: string) {
     ]).exec();
     const sharedContent = await SharedContent.aggregate([
         {
-            $match: { businessProfileID: new ObjectId(businessUser?.id) }
+            $match: { businessProfileID: new ObjectId(businessProfileID) }
         }
     ]);
     console.log(comments);
