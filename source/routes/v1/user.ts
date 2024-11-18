@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { buySubscriptionApiValidator, paramIDValidationRule, subscriptionCheckoutApiValidator, } from './../../validation/rules/api-validation';
+import { buySubscriptionApiValidator, createAddressApiValidator, paramIDValidationRule, subscriptionCheckoutApiValidator, } from './../../validation/rules/api-validation';
 import UserController from "../../controllers/UserController";
 import SubscriptionController from "../../controllers/SubscriptionController";
 import authenticateUser from "../../middleware/authenticate";
@@ -7,6 +7,7 @@ import { uploadMedia } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 import { validateRequest } from '../../middleware/api-request-validator';
 import AuthController from "../../controllers/auth/AuthController";
+import User from "../../database/models/user.model";
 const UserEndpoints: Router = express.Router();
 UserEndpoints.get('/profile', UserController.profile);
 UserEndpoints.get('/profile/:id', [paramIDValidationRule], validateRequest, UserController.publicProfile);
@@ -15,7 +16,7 @@ UserEndpoints.post('/edit-profile-pic', uploadMedia(AwsS3AccessEndpoints.USERS).
 UserEndpoints.post('/business-profile/property-picture',
     uploadMedia(AwsS3AccessEndpoints.BUSINESS_PROPERTY).fields([{ name: 'images', maxCount: 6 }]),
     authenticateUser, UserController.businessPropertyPictures);
-
+UserEndpoints.post('/address', createAddressApiValidator, validateRequest, UserController.address);
 
 UserEndpoints.get('/business-profile/documents', UserController.businessDocument);
 UserEndpoints.post('/business-profile/documents', uploadMedia(AwsS3AccessEndpoints.USERS).fields([{ name: 'businessRegistration', maxCount: 1 }, { name: 'addressProof', maxCount: 1 }]), UserController.businessDocumentUpload);

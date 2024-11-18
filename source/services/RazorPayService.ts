@@ -3,6 +3,16 @@ import { Orders } from "razorpay/dist/types/orders";
 import crypto from "crypto";
 import { AppConfig } from "../config/constants";
 import { IAddress } from "../database/models/common.model";
+export interface BillingDetails {
+    description: string,
+    email?: string;
+    name: string;
+    address: IAddress;
+    dialCode: string;
+    phoneNumber: string;
+    gstn: string;
+}
+
 class RazorPayService {
     private instance: Razorpay;
     constructor() {
@@ -11,15 +21,7 @@ class RazorPayService {
             key_secret: AppConfig.RAZOR_PAY.KEY_SECRET, // Replace with your Razorpay Key Secret
         });
     }
-    async createOrder(amount: number, data?: {
-        description: string,
-        email?: string;
-        name: string;
-        address: IAddress;
-        dialCode: string;
-        phoneNumber: string;
-        gstn: string;
-    }) {
+    async createOrder(amount: number, data?: BillingDetails | undefined) {
         try {
             amount = amount * 100;
             const options: Orders.RazorpayOrderBaseRequestBody = {

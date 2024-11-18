@@ -1,6 +1,6 @@
 import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
-import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent } from "../utils/response";
+import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ObjectId } from "mongodb";
@@ -26,6 +26,7 @@ import { AppConfig } from '../config/constants';
 import { CookiePolicy } from '../config/constants';
 import BlockedUser from '../database/models/blockedUser.model';
 import EventJoin from '../database/models/eventJoin.model';
+import UserAddress from '../database/models/user-address.model';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled } = request.body;
@@ -88,7 +89,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
 const profile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
-        const [user, profileCompleted, posts, follower, following] = await Promise.all([
+        const [user, profileCompleted, posts, follower, following, userAddress] = await Promise.all([
             User.aggregate(
                 [
                     {
@@ -116,11 +117,12 @@ const profile = async (request: Request, response: Response, next: NextFunction)
             Post.find({ userID: id }).countDocuments(),
             UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            UserAddress.findOne({ userID: id })
         ]);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
-        let responseData = { posts: posts, follower: follower, following: following, profileCompleted, };
+        let responseData = { posts: posts, follower: follower, following: following, profileCompleted, address: userAddress };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
         } else {
@@ -684,5 +686,49 @@ const blockedUsers = async (request: Request, response: Response, next: NextFunc
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+const address = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        const { street, city, state, zipCode, country, phoneNumber, dialCode, lat, lng } = request.body;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (accountType === AccountType.BUSINESS) {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You can't update your billing address. Please contact admin support."), "Access denied: You can't update your billing address. Please contact admin support."))
+        }
+        const address = await UserAddress.findOne({ userID: id });
+        if (address) {
+            address.street = street;
+            address.city = city;
+            address.state = state;
+            address.zipCode = zipCode;
+            address.country = country;
+            address.phoneNumber = phoneNumber;
+            address.dialCode = dialCode;
+            address.userID = id;
+            address.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+            address.lat = lat;
+            address.lng = lng;
+            const savedUserAddress = await address.save();
+            return response.send(httpAcceptedOrUpdated(savedUserAddress, 'Billing address updated successfully.'))
+        }
+        const newUserAddress = new UserAddress();
+        newUserAddress.street = street;
+        newUserAddress.city = city;
+        newUserAddress.state = state;
+        newUserAddress.zipCode = zipCode;
+        newUserAddress.country = country;
+        newUserAddress.phoneNumber = phoneNumber;
+        newUserAddress.dialCode = dialCode;
+        newUserAddress.userID = id;
+        newUserAddress.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+        newUserAddress.lat = lat;
+        newUserAddress.lng = lng;
+        const savedUserAddress = await newUserAddress.save();
+        return response.send(httpCreated(savedUserAddress, 'Billing address added successfully.'))
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers };
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };

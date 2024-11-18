@@ -1,3 +1,4 @@
+import { Address } from './../database/models/common.model';
 import { Request, Response, NextFunction, response } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -10,8 +11,10 @@ import BusinessProfile from "../database/models/businessProfile.model";
 import moment from "moment";
 import PromoCode, { PriceType } from "../database/models/promoCode.model";
 import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
-import RazorPayService from "../services/RazorPayService";
+import RazorPayService, { BillingDetails } from "../services/RazorPayService";
 import { parseFloatToFixed } from "../utils/helper/basic";
+import { BillingAddress } from '../common';
+import UserAddress from '../database/models/user-address.model';
 const razorPayService = new RazorPayService();
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -376,20 +379,68 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         if (!subscriptionPlan) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
         }
-
-        const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
-        if (!businessProfile) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
-        }
         //User Billing Address 
-        const billingAddress = {
-            name: businessProfile.name,
-            address: businessProfile.address,
-            dialCode: businessProfile.dialCode,
-            phoneNumber: businessProfile.phoneNumber,
-            gstn: businessProfile.gstn,
+        const billingAddress: BillingAddress = {
+            name: '',
+            address: {
+                street: "",
+                city: "",
+                state: "",
+                zipCode: "",
+                country: "",
+                lat: 0,
+                lng: 0,
+            },
+            dialCode: '',
+            phoneNumber: '',
+            gstn: '',
         };
-
+        let razorPayData: BillingDetails = {
+            description: '',
+            email: '',
+            name: '',
+            address: {
+                street: "",
+                city: "",
+                state: "",
+                zipCode: "",
+                country: "",
+                lat: 0,
+                lng: 0,
+            },
+            dialCode: '',
+            phoneNumber: '',
+            gstn: '',
+        };
+        if (user.accountType === AccountType.BUSINESS) {
+            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+            if (!businessProfile) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+            }
+            Object.assign(billingAddress, {
+                name: businessProfile.name,
+                address: businessProfile.address,
+                dialCode: businessProfile.dialCode,
+                phoneNumber: businessProfile.phoneNumber,
+                gstn: businessProfile.gstn,
+            })
+            Object.assign(razorPayData,
+                { ...billingAddress, email: businessProfile.email, description: `Subscription (${subscriptionPlan.name} RS ${subscriptionPlan.price})` }
+            )
+        } else {
+            const userAddress = await UserAddress.findOne({ userID: user._id });
+            if (!userAddress) {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Billing address not found."), "Billing address not found."))
+            }
+            Object.assign(billingAddress, {
+                name: user.name,
+                address: userAddress,
+                dialCode: user.dialCode,
+                phoneNumber: user.phoneNumber,
+                gstn: '',
+            });
+            Object.assign(razorPayData, { ...billingAddress, email: user.email, description: `Subscription (${subscriptionPlan.name} RS ${subscriptionPlan.price})` })
+        }
         //Price related calculations
         let subtotal = subscriptionPlan.price;
         let gst = (subtotal * 18) / 100;
@@ -409,7 +460,6 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         newOrder.grandTotal = total;
         newOrder.tax = gst;
         newOrder.status = OrderStatus.CREATED;
-
         if (promoCode) {
             const promocode = await PromoCode.findOne({ code: promoCode })
             if (!promocode) {
@@ -479,7 +529,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 }
             })
         }
-        const razorPayOrder = await razorPayService.createOrder(payment.total, { ...billingAddress, email: businessProfile.email, description: `Subscription (${subscriptionPlan.name} RS ${subscriptionPlan.price})` });
+        const razorPayOrder = await razorPayService.createOrder(payment.total, razorPayData);
         const data = await razorPayService.fetchOrder(razorPayOrder.id);
         newOrder.razorPayOrderID = razorPayOrder.id;
         console.log(razorPayOrder, "razorPayOrder", data);

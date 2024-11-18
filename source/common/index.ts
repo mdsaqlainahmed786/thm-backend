@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { Socket } from "socket.io";
 import { AccountType } from "../database/models/user.model";
 import { MessageType } from "../database/models/message.model";
+import { Address } from "../database/models/common.model";
 export enum Role {
     USER = 'user',
     ADMINISTRATOR = 'administrator'
@@ -51,6 +52,13 @@ export enum ContentType {
     POST = "post",
     STORY = 'story',
     ANONYMOUS = "anonymous"
+}
+export interface BillingAddress {
+    name: string;
+    address: Address;
+    dialCode: string;
+    phoneNumber: string;
+    gstn: string;
 }
 
 // enum Content {

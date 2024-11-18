@@ -232,7 +232,15 @@ export const createEventApiValidator = [
     }),
 
 ]
-
+export const createAddressApiValidator = [
+    streetValidationRule,
+    cityValidationRule,
+    stateValidationRule,
+    zipCodeValidationRule,
+    countryValidationRule,
+    latValidationRule,
+    lngValidationRule
+]
 // export const subscriptionPlansApiValidator = [
 //     businessTypeIDValidationRule,
 //     businessSubtypeIDValidationRule
