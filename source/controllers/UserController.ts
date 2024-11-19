@@ -22,7 +22,7 @@ import { MongoID } from '../common';
 import { storeMedia } from './MediaController';
 import { deleteUnwantedFiles } from './MediaController';
 import PropertyPictures from '../database/models/propertyPicture.model';
-import { AppConfig } from '../config/constants';
+import { AppConfig, AwsS3AccessEndpoints } from '../config/constants';
 import { CookiePolicy } from '../config/constants';
 import BlockedUser from '../database/models/blockedUser.model';
 import EventJoin from '../database/models/eventJoin.model';
@@ -525,7 +525,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
             mediaID: MongoID;
         }[] = []
         if (images && images.length !== 0) {
-            const imageList = await storeMedia(images, id, null, MediaType.IMAGE);
+            const imageList = await storeMedia(images, id, null, MediaType.IMAGE, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => newPropertyPictures.push({
                     userID: id,

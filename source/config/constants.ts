@@ -30,6 +30,14 @@ export abstract class AppConfig {
     static readonly AWS_REGION: string = process.env.AWS_REGION!;
 
 
+    static readonly POST_DIMENSION = {
+        WIDTH: 500,
+        HEIGHT: 500
+    }
+    static readonly STORY_DIMENSION = {
+        WIDTH: 500,
+        HEIGHT: 500
+    }
     //Timezone Configurations 
     static readonly DEFAULT_TIMEZONE: string = 'Asia/Kolkata';
 

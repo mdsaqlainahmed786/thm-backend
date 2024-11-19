@@ -6,6 +6,7 @@ interface IStory extends Document {
     businessProfileID?: MongoID;
     mediaID: MongoID;
     timeStamp: Date;
+    duration: number;
 }
 const LikeSchema: Schema = new Schema<IStory>(
     {
@@ -19,6 +20,10 @@ const LikeSchema: Schema = new Schema<IStory>(
             type: Date,
             default: Date.now,
             expires: '24h' // automatically delete the story after 24 hours
+        },
+        duration: {
+            type: Number,
+            default: 0,
         },
     },
     {
@@ -47,6 +52,7 @@ export function addMediaInStory() {
                         '_id': 0,
                         'sourceUrl': 1,
                         'mimeType': 1,
+                        'duration': 1,
                     }
                 }
             ],
@@ -74,6 +80,7 @@ export function addMediaInStory() {
             'mimeType': 1,
             'sourceUrl': 1,
             'likedByMe': 1,
+            'duration': 1,
         }
     }
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project }

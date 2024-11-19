@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { uploadMedia } from "../../middleware/file-uploading";
+import { diskUpload, s3Upload } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 import StoryController from "../../controllers/StoryController";
 import { paramIDValidationRule } from "../../validation/rules/api-validation";
@@ -7,7 +7,7 @@ import { validateRequest } from "../../middleware/api-request-validator";
 import LikeController from "../../controllers/LikeController";
 const StoryEndpoints: Router = express.Router();
 StoryEndpoints.get('/', StoryController.index);
-StoryEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.STORY).fields([{ name: 'images', maxCount: 1, }, { name: 'videos', maxCount: 1, }]), StoryController.store);
+StoryEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 1, }, { name: 'videos', maxCount: 1, }]), StoryController.store);
 StoryEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, StoryController.destroy);
 /**
  * 

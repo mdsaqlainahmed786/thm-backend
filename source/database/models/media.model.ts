@@ -8,45 +8,27 @@ export enum Size {
     THUMBNAIL = "thumbnail",
     MEDIUM = "medium",
 }
-export interface MediaFile {
+
+export interface BaseMedia {
     fileName: string,
     width: number,
     height: number,
     fileSize: number,
     mimeType: string;
     sourceUrl: string;
+    thumbnailUrl: string,
     s3Key: string;
 }
 
-export interface ThumbnailMediaFile extends MediaFile {
-    size: Size,
+export interface Video extends BaseMedia {
+    duration: number;
 }
 
-interface IMedia extends Document, MediaFile {
+interface IMedia extends Document, Video {
     businessProfileID?: MongoID;
     userID: MongoID;
     mediaType: string,
-    sizes?: ThumbnailMediaFile[],
-    isHighlighted: boolean,
-    isProfilePic: boolean,
-    s3Key: string;
 }
-const MediaSizeSchema: Schema = new Schema<ThumbnailMediaFile>(
-    {
-        fileName: { type: String, required: true },
-        width: { type: Number, required: true },
-        height: { type: Number, required: true },
-        fileSize: { type: Number, required: true },
-        mimeType: { type: String, required: true },
-        sourceUrl: { type: String, required: true },
-        s3Key: { type: String, required: false },
-        size: { type: String, enum: Size }
-    },
-    {
-        _id: false
-    }
-);
-
 const MediaSchema: Schema = new Schema<IMedia>(
     {
         businessProfileID: { type: Schema.Types.ObjectId, ref: "BusinessProfile", },
@@ -58,10 +40,9 @@ const MediaSchema: Schema = new Schema<IMedia>(
         mediaType: { type: String, required: true, enum: MediaType },
         mimeType: { type: String, required: true },
         sourceUrl: { type: String, required: true },
+        thumbnailUrl: { type: String, required: true },
         s3Key: { type: String, required: false },
-        // isHighlighted: { type: Boolean, default: false },
-        // isProfilePic: { type: Boolean, default: false },
-        // sizes: [MediaSizeSchema],
+        duration: { type: Number },
     },
     {
         timestamps: true

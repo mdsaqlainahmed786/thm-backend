@@ -1,13 +1,18 @@
-
 import sharp from "sharp";
-import { generatePresignedUrl, getS3Object } from "../middleware/file-uploading";
 import { addStringBeforeExtension } from "../utils/helper/basic";
-import { putS3Object } from "../middleware/file-uploading";
 import S3Object, { IS3Object } from "../database/models/s3Object.model";
 import { MongoID } from "../common";
 import Media, { MediaType } from "../database/models/media.model";
+import S3Service from "../services/S3Service";
+import { readVideoMetadata } from "../middleware/file-uploading";
+import fs from "fs";
+import { AwsS3AccessEndpoints } from "../config/constants";
+import { generateScreenshot } from "../middleware/file-uploading";
+import path from "path";
+import fileSystem from "fs/promises";
+const s3Service = new S3Service();
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
-    const s3Image = await getS3Object(media.key);
+    const s3Image = await s3Service.getS3Object(media.key);
     const cropSetting: {} = { width: width, height: height, fit: "cover" };
     if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
         const body = s3Image.Body;
@@ -16,7 +21,7 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
         // const metadata = await sharpImage.metadata();
         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
         const thumbnailPath = addStringBeforeExtension(media.key, `-${width}-${height}`)
-        const s3Upload = await putS3Object(thumbnail, media.mimetype, thumbnailPath);
+        const s3Upload = await s3Service.putS3Object(thumbnail, media.mimetype, thumbnailPath);
         return s3Upload;
     }
     return null;
@@ -56,40 +61,104 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
 }
 
 
-async function storeMedia(files: Express.Multer.S3File[], userID: MongoID, businessProfileID: MongoID | null, type: MediaType) {
+async function storeMedia(files: Express.Multer.File[], userID: MongoID, businessProfileID: MongoID | null, type: MediaType, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
     let fileList: any[] = [];
-    files && files.map((file) => {
-        fileList.push({
-            businessProfileID: businessProfileID,
-            userID: userID,
-            fileName: file.originalname,
-            width: 0,
-            height: 0,
-            fileSize: file.size,
-            mediaType: type,
-            mimeType: file.mimetype,
-            sourceUrl: file.location,
-            s3Key: file.key,
-        })
-    })
+    if (files) {
+        await Promise.all(files && files.map(async (file) => {
+            const fileObject = {
+                businessProfileID: businessProfileID,
+                userID: userID,
+                fileName: file.originalname,
+                fileSize: file.size,
+                mediaType: type,
+                mimeType: file.mimetype,
+                width: 0,
+                height: 0,
+                duration: 0,
+                sourceUrl: '',
+                s3Key: '',
+                thumbnailUrl: ''
+            }
+            let width = 500;
+            let height = 500;
+            if (uploadedFor === "POST") {
+                width = 640;
+                height = 640;
+            }
+            if (uploadedFor === "STORY") {
+                width = 1080;
+                height = 1980;
+            }
+            //Crop setting from thumbnail 
+            const cropSetting: {} = { width: width, height: height, fit: sharp.fit.inside, withoutEnlargement: true };
+            //Generate thumbnail
+            let thumbnail: Buffer | null = null;
+            if (file && file.mimetype.startsWith('image/')) {
+                const sharpImage = await sharp(file.path);
+                //Read metadata of video
+                const metadata = await sharpImage.metadata();
+                if (metadata) {
+                    Object.assign(fileObject, { width: metadata.width, height: metadata.height });
+                }
+                thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+            }
+            if (file && file.mimetype.startsWith('video/')) {
+                //Read metadata of video
+                const metadata = await readVideoMetadata(file.path);
+                if (metadata) {
+                    Object.assign(fileObject, { width: metadata.width, height: metadata.height, duration: metadata.duration });
+                }
+                //Generate thumbnail from video
+                const generatedThumbnailUrl = await generateScreenshot(file.path, file.filename, 'jpeg');
+                // //Resize video thumbnail
+                if (generatedThumbnailUrl) {
+                    const sharpImage = await sharp(generatedThumbnailUrl);
+                    //Generate thumbnail
+                    thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+                    await fileSystem.unlink(generatedThumbnailUrl);
+                }
+            }
+            const fileBody = fs.createReadStream(file.path);
+            const s3Path = s3BasePath + file.filename;
+            //Upload video and images
+            const uploadedFile = await s3Service.putS3Object(fileBody, file.mimetype, s3Path);
+            if (uploadedFile && uploadedFile.Key) {
+                Object.assign(fileObject, {
+                    sourceUrl: uploadedFile.Location,
+                    s3Key: uploadedFile.Key
+                });
+                //Upload thumbnail
+                if (thumbnail) {
+                    let thumbnailPath = addStringBeforeExtension(uploadedFile.Key, `-${width}x${height}`);
+                    let thumbnailMimeType = file.mimetype;
+
+                    if (file && file.mimetype.startsWith('video/')) {
+                        const thumbnailExtName = "png";
+                        let thumbnailPathT = path.parse(uploadedFile.Key);
+                        thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${width}x${height}`);
+                        thumbnailMimeType = `image/${thumbnailExtName}`;
+                    }
+                    const uploadedThumbnailFile = await s3Service.putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
+                    if (uploadedThumbnailFile) {
+                        Object.assign(fileObject, {
+                            thumbnailUrl: uploadedThumbnailFile.Location,
+                        });
+                    }
+                }
+            }
+            await fileSystem.unlink(file.path);
+            fileList.push(fileObject)
+        }));
+    }
     return await Media.create(fileList);
 }
 
-async function deleteUnwantedFiles(files: Express.Multer.S3File[]) {
+async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     try {
         let objectToDelete: IS3Object[] = [];
-        files.map((file) => {
-            objectToDelete.push({
-                key: file.key,
-                location: file.location,
-                delete: true,
-                fieldname: file.fieldname,
-                originalname: file.originalname,
-                encoding: file.encoding,
-                mimetype: file.mimetype,
-            })
-        })
-        await S3Object.create(objectToDelete);
+        await Promise.all(files.map(async (file) => {
+            await fileSystem.unlink(file.path)
+        }))
     } catch (error: any) {
         console.error(error)
     }

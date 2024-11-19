@@ -1,23 +1,19 @@
 import { ObjectId } from 'mongodb';
-import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpOkExtended, httpNoContent, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType, addBusinessProfileInUser, addStoriesInUser } from "../database/models/user.model";
-import Subscription from "../database/models/subscription.model";
-import Post, { PostType } from "../database/models/post.model";
-import DailyContentLimit from "../database/models/dailyContentLimit.model";
-import { countWords, isArray } from "../utils/helper/basic";
-import { deleteUnwantedFiles, storeMedia } from './MediaController';
+import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import Story, { addMediaInStory } from '../database/models/story.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
-import { deleteS3Object } from '../middleware/file-uploading';
 import Like, { addUserInLike } from '../database/models/like.model';
 import View from '../database/models/storyView.model.';
-
+import S3Service from '../services/S3Service';
+import { AwsS3AccessEndpoints } from '../config/constants';
+const s3Service = new S3Service();
 ///TODO Pending views for stories and comments 
 ///TODO Fetch story based on follower and following 
 const index = async (request: Request, response: Response, next: NextFunction) => {
@@ -27,16 +23,16 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const dbQuery: {} = { _id: { $nin: [new ObjectId(id)] } };
+
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         //FIXME add follow and following user here
-
-        const [myStories, likedByMe] = await Promise.all(
+        const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [myStories, likedByMe, userIDs] = await Promise.all(
             [
                 Story.aggregate([
                     {
-                        $match: { userID: new ObjectId(id), timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
+                        $match: { userID: new ObjectId(id), timeStamp: { $gte: timeStamp } }
                     },
                     addMediaInStory().lookup,
                     addMediaInStory().unwindLookup,
@@ -62,9 +58,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         $sort: { createdAt: -1, id: 1 }
                     },
                 ]).exec(),
-                Like.distinct('storyID', { userID: id, })
+                Like.distinct('storyID', { userID: id, }),
+                Story.distinct('userID', { timeStamp: { $gte: timeStamp }, userID: { $nin: [new ObjectId(id)] } })
             ]
         );
+        console.log(userIDs);
+        const dbQuery: {} = { _id: { $in: userIDs } };
         const [documents, totalDocument] = await Promise.all(
             [
                 User.aggregate(
@@ -126,13 +125,17 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Media is required for creating a story"), 'Media is required for creating a story'))
         }
         /**
+         * Portrait (4:5): 1080 x 1350 px
+            Square (1:1): 1080 x 1080 px
+            Landscape (1.91:1): 1080 x 566 px
          * Handle story media
          */
         let mediaIDs: MongoID = '';
+        let duration: number = 10;
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, null, MediaType.VIDEO),
-                storeMedia(images, id, null, MediaType.IMAGE),
+                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.STORY, 'STORY'),
+                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.STORY, 'STORY'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => {
@@ -142,6 +145,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => {
                     mediaIDs = video.id;
+                    duration = video.duration;
                 });
             }
         }
@@ -149,6 +153,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             newStory.businessProfileID = businessProfileID;
         }
+        newStory.duration = duration;
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
         const savedStory = await newStory.save();
@@ -174,7 +179,7 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         }
         const media = await Media.findOne({ _id: story.mediaID });
         if (media && media.s3Key) {
-            await deleteS3Object(media.s3Key);
+            await s3Service.deleteS3Object(media.s3Key);
             await media.deleteOne();
         }
         await story.deleteOne();

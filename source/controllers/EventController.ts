@@ -7,6 +7,7 @@ import { storeMedia } from './MediaController';
 import { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import EventJoin from "../database/models/eventJoin.model";
+import { AwsS3AccessEndpoints } from "../config/constants";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -52,7 +53,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         let mediaIDs: MongoID[] = []
         if (images && images.length !== 0) {
             const [imageList] = await Promise.all([
-                storeMedia(images, id, null, MediaType.IMAGE),
+                storeMedia(images, id, null, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));

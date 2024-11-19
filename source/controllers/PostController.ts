@@ -18,6 +18,7 @@ import Report from '../database/models/reportedUser.model';
 import { ContentType } from '../common';
 import { addCommentsInPost, addLikesInComment, addSharedCountInPost } from '../database/models/comment.model';
 import EventJoin from '../database/models/eventJoin.model';
+import { AwsS3AccessEndpoints } from '../config/constants';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -66,11 +67,12 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 } else if (!dailyContentLimit && images && images.length > MAX_IMAGE_UPLOADS) {
 
                     await deleteUnwantedFiles(images);
+                    await deleteUnwantedFiles(videos);
                     const error = `You cannot upload multiple images because your current plan does not include this feature.`;
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
 
                 } else if (!dailyContentLimit && videos && videos.length > MAX_VIDEO_UPLOADS) {
-
+                    await deleteUnwantedFiles(images);
                     await deleteUnwantedFiles(videos);
                     const error = `You cannot upload multiple videos because your current plan does not include this feature.`;
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
@@ -83,11 +85,12 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 } else if (dailyContentLimit && dailyContentLimit.images !== 0 && images && images.length >= dailyContentLimit.images) {
 
                     await deleteUnwantedFiles(images);
+                    await deleteUnwantedFiles(videos);
                     const error = `Your daily image upload limit has been exceeded. Please upgrade your account to avoid this error.`;
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
 
                 } else if (dailyContentLimit && dailyContentLimit.videos !== 0 && videos && videos.length >= dailyContentLimit.videos) {
-
+                    await deleteUnwantedFiles(images);
                     await deleteUnwantedFiles(videos);
                     const error = `Your daily video upload limit has been exceeded. Please upgrade your account to avoid this error.`;
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
@@ -121,8 +124,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         let mediaIDs: MongoID[] = []
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, businessProfileID, MediaType.VIDEO),
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE),
+                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
+                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));
@@ -162,30 +165,13 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // const ID = request?.params?.id;
-        // const { DTCODE, DTNAME, DTABBR } = request.body;
-        // const deathCode = await DeathCode.findOne({ _id: ID });
-        // if (!deathCode) {
-        //     return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Death code not found."), "Death code not found."));
-        // }
-        // deathCode.DTCODE = DTCODE ?? deathCode.DTCODE;
-        // deathCode.DTNAME = DTNAME ?? deathCode.DTNAME;
-        // deathCode.DTABBR = DTABBR ?? deathCode.DTABBR;
-        // const savedDeathCode = await deathCode.save();
-        // return response.send(httpAcceptedOrUpdated(savedDeathCode, 'Death code updated.'));
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // const ID = request?.params?.id;
-        // const deathCode = await DeathCode.findOne({ _id: ID });
-        // if (!deathCode) {
-        //     return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Death code not found."), "Death code not found."));
-        // }
-        // await deathCode.deleteOne();
-        // return response.send(httpNoContent(null, 'Death code deleted.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

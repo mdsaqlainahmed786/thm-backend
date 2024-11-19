@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import PostController from "../../controllers/PostController";
-import { uploadMedia } from "../../middleware/file-uploading";
+import { diskUpload, s3Upload } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 import LikeController from "../../controllers/LikeController";
 import { createCommentApiValidator, createLikesApiValidator, paramIDValidationRule, reportContentApiValidator, savedPostApiValidator } from "../../validation/rules/api-validation";
@@ -28,6 +28,6 @@ PostEndpoints.post('/reports', reportContentApiValidator, validateRequest, PostC
 PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
 
 //Posts
-PostEndpoints.post('/', uploadMedia(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
+PostEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
 export default PostEndpoints;
