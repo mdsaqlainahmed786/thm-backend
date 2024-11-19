@@ -1,3 +1,4 @@
+import { ConnectionStatus } from './../database/models/userConnection.model';
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpOkExtended, httpNoContent, httpOk } from "../utils/response";
@@ -13,6 +14,7 @@ import Like, { addUserInLike } from '../database/models/like.model';
 import View from '../database/models/storyView.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
+import UserConnection from '../database/models/userConnection.model';
 const s3Service = new S3Service();
 ///TODO Pending views for stories and comments 
 ///TODO Fetch story based on follower and following 
@@ -28,6 +30,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         documentLimit = parseQueryParam(documentLimit, 20);
         //FIXME add follow and following user here
         const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const myFollowingIDs = await UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED });
         const [myStories, likedByMe, userIDs] = await Promise.all(
             [
                 Story.aggregate([
@@ -59,10 +62,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     },
                 ]).exec(),
                 Like.distinct('storyID', { userID: id, }),
-                Story.distinct('userID', { timeStamp: { $gte: timeStamp }, userID: { $nin: [new ObjectId(id)] } })
+                Story.distinct('userID', { timeStamp: { $gte: timeStamp }, userID: { $in: myFollowingIDs } })
             ]
         );
-        console.log(userIDs);
         const dbQuery: {} = { _id: { $in: userIDs } };
         const [documents, totalDocument] = await Promise.all(
             [
