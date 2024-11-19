@@ -57,7 +57,11 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             transactionAmount: parseFloatToFixed(amount, 2)
         }
         await order.save();
-        const hasSubscription = await Subscription.findOne({ businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } });
+        const dbQuery = { userID: user.id, expirationDate: { $gt: new Date() } }
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            Object.assign(dbQuery, { businessProfileID: user.businessProfileID })
+        }
+        const hasSubscription = await Subscription.findOne(dbQuery);
         if (!hasSubscription) {
             const newSubscription = new Subscription();
             newSubscription.businessProfileID = user.businessProfileID;
