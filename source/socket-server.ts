@@ -65,7 +65,6 @@ export default function createSocketServer(httpServer: https.Server) {
         // Persist session
         sessionStore.saveSession((socket as AppSocketUser).username, sessionUser);
 
-
         socket.join((socket as AppSocketUser).username);
 
 
@@ -199,15 +198,14 @@ export default function createSocketServer(httpServer: https.Server) {
             pageNumber = parseQueryParam(pageNumber, 1);
             const [user, targetUser] = await Promise.all([
                 User.findOne({ username: (socket as AppSocketUser).username }),
-                User.findOne({ username: username })
-            ])
+                User.findOne({ username: username }),
+            ]);
             const messages: Messages = {
                 totalMessages: 0,
                 totalPages: 0,
                 pageNo: pageNumber,
                 messages: []
             }
-
             if (targetUser && user) {
                 let findQuery = {
                     $or: [
@@ -215,9 +213,10 @@ export default function createSocketServer(httpServer: https.Server) {
                         { userID: new ObjectId(targetUser.id), targetUserID: new ObjectId(user.id), deletedByID: { $nin: [user.id] } }
                     ]
                 }
+                await Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true });
                 const [totalMessages, conversations] = await Promise.all([
                     Message.find(findQuery).countDocuments(),
-                    fetchMessages(findQuery, targetUser.id, pageNumber, documentLimit),
+                    fetchMessages(findQuery, user.id, pageNumber, documentLimit),
                 ]);
                 const totalPages = Math.ceil(totalMessages / documentLimit) || 1;
                 messages.totalMessages = totalMessages;
@@ -241,15 +240,14 @@ export default function createSocketServer(httpServer: https.Server) {
             console.log("in chat", username);
         });
 
-
         socket.on(SocketChannel.LEAVE_CHAT, () => {
             sessionStore.saveSession((socket as AppSocketUser).username, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
                 chatWith: undefined,
-
             });
+            console.log("leave chat");
         });
 
         socket.on(SocketChannel.MESSAGE_SEEN, async (username: string) => {
@@ -299,7 +297,7 @@ async function onlineUsers(socket: Socket, currentUsername: string) {
     sessionStore.findAllSessions().map((session) => {
         onlineUsers.push(session.username);
     });
-    console.log(onlineUsers);
+    // console.log(onlineUsers);
     // const connectionIDs: (string | Types.ObjectId)[] = [];
     // const connectionQuery = userConnectionDBQuery((socket as AppSocketUser).userID);
     // const userConnections = await UserConnection.find(connectionQuery);
@@ -382,12 +380,11 @@ async function updateLastSeen(socket: Socket) {
  * @returns Return user messages 
  */
 function fetchMessages(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    console.log(userID)
     return Message.aggregate([
         { $match: query },
         {
             $addFields: {
-                "sentByMe": { "$eq": [userID, "$userID"] }
+                "sentByMe": { $eq: ["$userID", new ObjectId(userID)] }
             }
         },
         {
@@ -416,7 +413,7 @@ function fetchChatScreen(query: { [key: string]: any; }, userID: MongoID, pageNu
         { $sort: { createdAt: -1, _id: 1 } },
         {
             $addFields: {
-                sentByMe: { "$eq": [userID, "$userID"] }
+                sentByMe: { "$eq": ["$userID", new ObjectId(userID)] }
             }
         },
         {

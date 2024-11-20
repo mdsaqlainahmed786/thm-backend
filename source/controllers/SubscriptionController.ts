@@ -447,11 +447,13 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         }
         //Price related calculations
         let subtotal = subscriptionPlan.price;
-        let gst = (subtotal * 18) / 100;
+        let gstRate = 18;
+        let gst = (subtotal * gstRate) / 100;
         let total = (gst + subtotal);
         const payment = {
             subtotal: subtotal,
             gst: gst,
+            gstRate: gstRate,
             total: total
         }
 
