@@ -17,7 +17,6 @@ import { AwsS3AccessEndpoints } from '../config/constants';
 import UserConnection from '../database/models/userConnection.model';
 const s3Service = new S3Service();
 ///TODO Pending views for stories and comments 
-///TODO Fetch story based on follower and following 
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -28,8 +27,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        //FIXME add follow and following user here
         const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        //Fetch following stories 
         const myFollowingIDs = await UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED });
         const [myStories, likedByMe, userIDs] = await Promise.all(
             [
@@ -62,7 +61,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     },
                 ]).exec(),
                 Like.distinct('storyID', { userID: id, }),
-                Story.distinct('userID', { timeStamp: { $gte: timeStamp }, userID: { $in: myFollowingIDs } })
+                Story.distinct('userID', {
+                    $and: [
+                        { timeStamp: { $gte: timeStamp }, userID: { $in: myFollowingIDs }, },
+                        { timeStamp: { $gte: timeStamp }, userID: { $nin: [new ObjectId(id)] }, }
+                    ]
+                })
             ]
         );
         const dbQuery: {} = { _id: { $in: userIDs } };
