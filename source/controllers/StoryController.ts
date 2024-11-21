@@ -49,16 +49,43 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                                 addUserInLike().lookup,
                                 addUserInLike().unwindLookup,
                                 addUserInLike().replaceRoot,
-                                {
-                                    $limit: 4,
-                                }
                             ],
                             'as': 'likesRef'
                         }
                     },
                     {
+                        $addFields: {
+                            likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likesRef: { $slice: ["$likesRef", 4] },
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: 'views',
+                            let: { storyID: '$_id' },
+                            pipeline: [
+                                { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                            ],
+                            as: 'viewsRef'
+                        }
+                    },
+                    {
+                        $addFields: {
+                            views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                        }
+                    },
+                    {
                         $sort: { createdAt: -1, id: 1 }
                     },
+                    {
+                        $project: {
+                            viewsRef: 0,
+                        }
+                    }
                 ]).exec(),
                 Like.distinct('storyID', { userID: id, }),
                 Story.distinct('userID', {
