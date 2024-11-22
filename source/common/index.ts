@@ -51,7 +51,8 @@ export interface Messages {
 export enum ContentType {
     POST = "post",
     STORY = 'story',
-    ANONYMOUS = "anonymous"
+    ANONYMOUS = "anonymous",
+    USER = "user"
 }
 export interface BillingAddress {
     name: string;

@@ -7,6 +7,10 @@ import { isArray } from "../../utils/helper/basic";
 import { IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
+import Post from "./post.model";
+import UserConnection, { ConnectionStatus } from "./userConnection.model";
+import BlockedUser from "./blockedUser.model";
+import { ObjectId } from "mongodb";
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -441,6 +445,50 @@ export function getUserProfile(match: { [key: string]: any; }, pageNumber: numbe
             }
         ]
     ).exec()
+}
+
+
+
+export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
+    return await Promise.all([
+        User.aggregate([
+            {
+                $match: {
+                    _id: new ObjectId(userID)
+                }
+            },
+            addBusinessProfileInUser().lookup,
+            addBusinessProfileInUser().unwindLookup,
+            {
+                $limit: 1,
+            },
+            {
+                $project: {
+                    "businessProfileRef.businessAnswerRef": 0,
+                    isVerified: 0,
+                    isApproved: 0,
+                    isActivated: 0,
+                    isDeleted: 0,
+                    hasProfilePicture: 0,
+                    acceptedTerms: 0,
+                    profileCompleted: 0,
+                    email: 0,
+                    dialCode: 0,
+                    phoneNumber: 0,
+                    otp: 0,
+                    password: 0,
+                    createdAt: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            }
+        ]),
+        Post.find({ userID: userID }).countDocuments(),
+        UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+        UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+        UserConnection.findOne({ following: userID, follower: id, }),
+        BlockedUser.findOne({ blockedUserID: userID, userID: id })
+    ]);
 }
 
 export const activeUserQuery = { isDeleted: false, isActivated: true };

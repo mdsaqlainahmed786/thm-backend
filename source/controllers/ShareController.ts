@@ -10,6 +10,9 @@ import User from "../database/models/user.model";
 import SharedContent from "../database/models/sharedContent.model";
 import { ObjectId } from "mongodb";
 import { ContentType } from "../common";
+import { ConnectionStatus } from "../database/models/userConnection.model";
+import { getUserPublicProfile } from "../database/models/user.model";
+import { AccountType } from "../database/models/user.model";
 const posts = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const id = request.user?.id;
@@ -50,6 +53,49 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
     }
 }
 
+const users = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const requestedUserID = request.user?.id;
+        const accountType = request.user?.accountType;
+        const { id, userID } = request.query;
+        if (!id || !userID) {
+            return response.send(httpNotFoundOr404({}));
+        }
+        const decryptedID = decrypt(id as string);
+        const decryptedUserID = decrypt(userID as string);
+        const [user, posts, follower, following, myConnection, isBlocked] = await getUserPublicProfile(decryptedID, requestedUserID);
+        const [sharedBy, isSharedBefore] = await Promise.all([
+            User.findOne({ _id: decryptedUserID }),
+            SharedContent.findOne({ contentID: decryptedID, userID: decryptedUserID, contentType: ContentType.USER }),
+        ]);
+        if (!sharedBy) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (user.length === 0) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+        }
+        let responseData = { posts: posts, follower: follower, following: following };
+        if (accountType === AccountType.BUSINESS) {
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });
+        } else {
+            Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });
+        }
+        if (!isSharedBefore) {
+            const newSharedContent = new SharedContent();
+            newSharedContent.contentID = decryptedID;
+            newSharedContent.contentType = ContentType.USER;
+            newSharedContent.userID = sharedBy.id;//Shared By
+            newSharedContent.businessProfileID = sharedBy.businessProfileID ?? null;
+            await newSharedContent.save();
+            return response.send(httpCreated(responseData, "Content shared successfully"));
+        }
+        return response.send(httpNoContent(responseData, 'Content shared successfully'));
+
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
 const tester = async (request: Request, response: Response, next: NextFunction) => {
     const userAgent = request.headers['user-agent'];
     return response.send({
@@ -79,4 +125,4 @@ function decrypt(encryptedData: string) {
     return decrypted;
 }
 
-export default { posts, tester }
+export default { posts, tester, users }

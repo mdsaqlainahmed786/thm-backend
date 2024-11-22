@@ -279,45 +279,6 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-const sharedPost = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-
-        let { postID, userID }: any = request.query;
-        const { id, accountType, businessProfileID } = request.user;
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const [likedByMe, savedByMe, joiningEvents, user] = await Promise.all([
-            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
-            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
-            User.findOne({ _id: userID }),
-        ]);
-        const [post, isSharedBefore,] = await Promise.all([
-            fetchPosts({ _id: new ObjectId(postID) }, likedByMe, savedByMe, joiningEvents, 1, 1),
-            SharedContent.findOne({ contentID: postID, userID: userID, contentType: ContentType.POST }),
-        ])
-        if (!post || post?.length === 0) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
-        }
-        if (!user) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        if (!isSharedBefore) {
-            const newSharedContent = new SharedContent();
-            newSharedContent.contentID = postID;
-            newSharedContent.contentType = ContentType.POST;
-            newSharedContent.userID = user.id;//Shared By
-            newSharedContent.businessProfileID = user.businessProfileID ?? null;
-            await newSharedContent.save();
-            return response.send(httpCreated(post, "Content shared successfully"));
-        }
-        return response.send(httpNoContent(post, 'Content shared successfully'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
-
 const reportContent = async (request: Request, response: Response, next: NextFunction) => {
     try {
         let { contentType, contentID } = request.body;
@@ -353,4 +314,4 @@ const reportContent = async (request: Request, response: Response, next: NextFun
     }
 }
 
-export default { index, store, update, destroy, sharedPost, reportContent, show };
+export default { index, store, update, destroy, reportContent, show };

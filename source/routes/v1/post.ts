@@ -15,7 +15,6 @@ const PostEndpoints: Router = express.Router();
  */
 PostEndpoints.get('/saved-posts', SavedPostController.index);
 PostEndpoints.post('/saved-posts/:id', savedPostApiValidator, validateRequest, SavedPostController.store);
-PostEndpoints.get('/shared-posts', PostController.sharedPost);
 /**
  * 
  * Comments

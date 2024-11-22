@@ -1,4 +1,4 @@
-import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile } from './../database/models/user.model';
+import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -27,6 +27,7 @@ import { CookiePolicy } from '../config/constants';
 import BlockedUser from '../database/models/blockedUser.model';
 import EventJoin from '../database/models/eventJoin.model';
 import UserAddress from '../database/models/user-address.model';
+import { SuccessMessage } from '../utils/response-message/success';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled } = request.body;
@@ -69,7 +70,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             }
 
             const savedUser = await user.save();
-            return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef }, "Profile updated successfully"));
+            return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef }, SuccessMessage.PROFILE_UPDATE));
         } else {
             user.name = name ?? user.name;
             user.dialCode = dialCode ?? user.dialCode;
@@ -79,7 +80,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
             const savedUser = await user.save();
-            return response.send(httpOk(savedUser.hideSensitiveData(), "Profile updated successfully"));
+            return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.PROFILE_UPDATE));
         }
 
     } catch (error: any) {
@@ -136,48 +137,9 @@ const profile = async (request: Request, response: Response, next: NextFunction)
 }
 const publicProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { id } = request.user;
-        const { accountType } = request.user;
+        const { id, accountType } = request.user;
         const userID = request.params.id;
-        const [user, posts, follower, following, myConnection, isBlocked] = await Promise.all([
-            User.aggregate([
-                {
-                    $match: {
-                        _id: new ObjectId(userID)
-                    }
-                },
-                addBusinessProfileInUser().lookup,
-                addBusinessProfileInUser().unwindLookup,
-                {
-                    $limit: 1,
-                },
-                {
-                    $project: {
-                        "businessProfileRef.businessAnswerRef": 0,
-                        isVerified: 0,
-                        isApproved: 0,
-                        isActivated: 0,
-                        isDeleted: 0,
-                        hasProfilePicture: 0,
-                        acceptedTerms: 0,
-                        profileCompleted: 0,
-                        email: 0,
-                        dialCode: 0,
-                        phoneNumber: 0,
-                        otp: 0,
-                        password: 0,
-                        createdAt: 0,
-                        updatedAt: 0,
-                        __v: 0,
-                    }
-                }
-            ]),
-            Post.find({ userID: userID }).countDocuments(),
-            UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
-            UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
-            UserConnection.findOne({ following: userID, follower: id, }),
-            BlockedUser.findOne({ blockedUserID: userID, userID: id })
-        ]);
+        const [user, posts, follower, following, myConnection, isBlocked] = await getUserPublicProfile(userID, id);
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
@@ -193,7 +155,6 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
     }
 }
 const changeProfilePic = async (request: Request, response: Response, next: NextFunction) => {
-
     try {
         const { id, accountType } = request.user;
 
@@ -216,13 +177,13 @@ const changeProfilePic = async (request: Request, response: Response, next: Next
                 const savedBusinessProfile = await businessProfile.save();
                 user.hasProfilePicture = true;
                 const savedUser = await user.save();
-                return response.send(httpOk(savedBusinessProfile, "Profile picture changed successfully"))
+                return response.send(httpOk(savedBusinessProfile, SuccessMessage.PROFILE_UPDATE))
             }
             if (smallThumb && smallThumb.Location && mediumThumb && mediumThumb.Location && image && image.location) {
                 user.profilePic = { small: smallThumb.Location, medium: mediumThumb.Location, large: image.location }
                 user.hasProfilePicture = true;
                 const savedUser = await user.save();
-                return response.send(httpOk(savedUser, "Profile picture changed successfully"))
+                return response.send(httpOk(savedUser, SuccessMessage.PROFILE_UPDATE))
             }
             return response.send({ image, smallThumb, mediumThumb });
         }
