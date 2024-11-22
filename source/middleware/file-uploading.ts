@@ -105,8 +105,9 @@ export const readVideoMetadata = async (file_path: string): Promise<FFProbeStrea
                 }
             });
         });
-        if (metadata.streams.length !== 0) {
-            return metadata.streams[0];
+        const videoStream = metadata && metadata.streams && metadata.streams.find(stream => stream.codec_type === 'video');
+        if (metadata.streams.length !== 0 && videoStream) {
+            return videoStream;
         }
         return null;
     } catch (error) {
