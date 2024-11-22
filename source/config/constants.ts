@@ -62,6 +62,11 @@ export abstract class AppConfig {
     static readonly GOOGLE = {
         MAP_KEY: process.env.GOOGLE_MAP_KEY!,
     }
+    static readonly ENCRYPTION = {
+        SECRET_KEY: process.env.SECRET_KEY!,
+        IV: process.env.IV!,
+        ALGORITHM: process.env.ALGORITHM!,
+    }
 }
 
 export abstract class SocketChannel {

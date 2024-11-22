@@ -13,6 +13,8 @@ import { ContentType } from "../common";
 import { ConnectionStatus } from "../database/models/userConnection.model";
 import { getUserPublicProfile } from "../database/models/user.model";
 import { AccountType } from "../database/models/user.model";
+import EncryptionService from "../services/EncryptionService";
+const encryptionService = new EncryptionService();
 const posts = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const id = request.user?.id;
@@ -20,8 +22,8 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
         if (!postID || !userID) {
             return response.send(httpNotFoundOr404({}));
         }
-        const decryptedPostID = decrypt(postID as string);
-        const decryptedUserID = decrypt(userID as string);
+        const decryptedPostID = encryptionService.decrypt(postID as string);
+        const decryptedUserID = encryptionService.decrypt(userID as string);
         const [likedByMe, savedByMe, joiningEvents, user] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
             SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
@@ -61,8 +63,8 @@ const users = async (request: Request, response: Response, next: NextFunction) =
         if (!id || !userID) {
             return response.send(httpNotFoundOr404({}));
         }
-        const decryptedID = decrypt(id as string);
-        const decryptedUserID = decrypt(userID as string);
+        const decryptedID = encryptionService.decrypt(id as string);
+        const decryptedUserID = encryptionService.decrypt(userID as string);
         const [user, posts, follower, following, myConnection, isBlocked] = await getUserPublicProfile(decryptedID, requestedUserID);
         const [sharedBy, isSharedBefore] = await Promise.all([
             User.findOne({ _id: decryptedUserID }),
@@ -102,27 +104,4 @@ const tester = async (request: Request, response: Response, next: NextFunction) 
         userAgent,
     })
 }
-
-const SECRET_KEY = '1234567890123456'; // Same key as in Java
-const IV = '1234567890123456'; // Same IV as in Java
-const ALGORITHM = 'aes-128-cbc';
-function encrypt(data: string) {
-    const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(SECRET_KEY), Buffer.from(IV));
-    let encrypted = cipher.update(data, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
-
-    // URL-safe Base64 encoding
-    return encrypted.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function decrypt(encryptedData: string) {
-    // Convert URL-safe Base64 back to standard Base64
-    const base64 = encryptedData.replace(/-/g, '+').replace(/_/g, '/');
-
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(SECRET_KEY), Buffer.from(IV));
-    let decrypted = decipher.update(base64, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
-}
-
 export default { posts, tester, users }
