@@ -271,11 +271,6 @@ export const collectDataApiValidator = [
         return true;
     }),
 ]
-const ContentTypeValue = Object.values(ContentType);
-export const reportContentApiValidator = [
-    body("contentType", "Content Type is required field.").exists().bail().notEmpty().bail().isIn(ContentTypeValue).withMessage(`Content Type must be in  ${ContentTypeValue.join(' | ')}`),
-    body("contentID", "Content ID is required field.").exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID'),
-]
 
 export const createContactApiValidator = [
     nameValidationRule,

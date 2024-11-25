@@ -4,6 +4,7 @@ import { AccountType } from "../database/models/user.model";
 import { QuestionType } from "../database/models/faq.model";
 import { SubscriptionDuration, SubscriptionLevel } from "../database/models/subscriptionPlan.model";
 import { CurrencyCode } from "../database/models/subscriptionPlan.model";
+import { ContentType } from "../common";
 export enum LogInWith {
     EMAIL = "email",
     PHONE = "phone",
@@ -35,6 +36,8 @@ export const priceValidationRule = body("price", "Price is required field.").exi
 export const levelValidationRule = body("level", "Subscription type is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionLevelValues).withMessage(`Subscription type must be in ${SubscriptionLevelValues.join(' | ')}`);
 export const durationValidationRule = body("duration", "Duration is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionDurationValues).withMessage(`Subscription type must be in ${SubscriptionDurationValues.join(' | ')}`);;
 export const currencyValidationRule = body("currency", "Currency is required field.").exists().bail().notEmpty().bail().isIn(CurrencyCodeValues).withMessage(`Currency must be in ${CurrencyCodeValues.join(' | ')}`);
+const ContentTypeValue = Object.values(ContentType);
+export const contentTypeValidationRule = body("contentType", "Content Type is required field.").exists().bail().notEmpty().bail().isIn(ContentTypeValue).withMessage(`Content Type must be in  ${ContentTypeValue.join(' | ')}`);
 
 const isStrongPassword = (value: string) => {
     // Implement your password strength criteria using a regular expression
