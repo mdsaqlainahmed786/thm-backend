@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { httpNotFoundOr404, httpCreated, httpInternalServerError, httpNoContent, httpOkExtended } from "../utils/response";
-import Report, { addPostInReport, addReportedByInReport } from "../database/models/reportedUser.model";
+import Report, { addPostInReport, addReportedByInReport, addUserInReport } from "../database/models/reportedUser.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ContentType } from "../common";
 import Post from "../database/models/post.model";
@@ -33,6 +33,17 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 addPostInReport().unwindLookup,
                 addReportedByInReport().lookup,
                 addReportedByInReport().unwindLookup,
+                addUserInReport().lookup,
+                addUserInReport().unwindLookup,
+                {
+                    $sort: { createdAt: -1, id: 1 }
+                },
+                {
+                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+                },
+                {
+                    $limit: documentLimit
+                },
             ]),
             Report.find(dbQuery).countDocuments()
         ]);
@@ -110,4 +121,18 @@ const reportUser = async (request: Request, response: Response, next: NextFuncti
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index, reportContent, reportUser };
+
+const destroy = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request?.params?.id;
+        const report = await Report.findOne({ _id: ID });
+        if (!report) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Record not found"), "Record not found"));
+        }
+        await report.deleteOne();
+        return response.send(httpNoContent(null, 'Report deleted'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { index, destroy, reportContent, reportUser };

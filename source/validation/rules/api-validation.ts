@@ -195,6 +195,12 @@ export const businessQuestionsApiValidator = [
     businessSubtypeIDValidationRule
 ]
 
+export const createReviewQuestionApiValidator = [
+    questionValidationRule,
+    businessTypeIDValidationRule,
+    businessSubtypeIDValidationRule
+];
+
 export const businessQuestionAnswerApiValidator = [
     questionsIDsValidationRule
 ]

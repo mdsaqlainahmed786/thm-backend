@@ -83,7 +83,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     }
                 },
                 {
-                    $sort: { _id: -1 }
+                    $sort: { createdAt: -1, id: 1 }
                 },
                 {
                     $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0

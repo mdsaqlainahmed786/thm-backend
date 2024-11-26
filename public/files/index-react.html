@@ -31,79 +31,38 @@
             background-color: #F2F2F2;
         }
 
-
-
-
-
-        /* .font-14 {
-            font-size: 14px;
-        }
-
-        .font-12 {
-            font-size: 12px
-        }
-
-        .message {
-            border-radius: 12px;
-            padding: 10px;
-            background-color: #f2f9f9;
-            color: #000;
-
-        }
-
-        .message.left {
-            margin-right: 55%;
-        }
-
-        .message.right {
-            background-color: rgb(118, 0, 57);
-            color: rgb(224, 221, 217);
-            margin-left: 50%;
-        }
-
-        #chatbox {
-            overflow-x: hidden;
-            height: 600px;
-            overflow-y: scroll;
-            border: 1px solid #f3f3f3;
-            padding: 1rem 0.5rem;
-        }
-
-        #last-seen {
-            font-size: 13px;
-        }
-
-        .font-10 {
-            font-size: 10px;
-        }
-
-        #targetUsername {
-            margin-bottom: 0.25rem;
-        }
-
-        .unseen-message {
-            position: absolute;
-            right: 0px;
-            top: 7px;
-            background: black;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 10px;
-            color: white;
-        }
-
-
-
-        .hide-scrollbar::-webkit-scrollbar {
-            height: 3px;
-            width: 2px;
-        } */
         .bg-insta {
             background: linear-gradient(180deg, rgba(139, 47, 184, 1) 0%, rgba(103, 88, 205, 1) 51%, rgba(89, 116, 219, 1) 92%) no-repeat center;
+        }
+
+        .tidot {
+            -webkit-animation: mercuryTypingAnimation 1.5s infinite ease-in-out;
+        }
+
+        @-webkit-keyframes mercuryTypingAnimation {
+            0% {
+                -webkit-transform: translateY(0px)
+            }
+
+            28% {
+                -webkit-transform: translateY(-5px)
+            }
+
+            44% {
+                -webkit-transform: translateY(0px)
+            }
+        }
+
+        .tidot:nth-child(1) {
+            -webkit-animation-delay: 200ms;
+        }
+
+        .tidot:nth-child(2) {
+            -webkit-animation-delay: 300ms;
+        }
+
+        .tidot:nth-child(3) {
+            -webkit-animation-delay: 400ms;
         }
     </style>
 </head>
@@ -154,7 +113,7 @@
             const [onlineUsers, setOnlineUsers] = React.useState([]);
             const [inChatView, setChatView] = React.useState(false);
             const [onlineStatus, setOnlineStatus] = React.useState('');
-            const [type, setTyping] = React.useState('');
+            const [type, setTyping] = React.useState(null);//for
             const [chatScreen, setChatScreen] = React.useState({
                 name: '',
                 profilePic: '',
@@ -315,10 +274,10 @@
 
                 function onTyping(data) {
                     console.log('data', data);
-                    setTyping(`${data.username} is typing ...`)
+                    setTyping(data.username)
                 }
                 function stopTyping(data) {
-                    setTyping('')
+                    setTyping(null)
                     console.log("stop typing", data)
                 }
 
@@ -479,7 +438,7 @@
                                                 return (
                                                     <div key={index} className="flex flex-col justify-center items-center cursor-pointer" onClick={() => handleUserListClick(user)}>
                                                         <div className="bg-light/20  relative" title={`${user.username}`}>
-                                                            {user.isOnline ? <div className="w-3 h-3 bg-[#5FD900] rounded-full absolute z-1"></div> : null}
+                                                            {user.isOnline ? <div className="w-3 h-3 bg-text-black/60 rounded-full absolute z-1"></div> : null}
                                                             <img src={`${user.profilePic ? user.profilePic.small : ''}`} className="w-[56px] h-[56px] rounded-full" />
                                                         </div>
                                                         <div className="w-[60px] px-2">
@@ -510,7 +469,13 @@
                                                                         </div>
                                                                         : null}
                                                                     <p className="text-[13px] font-medium">{data.name}</p>
-                                                                    <div><h6 className={`${data.isSeen ? 'text-black/60' : 'text-black'} text-xs`}>{data.message}</h6></div>
+                                                                    <div><h6 className={`${data.isSeen ? 'text-black/80' : 'text-black'} text-xs`}> {type && type === data.username ?
+                                                                        <div class="flex items-center justify-start gap-1.5 h-4">
+                                                                            <div >typing</div>
+                                                                            <div className="w-1 h-1 rounded-full tidot bg-black/80"></div>
+                                                                            <div className="w-1 h-1 rounded-full tidot bg-black/80"></div>
+                                                                            <div className="w-1 h-1 rounded-full tidot bg-black/80"></div>
+                                                                        </div> : data.message} </h6></div>
                                                                     <div className="text-[9px]">{data.createdAt}</div>
                                                                 </div>
                                                             </div>
@@ -518,7 +483,6 @@
                                                     })
                                                 }
                                             </div>
-                                            <div className="d-flex">{type}</div>
                                         </div>
                                     </div>
                                 }
@@ -541,7 +505,7 @@
                                                     <h5 className="text-base font-bold">
                                                         {chatScreen.name}  <span className="text-sm font-medium">({chatScreen.username})</span>
                                                     </h5>
-                                                    <p className="text-[11px] font-normal">{onlineStatus}</p>
+                                                    <p className="text-[11px] font-normal">{type && type === chatScreen.username ? 'typing...' : onlineStatus}</p>
                                                 </div>
                                             </div>
                                         </div>

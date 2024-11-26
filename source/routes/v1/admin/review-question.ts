@@ -1,0 +1,11 @@
+import express, { Router } from "express";
+import { paramIDValidationRule } from "../../../validation/rules/api-validation";
+import { validateRequest } from "../../../middleware/api-request-validator";
+import { createReviewQuestionApiValidator } from "../../../validation/rules/api-validation";
+import ReviewQuestionsController from "../../../controllers/admin/ReviewQuestionsController";
+const ReviewQuestionEndpoints: Router = express.Router();
+ReviewQuestionEndpoints.get('/', ReviewQuestionsController.index);
+ReviewQuestionEndpoints.post('/', createReviewQuestionApiValidator, validateRequest, ReviewQuestionsController.store);
+ReviewQuestionEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, ReviewQuestionsController.destroy);
+ReviewQuestionEndpoints.put('/:id', [paramIDValidationRule], validateRequest, ReviewQuestionsController.update);
+export default ReviewQuestionEndpoints;

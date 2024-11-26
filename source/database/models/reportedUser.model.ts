@@ -1,5 +1,6 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
 import { MongoID, ContentType } from '../../common';
+import { addBusinessProfileInUser } from './user.model';
 interface IReport extends Document {
     reportedBy: MongoID;
     contentID: MongoID;
@@ -22,14 +23,16 @@ const ReportSchema: Schema = new Schema<IReport>(
         timestamps: true
     });
 
-export interface IReportModel extends Model<IReport> {
+export interface IReportModel extends IReport {
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-const Report = model<IReport, IReportModel>("Report", ReportSchema);
+const Report = model<IReportModel>("Report", ReportSchema);
 export default Report;
 
 
-//FIXME return required user data
+
 export function addReportedByInReport() {
     const lookup = {
         '$lookup': {
@@ -40,7 +43,10 @@ export function addReportedByInReport() {
                     '$match': {
                         '$expr': { '$eq': ['$_id', '$$userID'] },
                     }
-                }
+                },
+                addBusinessProfileInUser().lookup,
+                addBusinessProfileInUser().unwindLookup,
+                projectBasicUserData(),
             ],
             'as': 'reportedByRef'
         }
@@ -52,6 +58,20 @@ export function addReportedByInReport() {
         }
     };
     return { lookup, unwindLookup }
+}
+
+export function projectBasicUserData() {
+    return {
+        $project: {
+            "name": 1,
+            "profilePic": 1,
+            "accountType": 1,
+            "businessProfileID": 1,
+            "businessProfileRef._id": 1,
+            "businessProfileRef.name": 1,
+            "businessProfileRef.profilePic": 1,
+        }
+    }
 }
 
 
@@ -70,6 +90,13 @@ export function addPostInReport() {
                             ]
                         }
                     }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        content: 1,
+                        postType: 1,
+                    }
                 }
             ],
             'as': 'postsRef'
@@ -84,7 +111,7 @@ export function addPostInReport() {
     return { lookup, unwindLookup }
 }
 
-//FIXME return required user data
+
 export function addUserInReport() {
     const lookup = {
         '$lookup': {
@@ -100,7 +127,10 @@ export function addUserInReport() {
                             ]
                         }
                     }
-                }
+                },
+                addBusinessProfileInUser().lookup,
+                addBusinessProfileInUser().unwindLookup,
+                projectBasicUserData(),
             ],
             'as': 'usersRef'
         }
