@@ -4,6 +4,7 @@ export enum MessageType {
     TEXT = "text",
     IMAGE = "image",
     VIDEO = "video",
+    PDF = "pdf",
 }
 
 export interface ILocation {

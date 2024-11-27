@@ -96,6 +96,7 @@ export abstract class AwsS3AccessEndpoints {
     static readonly POST: string = AwsS3AccessEndpoints.getEndpoint("posts/");
     static readonly STORY: string = AwsS3AccessEndpoints.getEndpoint("story/");
     static readonly BUSINESS_PROPERTY: string = AwsS3AccessEndpoints.getEndpoint("business-property/");
+    static readonly MESSAGING: string = AwsS3AccessEndpoints.getEndpoint("messaging/");
     private static getEndpoint(path: string): string {
         const environment = process.env.APP_ENV;
         if (environment === "dev") {

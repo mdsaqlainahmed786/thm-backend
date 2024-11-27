@@ -12,6 +12,7 @@ import { PrivateIncomingMessagePayload } from "./common";
 import { ObjectId } from "mongodb";
 import { parseQueryParam } from "./utils/helper/basic";
 import { Messages } from "./common";
+import MessagingController from "./controllers/MessagingController";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
@@ -174,8 +175,8 @@ export default function createSocketServer(httpServer: https.Server) {
                         ]
                     });
                 }
-                const totalDocuments = await chatCount(findQuery, ID, pageNumber, documentLimit);
-                const recentChatHistory = await fetchChatScreen(findQuery, ID, pageNumber, documentLimit);
+                const totalDocuments = await MessagingController.getChatCount(findQuery, ID, pageNumber, documentLimit);
+                const recentChatHistory = await MessagingController.fetchChatByUserID(findQuery, ID, pageNumber, documentLimit);
                 const totalPages = Math.ceil(totalDocuments / documentLimit) || 1;
                 messages.totalMessages = totalDocuments;
                 messages.totalPages = totalPages;
@@ -216,7 +217,7 @@ export default function createSocketServer(httpServer: https.Server) {
                 await Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true });
                 const [totalMessages, conversations] = await Promise.all([
                     Message.find(findQuery).countDocuments(),
-                    fetchMessages(findQuery, user.id, pageNumber, documentLimit),
+                    MessagingController.fetchMessagesByUserID(findQuery, user.id, pageNumber, documentLimit),
                 ]);
                 const totalPages = Math.ceil(totalMessages / documentLimit) || 1;
                 messages.totalMessages = totalMessages;
@@ -371,166 +372,3 @@ async function updateLastSeen(socket: Socket) {
     }
 }
 
-/**
- * 
- * @param query 
- * @param userID 
- * @param pageNumber 
- * @param documentLimit 
- * @returns Return user messages 
- */
-function fetchMessages(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    return Message.aggregate([
-        { $match: query },
-        {
-            $addFields: {
-                "sentByMe": { $eq: ["$userID", new ObjectId(userID)] }
-            }
-        },
-        {
-            $sort: { createdAt: -1, id: 1 }
-        },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
-        {
-            $project: {
-                updatedAt: 0,
-                targetUserID: 0,
-                userID: 0,
-                deletedByID: 0,
-            }
-        }
-    ])
-}
-
-function fetchChatScreen(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    return Message.aggregate([
-        { $match: query },
-        { $sort: { createdAt: -1, _id: 1 } },
-        {
-            $addFields: {
-                sentByMe: { "$eq": ["$userID", new ObjectId(userID)] }
-            }
-        },
-        {
-            $addFields: {
-                lookupID: { $cond: [{ $ne: ['$targetUserID', new ObjectId(userID)] }, '$targetUserID', '$userID'] },//Interchange $targetUserID when it is not equal to user id..
-            }
-        },
-        {
-            $group: {
-                _id: {
-                    lookupID: '$lookupID'
-                },
-                unseenCount: {
-                    $sum: {  // Count the number of unseen messages
-                        $cond: [{ $and: [{ $eq: ["$isSeen", false] }, { $eq: ["$sentByMe", false] }] }, 1, 0]
-                    }
-                },
-                document: { $first: '$$ROOT' },
-            }
-        },
-        {
-            $replaceRoot: { // Replace the root document with the merged document and other fields
-                newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
-            }
-        },
-        {
-            '$lookup': {
-                'from': 'users',
-                'let': { 'userID': '$lookupID' },
-                'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
-                    addBusinessProfileInUser().lookup,
-                    addBusinessProfileInUser().unwindLookup,
-                    {
-                        '$replaceRoot': {
-                            'newRoot': {
-                                '$mergeObjects': ["$$ROOT", "$businessProfileRef"] // Merge businessProfileRef with the user object
-                            }
-                        }
-                    },
-                    {
-                        $project: {
-                            name: 1,
-                            username: 1,
-                            profilePic: 1,
-                        }
-                    }
-                ],
-                'as': 'usersRef'
-            }
-        },
-        { $unwind: '$usersRef' },
-        {
-            $replaceRoot: { // Replace the root document with the merged document and other fields
-                newRoot: { $mergeObjects: ["$$ROOT", "$usersRef"] }
-            }
-        },
-        { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
-        {
-            $project: {
-                __v: 0,
-                _id: 0,
-                sentByMe: 0,
-                userID: 0,
-                updatedAt: 0,
-                targetUserID: 0,
-                deletedByID: 0,
-                document: 0,
-                usersRef: 0,
-            }
-        }
-    ])
-}
-function chatCount(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    const chats: any = Message.aggregate([
-        { $match: query },
-        { $sort: { createdAt: -1, _id: 1 } },
-        {
-            $addFields: {
-                sentByMe: { "$eq": [userID, "$userID"] }
-            }
-        },
-        {
-            $addFields: {
-                lookupID: { $cond: [{ $ne: ['$targetUserID', new ObjectId(userID)] }, '$targetUserID', '$userID'] },//Interchange $targetUserID when it is not equal to user id..
-            }
-        },
-        {
-            $group: {
-                _id: {
-                    lookupID: '$lookupID'
-                },
-                unseenCount: {
-                    $sum: {  // Count the number of unseen messages
-                        $cond: [{ $and: [{ $eq: ["$isSeen", false] }, { $eq: ["$sentByMe", false] }] }, 1, 0]
-                    }
-                },
-                document: { $first: '$$ROOT' },
-            }
-        },
-        {
-            $replaceRoot: { // Replace the root document with the merged document and other fields
-                newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
-            }
-        },
-        { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        { $group: { _id: null, count: { $sum: 1 } } }
-    ])
-
-    return chats?.[0]?.count as number ?? 0;
-}

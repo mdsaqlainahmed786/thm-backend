@@ -1,4 +1,4 @@
-import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule } from './../common-validation';
+import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule } from './../common-validation';
 import { ContentType } from '../../common';
 import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
@@ -201,6 +201,12 @@ export const createReviewQuestionApiValidator = [
     businessSubtypeIDValidationRule
 ];
 
+export const mediaMessageApiValidator = [
+    usernameValidationRule,
+    messageTypeValidationRule
+
+];
+
 export const businessQuestionAnswerApiValidator = [
     questionsIDsValidationRule
 ]
@@ -268,7 +274,6 @@ export enum Type {
 }
 const TypeValue = Object.values(Type);
 export const collectDataApiValidator = [
-
     body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypeValue).withMessage(`Type must be in  ${TypeValue.join(' | ')}`),
     body('type').custom((value, { req }) => {
         if (value === Type.WEBSITE_REDIRECTION) {

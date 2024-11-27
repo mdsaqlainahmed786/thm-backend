@@ -5,6 +5,7 @@ import { QuestionType } from "../database/models/faq.model";
 import { SubscriptionDuration, SubscriptionLevel } from "../database/models/subscriptionPlan.model";
 import { CurrencyCode } from "../database/models/subscriptionPlan.model";
 import { ContentType } from "../common";
+import { MessageType } from "../database/models/message.model";
 export enum LogInWith {
     EMAIL = "email",
     PHONE = "phone",
@@ -89,3 +90,7 @@ export const questionTypeValidationRule = body("type", "Type is a required field
 
 export const subscriptionTypeValidationRule = body("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(SubscriptionTypeValues).withMessage(`Type must ${SubscriptionTypeValues.join(' | ')}.`);
 
+
+const MessageTypeValues = Object.values(MessageType)
+export const messageTypeValidationRule = body("messageType", "Message type is required field.").exists().bail().notEmpty().isIn(MessageTypeValues).withMessage(`Message type must be in ${MessageTypeValues.join(' | ')}`)
+export const usernameValidationRule = body("username", "Username is required field.").exists().bail().notEmpty().bail();
