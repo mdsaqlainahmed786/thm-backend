@@ -7,33 +7,62 @@ import User, { AccountType, addBusinessProfileInUser } from "../../database/mode
 import Post from '../../database/models/post.model';
 import { ConnectionStatus } from './../../database/models/userConnection.model';
 import UserConnection from '../../database/models/userConnection.model';
+import BusinessProfile from '../../database/models/businessProfile.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, accountType }: any = request.query;
+        let { pageNumber, documentLimit, query, accountType, businessTypeID, businessSubTypeID }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const dbQuery = {};
+        const userQuery = {};
+        const queryArray = [];
         if (query !== undefined && query !== "") {
-            Object.assign(dbQuery,
+            Object.assign(userQuery,
                 {
                     $or: [
                         { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
                         { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
                         { email: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } }
                     ]
                 }
             )
         }
-        if (accountType === AccountType.BUSINESS) {
-            Object.assign(dbQuery, { accountType })
-        }
         if (accountType === AccountType.INDIVIDUAL) {
-            Object.assign(dbQuery, { accountType })
+            Object.assign(userQuery, { accountType })
+            queryArray.push(userQuery);
+        }
+
+        if (accountType === AccountType.BUSINESS) {
+            Object.assign(userQuery, { accountType });
+            const businessQuery = {};
+            if (query !== undefined && query !== "") {
+                Object.assign(businessQuery,
+                    {
+                        $or: [
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { email: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } }
+                        ]
+                    }
+                )
+            }
+            if (businessTypeID && businessTypeID !== '') {
+                Object.assign(businessQuery, { businessTypeID: { $in: [new ObjectId(businessTypeID)] } })
+            }
+            const businessProfileIDs = await BusinessProfile.distinct('_id', businessQuery);
+            Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
+            queryArray.push({ businessProfileID: { $in: businessProfileIDs } })
+            queryArray.push(userQuery);
         }
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
+        const dbQuery = {
+            $or: queryArray
+        }
+        console.log(dbQuery);
         const [documents, totalDocument] = await Promise.all([
             User.aggregate([
                 {
