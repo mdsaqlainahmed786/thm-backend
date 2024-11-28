@@ -8,6 +8,8 @@ import { ErrorMessage } from "../utils/response-message/error";
 import { MessageType } from "../database/models/message.model";
 import { httpOk, httpBadRequest, httpNotFoundOr404 } from "../utils/response";
 import { PrivateIncomingMessagePayload } from "../common";
+import { SocketServer } from "../server";
+import { SocketChannel } from "../config/constants";
 /**
  * 
  * @param query 
@@ -205,9 +207,10 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
+                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Bad request."), "Bad request."))
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Image is required"), "Image is required"))
                 }
                 break;
             case MessageType.VIDEO:
@@ -219,9 +222,10 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
+                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Bad request."), "Bad request."))
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Video is required"), "Video is required"))
                 }
                 break;
             case MessageType.PDF:
@@ -233,9 +237,10 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
+                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Bad request."), "Bad request."))
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Document is required"), "Document is required"))
                 }
                 break;
         }

@@ -4,7 +4,7 @@ import { AppConfig } from "./config/constants";
 import { DBOptimization } from "./cron/DbOptimizationCron";
 import createSocketServer from "./socket-server";
 const httpServer = https.createServer(ExpressApp);
-const SocketServer = createSocketServer(httpServer);
+export const SocketServer = createSocketServer(httpServer);
 httpServer.listen(AppConfig.PORT, () => {
     //Basic Details for server
     console.log(`The server is running\tPORT: ${AppConfig.PORT}\tDATED: ${new Date()}`,);
