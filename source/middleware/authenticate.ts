@@ -21,7 +21,7 @@ export default async function authenticateUser(request: Request, response: Respo
         if (decoded) {
             const [auth_user, subscription] = await Promise.all([
                 User.findOne({ _id: decoded.id }),
-                Subscription.findOne({ businessProfileID: decoded.businessProfileID }).sort({ createdAt: -1, id: 1 })
+                Subscription.findOne({ businessProfileID: decoded.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
             ])
             if (auth_user) {
                 const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture'];

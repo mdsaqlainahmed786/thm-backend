@@ -1,13 +1,13 @@
 import express, { Router } from "express";
 
-import SubscriptionPlanController from "../../../controllers/admin/SubscriptionPlanController";
+import SubscriptionController from "../../../controllers/admin/SubscriptionController";
 import { createSubscriptionPlanApiValidator, paramIDValidationRule } from "../../../validation/rules/api-validation";
 import { validateRequest } from "../../../middleware/api-request-validator";
-const SubscriptionPlanEndpoints: Router = express.Router();
-SubscriptionPlanEndpoints.get('/', SubscriptionPlanController.index);
-SubscriptionPlanEndpoints.get('/:id', [paramIDValidationRule], validateRequest, SubscriptionPlanController.show);
-SubscriptionPlanEndpoints.post('/', createSubscriptionPlanApiValidator, validateRequest, SubscriptionPlanController.store);
-SubscriptionPlanEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, SubscriptionPlanController.destroy);
-SubscriptionPlanEndpoints.put('/:id', [paramIDValidationRule], validateRequest, SubscriptionPlanController.update);
+const SubscriptionEndpoints: Router = express.Router();
+SubscriptionEndpoints.get('/', SubscriptionController.index);
+// SubscriptionEndpoints.get('/:id', [paramIDValidationRule], validateRequest, SubscriptionController.show);
+// SubscriptionEndpoints.post('/', createSubscriptionPlanApiValidator, validateRequest, SubscriptionController.store);
+// SubscriptionEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, SubscriptionController.destroy);
+// SubscriptionEndpoints.put('/:id', [paramIDValidationRule], validateRequest, SubscriptionController.update);
 
-export default SubscriptionPlanEndpoints;
+export default SubscriptionEndpoints;

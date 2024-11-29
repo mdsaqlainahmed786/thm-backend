@@ -51,7 +51,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const startOfDay = new Date(today.setHours(0, 0, 0, 0));
         const endOfDay = new Date(today.setHours(23, 59, 59, 999));
         const [haveSubscription, dailyContentLimit] = await Promise.all([
-            Subscription.findOne({ userID: id, expirationDate: { $gte: new Date() } }),
+            Subscription.findOne({ userID: id, expirationDate: { $gte: new Date() }, isCancelled: false }),
             DailyContentLimit.findOne({
                 userID: id, timeStamp: {
                     $gte: startOfDay,

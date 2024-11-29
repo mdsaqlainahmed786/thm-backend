@@ -51,7 +51,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             if (businessTypeID && businessTypeID !== '') {
                 Object.assign(businessQuery, { businessTypeID: { $in: [new ObjectId(businessTypeID)] } })
             }
+            if (businessSubTypeID && businessSubTypeID !== '') {
+                Object.assign(businessQuery, { businessSubTypeID: { $in: [new ObjectId(businessSubTypeID)] } })
+            }
             const businessProfileIDs = await BusinessProfile.distinct('_id', businessQuery);
+            //TODO ye thik karna hai
             Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
             queryArray.push({ businessProfileID: { $in: businessProfileIDs } })
             queryArray.push(userQuery);

@@ -61,7 +61,7 @@ export default UserConnection;
 //                 {
 //                     $project: {
 //                         _id: 0,
-//                         userRef: 0,
+//                         usersRef: 0,
 //                         userID: 0,
 //                         personalInfo: 0,
 //                         interests: 0,

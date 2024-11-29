@@ -1,13 +1,24 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { MongoID } from "../../common";
 export interface ISubscription extends Document {
+    orderID: MongoID;
     userID: MongoID;
     businessProfileID: MongoID;
     subscriptionPlanID: MongoID;
     expirationDate: Date;
+    isCancelled: boolean;
 }
 const SubscriptionSchema: Schema = new Schema<ISubscription>(
     {
+        isCancelled: {
+            type: Boolean,
+            default: false,
+        },
+        orderID: {
+            type: Schema.Types.ObjectId,
+            ref: "Order",
+            required: true,
+        },
         userID: {
             type: Schema.Types.ObjectId,
             ref: "User",

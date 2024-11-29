@@ -64,7 +64,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 [
                     BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                     BusinessProfile.findOne({ _id: user.businessProfileID }),
-                    Subscription.findOne({ businessProfileID: user.businessProfileID }).sort({ createdAt: -1, id: 1 })
+                    Subscription.findOne({ businessProfileID: user.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
                 ]
             )
             businessProfileRef = businessProfile;

@@ -67,6 +67,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             newSubscription.businessProfileID = user.businessProfileID;
             newSubscription.userID = user.id;
             newSubscription.subscriptionPlanID = subscriptionPlan.id;
+            newSubscription.orderID = order.id;
             switch (subscriptionPlan.duration) {
                 case SubscriptionDuration.YEARLY:
                     newSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
@@ -83,6 +84,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             const savedSubscription = await newSubscription.save();
             return response.send(httpOk(savedSubscription, "Subscription added."));
         }
+        hasSubscription.orderID = order.id;
         switch (subscriptionPlan.duration) {
             case SubscriptionDuration.YEARLY:
                 hasSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
@@ -257,10 +259,10 @@ const subscription = async (request: Request, response: Response, next: NextFunc
                     type: AccountType.BUSINESS
                 }
             );
-            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
+            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() }, isCancelled: false })
         } else {
             Object.assign(findSubscriptionPlanQuery, { type: AccountType.INDIVIDUAL });
-            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() } })
+            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() }, isCancelled: false })
         }
         const [subscriptionPlans, subscription] = await Promise.all([
             SubscriptionPlan.find(findSubscriptionPlanQuery),
@@ -359,7 +361,8 @@ const cancelSubscription = async (request: Request, response: Response, next: Ne
         if (!subscription) {
             return response.send(httpBadRequest(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
         }
-        await subscription.deleteOne();
+        subscription.isCancelled = true;
+        await subscription.save();
         return response.send(httpOk(null, "Subscription Cancelled"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

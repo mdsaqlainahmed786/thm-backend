@@ -11,7 +11,7 @@ import SubscriptionPlan, { SubscriptionLevel } from '../../database/models/subsc
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, businessType, businessSubtype }: any = request.query;
+        let { pageNumber, documentLimit, query, businessTypeID, businessSubtypeID, duration }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         const dbQuery = {};
@@ -28,11 +28,14 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 }
             )
         }
-        if (businessType !== undefined) {
-            Object.assign(dbQuery, { businessTypeID: { $in: [new ObjectId(businessType)] } })
+        if (businessTypeID && businessTypeID !== undefined) {
+            Object.assign(dbQuery, { businessTypeID: { $in: [new ObjectId(businessTypeID)] } })
         }
-        if (businessSubtype !== businessSubtype) {
-            Object.assign(dbQuery, { businessSubtypeID: { $in: [new ObjectId(businessSubtype)] } })
+        if (businessSubtypeID && businessSubtypeID !== undefined) {
+            Object.assign(dbQuery, { businessSubtypeID: { $in: [new ObjectId(businessSubtypeID)] } })
+        }
+        if (duration && duration !== undefined) {
+            Object.assign(dbQuery, { duration: duration })
         }
         const [documents, totalDocument] = await Promise.all([
             SubscriptionPlan.aggregate([
