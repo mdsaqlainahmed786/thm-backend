@@ -5,7 +5,7 @@ import { httpNotFoundOr404, httpBadRequest, httpInternalServerError, httpOkExten
 import Subscription from "../../database/models/subscription.model";
 import { ObjectId } from "mongodb";
 import { ErrorMessage } from "../../utils/response-message/error";
-import { addBusinessProfileInUser } from "../../database/models/user.model";
+import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../../database/models/user.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -65,12 +65,35 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     '$lookup': {
+                        'from': 'orders',
+                        'let': { 'orderID': '$orderID' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$orderID'] } } },
+                            {
+                                '$project': {
+                                    'createdAt': 0,
+                                    'updatedAt': 0,
+                                    '__v': 0,
+                                }
+                            }
+                        ],
+                        'as': 'ordersRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$ordersRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
+                    '$lookup': {
                         'from': 'users',
                         'let': { 'userID': '$userID' },
                         'pipeline': [
                             { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
                             addBusinessProfileInUser().lookup,
-                            addBusinessProfileInUser().unwindLookup,
+                            addBusinessProfileInUser().mergeObject,
                             {
                                 '$project': {
                                     "name": 1,
@@ -93,6 +116,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
                     }
                 },
+
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
@@ -104,6 +128,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     $project: {
+                        'subscriptionPlansRef.level': 0,
+                        'subscriptionPlansRef.description': 0,
+                        'subscriptionPlansRef.businessTypeID': 0,
+                        'subscriptionPlansRef.businessSubtypeID': 0,
+                        'subscriptionPlansRef.features': 0,
                         updatedAt: 0,
                         __v: 0,
                     }
@@ -112,7 +141,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             Subscription.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'Subscription plan fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended(documents, 'Subscriptions fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

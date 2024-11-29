@@ -47,9 +47,9 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
             newSharedContent.userID = user.id;//Shared By
             newSharedContent.businessProfileID = user.businessProfileID ?? null;
             await newSharedContent.save();
-            return response.send(httpCreated(post[0], "Content shared successfully"));
+            return response.send(httpNoContent(null, "Content shared successfully"));
         }
-        return response.send(httpNoContent(post[0], 'Content shared successfully'));
+        return response.send(httpNoContent(null, 'Content shared successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -89,9 +89,9 @@ const users = async (request: Request, response: Response, next: NextFunction) =
             newSharedContent.userID = sharedBy.id;//Shared By
             newSharedContent.businessProfileID = sharedBy.businessProfileID ?? null;
             await newSharedContent.save();
-            return response.send(httpCreated(responseData, "Content shared successfully"));
+            return response.send(httpNoContent(null, "Content shared successfully"));
         }
-        return response.send(httpNoContent(responseData, 'Content shared successfully'));
+        return response.send(httpNoContent(null, 'Content shared successfully'));
 
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
