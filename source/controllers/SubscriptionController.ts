@@ -352,10 +352,10 @@ const cancelSubscription = async (request: Request, response: Response, next: Ne
             if (!businessProfile) {
                 return response.send(httpOk(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
             }
-            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() } })
+            Object.assign(findSubscriptionQuery, { businessProfileID: user.businessProfileID, expirationDate: { $gt: new Date() }, isCancelled: false })
         } else {
 
-            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() } })
+            Object.assign(findSubscriptionQuery, { userID: user._id, expirationDate: { $gt: new Date() }, isCancelled: false })
         }
         const subscription = await Subscription.findOne(findSubscriptionQuery)
         if (!subscription) {
