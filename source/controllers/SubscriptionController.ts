@@ -57,7 +57,7 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             transactionAmount: parseFloatToFixed(amount, 2)
         }
         await order.save();
-        const dbQuery = { userID: user.id, expirationDate: { $gt: new Date() } }
+        const dbQuery = { userID: user.id, expirationDate: { $gt: new Date() }, isCancelled: false }
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
             Object.assign(dbQuery, { businessProfileID: user.businessProfileID })
         }
