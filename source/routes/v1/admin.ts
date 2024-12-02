@@ -7,6 +7,8 @@ import authenticateUser, { isAdministrator } from "../../middleware/authenticate
 import ReportEndpoints from "./admin/report";
 import ReviewQuestionEndpoints from "./admin/review-question";
 import SubscriptionEndpoints from "./admin/subscription";
+import PostEndpoints from "./admin/post";
+import PromoCodeEndpoints from "./admin/promo-code";
 const AdminApiEndpoints: Router = express.Router();
 AdminApiEndpoints.use('/auth', AuthEndpoint);
 AdminApiEndpoints.use('/', authenticateUser, isAdministrator, HomeEndpoints);
@@ -14,5 +16,7 @@ AdminApiEndpoints.use('/users', authenticateUser, isAdministrator, UserEndpoints
 AdminApiEndpoints.use('/subscriptions', authenticateUser, isAdministrator, SubscriptionEndpoints);
 AdminApiEndpoints.use('/subscriptions/plans', authenticateUser, isAdministrator, SubscriptionPlanEndpoints);
 AdminApiEndpoints.use('/reports', authenticateUser, isAdministrator, ReportEndpoints);
-AdminApiEndpoints.use('/review-questions', authenticateUser, isAdministrator, ReviewQuestionEndpoints)
+AdminApiEndpoints.use('/review-questions', authenticateUser, isAdministrator, ReviewQuestionEndpoints);
+AdminApiEndpoints.use('/posts', authenticateUser, isAdministrator, PostEndpoints);
+AdminApiEndpoints.use('/promo-codes', authenticateUser, isAdministrator, PromoCodeEndpoints);
 export default AdminApiEndpoints;
