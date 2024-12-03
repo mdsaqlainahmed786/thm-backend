@@ -59,6 +59,7 @@ const reportContent = async (request: Request, response: Response, next: NextFun
     try {
         let contentID = request.params.id;
         const { id, accountType, businessProfileID } = request.user;
+        const { reason } = request.body;
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
@@ -78,6 +79,7 @@ const reportContent = async (request: Request, response: Response, next: NextFun
             const newReport = new Report();
             newReport.reportedBy = id;
             newReport.contentID = contentID;
+            newReport.reason = reason ?? '';
             newReport.contentType = ContentType.POST;
             const report = await newReport.save();
             return response.send(httpCreated(report, "Content reported successfully"));
@@ -93,6 +95,7 @@ const reportUser = async (request: Request, response: Response, next: NextFuncti
     try {
         const { id, accountType, businessProfileID } = request.user;
         let contentID = request.params.id;
+        const { reason } = request.body;
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
@@ -110,6 +113,7 @@ const reportUser = async (request: Request, response: Response, next: NextFuncti
         }
         if (!isReportedBefore) {
             const newReport = new Report();
+            newReport.reason = reason ?? '';
             newReport.reportedBy = id;
             newReport.contentID = contentID;
             newReport.contentType = ContentType.USER;

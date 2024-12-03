@@ -158,7 +158,36 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
+        const ID = request?.params?.id;
+        const { isPublished, content, name, venue, streamingLink, startDate, startTime, endDate, endTime, type, feelings } = request.body;
+        const post = await Post.findOne({ _id: ID });
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+        }
+        post.isPublished = isPublished ?? post.isPublished;
+        post.content = content ?? post.content;
+        if (post.postType === PostType.EVENT) {
+            post.name = name ?? post.name;
+            post.venue = venue ?? post.venue;
+            post.streamingLink = streamingLink ?? venue.streamingLink;
+            post.startDate = startDate ?? post.startDate;
+            post.startTime = startTime ?? post.startTime;
+            post.endDate = endDate ?? post.endDate;
+            post.endTime = endTime ?? post.endTime;
+            post.type = type ?? post.type;
+        }
+        // post.code = code ?? post.code;
+        // post.priceType = priceType ?? post.priceType;
+        // post.value = value ?? post.value;
+        // post.cartValue = cartValue ?? post.cartValue;
+        // post.redeemedCount = redeemedCount ?? post.redeemedCount;
+        // post.quantity = quantity ?? post.quantity;
+        // post.validFrom = validFrom ?? post.validFrom;
+        // post.validTo = validTo ?? post.validTo;
+        // post.maxDiscount = maxDiscount ?? post.maxDiscount;
+        // post.type = type ?? post.type;
+        const savedPromoCode = await post.save();
+        return response.send(httpAcceptedOrUpdated(savedPromoCode, 'Post updated'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
