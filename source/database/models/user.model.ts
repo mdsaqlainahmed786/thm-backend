@@ -491,4 +491,4 @@ export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
     ]);
 }
 
-export const activeUserQuery = { isDeleted: false, isActivated: true };
+export const activeUserQuery = { isVerified: true, isApproved: true, isActivated: true, isDeleted: false, };

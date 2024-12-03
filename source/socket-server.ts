@@ -123,6 +123,10 @@ export default function createSocketServer(httpServer: https.Server) {
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.VIDEO;
                             newMessage.mediaUrl = data.message.mediaUrl;
+                        case MessageType.PDF:
+                            newMessage.message = data.message.message;
+                            newMessage.type = MessageType.PDF;
+                            newMessage.mediaUrl = data.message.mediaUrl;
                             break;
                     }
                     await newMessage.save();

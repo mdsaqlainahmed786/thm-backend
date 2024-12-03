@@ -45,6 +45,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
         }
     ])
 }
+
 function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
     return Message.aggregate([
         { $match: query },
@@ -174,7 +175,6 @@ function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumbe
     return chats?.[0]?.count as number ?? 0;
 }
 
-
 const sendMediaMessage = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { messageType, username, message } = request.body;
@@ -207,7 +207,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
-                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
+                    //   SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest("Image is required"), "Image is required"))
@@ -222,7 +222,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
-                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
+                    //SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest("Video is required"), "Video is required"))
@@ -237,7 +237,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                             mediaUrl: singleFile.location,
                         }
                     });
-                    SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
+                    // SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
                     return response.send(httpOk(messageObject, "Media sent"));
                 } else {
                     return response.send(httpBadRequest(ErrorMessage.invalidRequest("Document is required"), "Document is required"))

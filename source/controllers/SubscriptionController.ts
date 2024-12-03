@@ -9,7 +9,7 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import moment from "moment";
-import PromoCode, { PriceType } from "../database/models/promoCode.model";
+import PromoCode, { PriceType, PromoType } from "../database/models/promoCode.model";
 import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
 import RazorPayService, { BillingDetails } from "../services/RazorPayService";
 import { parseFloatToFixed } from "../utils/helper/basic";
@@ -234,8 +234,6 @@ const getSubscriptionPlans = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
-
 const subscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -368,8 +366,6 @@ const cancelSubscription = async (request: Request, response: Response, next: Ne
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
-
 const subscriptionCheckout = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -470,7 +466,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         newOrder.tax = gst;
         newOrder.status = OrderStatus.CREATED;
         if (promoCode) {
-            const promocode = await PromoCode.findOne({ code: promoCode })
+            const promocode = await PromoCode.findOne({ code: promoCode, type: PromoType.SUBSCRIPTION })
             if (!promocode) {
                 return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.INVALID_PROMOCODE), ErrorMessage.INVALID_PROMOCODE));
             }
@@ -560,6 +556,5 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
 
 export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout };

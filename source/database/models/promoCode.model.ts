@@ -4,6 +4,11 @@ export enum PriceType {
     FIXED = "fixed",
     PERCENTAGE = "percent",
 }
+export enum PromoType {
+    SUBSCRIPTION = 'subscription',
+    BOOKING = 'booking'
+}
+
 export interface IPromoCode extends Document {
     name: string;
     description: string;
@@ -16,6 +21,7 @@ export interface IPromoCode extends Document {
     validTo: Date;
     redeemedCount: number;//How many time the coupon was used.
     maxDiscount: number; //Maximum Discount if price type in % 
+    type: string;
 }
 
 export interface IPromoCodeModel extends Model<IPromoCode> {
@@ -68,6 +74,11 @@ const PromoCodeSchema: Schema<IPromoCode, IPromoCodeModel> = new Schema<IPromoCo
         maxDiscount: {
             type: Number,
             required: true,
+        },
+        type: {
+            type: String,
+            required: true,
+            enum: PromoType
         }
     },
     {

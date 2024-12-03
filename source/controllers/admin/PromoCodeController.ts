@@ -1,7 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { parseQueryParam } from '../../utils/helper/basic';
-import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError } from '../../utils/response';
+import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError, httpCreated, httpNoContent } from '../../utils/response';
 import { ErrorMessage } from '../../utils/response-message/error';
 import Post, { addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
 import { addBusinessProfileInUser } from '../../database/models/user.model';
@@ -67,20 +67,61 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
+        const { name, description, code, priceType, value, cartValue, redeemedCount, quantity, validFrom, validTo, maxDiscount, type } = request.body;
+        const newPromoCode = new PromoCode();
+        newPromoCode.name = name;
+        newPromoCode.description = description;
+        newPromoCode.code = code;
+        newPromoCode.priceType = priceType;
+        newPromoCode.value = value;
+        newPromoCode.cartValue = cartValue;
+        newPromoCode.redeemedCount = redeemedCount;
+        newPromoCode.quantity = quantity;
+        newPromoCode.validFrom = validFrom;
+        newPromoCode.validTo = validTo;
+        newPromoCode.maxDiscount = maxDiscount;
+        newPromoCode.type = type;
+        const savedPromoCode = await newPromoCode.save();
+        return response.send(httpCreated(savedPromoCode, 'Promo code created'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
+        const ID = request?.params?.id;
+        const { name, description, code, priceType, value, cartValue, redeemedCount, quantity, validFrom, validTo, maxDiscount, type } = request.body;
+        const promoCode = await PromoCode.findOne({ _id: ID });
+        if (!promoCode) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Promo code not found"), "Promo code not found"));
+        }
+        promoCode.name = name ?? promoCode.name;
+        promoCode.description = description ?? promoCode.description;
+        promoCode.code = code ?? promoCode.code;
+        promoCode.priceType = priceType ?? promoCode.priceType;
+        promoCode.value = value ?? promoCode.value;
+        promoCode.cartValue = cartValue ?? promoCode.cartValue;
+        promoCode.redeemedCount = redeemedCount ?? promoCode.redeemedCount;
+        promoCode.quantity = quantity ?? promoCode.quantity;
+        promoCode.validFrom = validFrom ?? promoCode.validFrom;
+        promoCode.validTo = validTo ?? promoCode.validTo;
+        promoCode.maxDiscount = maxDiscount ?? promoCode.maxDiscount;
+        promoCode.type = type ?? promoCode.type;
+        const savedPromoCode = await promoCode.save();
+        return response.send(httpAcceptedOrUpdated(savedPromoCode, 'Promo code updated'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const ID = request?.params?.id;
+        const promoCode = await PromoCode.findOne({ _id: ID });
+        if (!promoCode) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Promo code not found"), "Promo code not found"));
+        }
+        await promoCode.deleteOne();
+        return response.send(httpNoContent(null, 'Promo code deleted'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

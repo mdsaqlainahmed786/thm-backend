@@ -6,6 +6,7 @@ import { SubscriptionDuration, SubscriptionLevel } from "../database/models/subs
 import { CurrencyCode } from "../database/models/subscriptionPlan.model";
 import { ContentType } from "../common";
 import { MessageType } from "../database/models/message.model";
+import { PriceType, PromoType } from "../database/models/promoCode.model";
 export enum LogInWith {
     EMAIL = "email",
     PHONE = "phone",
@@ -94,3 +95,16 @@ export const subscriptionTypeValidationRule = body("type", "Type is a required f
 const MessageTypeValues = Object.values(MessageType)
 export const messageTypeValidationRule = body("messageType", "Message type is required field.").exists().bail().notEmpty().isIn(MessageTypeValues).withMessage(`Message type must be in ${MessageTypeValues.join(' | ')}`)
 export const usernameValidationRule = body("username", "Username is required field.").exists().bail().notEmpty().bail();
+
+const typeValues = Object.values(PromoType);
+const priceTypeValues = Object.values(PriceType);
+export const codeValidationRule = body("code", "Coupon code is a required field.").exists().bail().notEmpty().bail();
+export const typeValidationRule = body("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(typeValues).withMessage(`Type must be in ${typeValues.join(' | ')}.}`);
+export const priceTypeValidationRule = body("priceType", "Price Type is a required field.").exists().bail().notEmpty().bail().isIn(priceTypeValues).withMessage(`Price Type must be in ${priceTypeValues.join(' | ')}`);
+export const valueValidationRule = body("value", "Discount value is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Discount value must be integer or float value.");
+export const cartValueValidationRule = body("cartValue", "Cart Value is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Cart Value must be integer value.");
+export const validToValidationRule = body("validTo", "Valid to is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Valid to must be in 'YYYY/MM/DD' format.");
+export const validFromValidationRule = body("validFrom", "Valid from is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Valid from must be in 'YYYY/MM/DD' format.");
+export const quantityValidationRule = body("quantity", "Quantity is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Quantity must be integer value.");
+export const maxDiscountValidationRule = body("maxDiscount", "Max discount is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Max discount must be integer value.");
+export const redeemedCountValidationRule = body("redeemedCount", "Redeemed count is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Redeemed count must be integer value.");

@@ -75,3 +75,22 @@ BusinessProfileSchema.index({ 'address.geoCoordinate': '2dsphere' });
 
 const BusinessProfile = model<IBusinessProfile>('BusinessProfile', BusinessProfileSchema);
 export default BusinessProfile;
+
+
+export async function fetchBusinessIDs(query?: string | undefined, businessTypeID?: string | undefined) {
+    const dbQuery = {}
+    if (query && query !== '') {
+        Object.assign(dbQuery, {
+            $or: [
+                { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
+            ]
+        })
+    }
+    if (businessTypeID && businessTypeID !== '') {
+        Object.assign(dbQuery, {
+            businessTypeID: businessTypeID
+        })
+    }
+    return await BusinessProfile.distinct('_id', dbQuery) as MongoID[];
+}

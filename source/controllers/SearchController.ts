@@ -19,13 +19,13 @@ import { parseQueryParam, truncate } from "../utils/helper/basic";
 import { httpOkExtended } from "../utils/response";
 import { addBusinessProfileInUser } from "../database/models/user.model";
 import { getUserProfile } from '../database/models/user.model';
-import BusinessProfile from '../database/models/businessProfile.model';
+import BusinessProfile, { fetchBusinessIDs } from '../database/models/businessProfile.model';
 import { activeUserQuery } from '../database/models/user.model';
 //FIXME deleted user and disabled user check
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        let { pageNumber, documentLimit, query, type }: any = request.query;
+        let { pageNumber, documentLimit, query, type, businessTypeID }: any = request.query;
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
@@ -37,15 +37,14 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         let totalPagesCount = 0;
         switch (type) {
             case "profile":
-                Object.assign(dbQuery, {});
+                Object.assign(dbQuery, { ...activeUserQuery });
+                const businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
+
+                if (businessTypeID && businessTypeID !== '') {
+                    Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
+                }
                 if (query !== undefined && query !== "") {
                     //Search business profile
-                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
-                        $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        ]
-                    });
                     Object.assign(dbQuery,
                         {
                             $or: [
@@ -68,14 +67,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 /***
                  * Base query
                  */
+                //FIXME filter 
                 Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
                 if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
-                        $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        ]
-                    });
+                    const businessProfileIDs = await fetchBusinessIDs(query);
+
                     const users = await User.distinct('_id', {
                         $or: [
                             { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
@@ -101,14 +97,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
 
             case "events":
+                //FIXME filter 
                 Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
                 if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
-                        $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        ]
-                    });
+                    const businessProfileIDs = await fetchBusinessIDs(query);
+
                     const users = await User.distinct('_id', {
                         $or: [
                             { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
@@ -136,14 +129,10 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
                 break;
             case "reviews":
+                //FIXME filter 
                 Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
                 if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await BusinessProfile.distinct('_id', {
-                        $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        ]
-                    });
+                    const businessProfileIDs = await fetchBusinessIDs(query);
                     const users = await User.distinct('_id', {
                         $or: [
                             { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
