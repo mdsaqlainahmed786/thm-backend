@@ -139,7 +139,6 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
         if (businessProfileID && businessProfileID !== '') {
             Object.assign(dbQuery, { _id: businessProfileID });
         }
-        console.log(dbQuery);
         const businessProfileRef = await BusinessProfile.findOne(dbQuery, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
         if (!businessProfileRef) {
             const googlePlaceApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`;
@@ -154,14 +153,14 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                  */
                 let reviewQuestions: any[] = [];
                 const types = data?.types ?? [];
-                console.log(types);
+
                 //Bars / Clubs
                 if (types.some((element: any) => ['bar', 'night_club'].includes(element))) {
                     const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.BARS_CLUBS });
                     if (businessTypeID) {
                         reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
                     }
-                    console.log('night_club /bar');
+
                 }
                 //Hotel
                 if (types.some((element: any) => ['lodging'].includes(element))
@@ -170,7 +169,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                     if (businessTypeID) {
                         reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
                     }
-                    console.log('hotel');
+
                 }
                 //Restaurant
                 if (types.some((element: any) => ['cafe', 'restaurant', 'meal_delivery', 'meal_takeaway'].includes(element))
@@ -179,7 +178,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                     if (businessTypeID) {
                         reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
                     }
-                    console.log('restaurant ');
+
                 }
 
                 const photoReference = data?.photos && data?.photos?.length !== 0 ? data?.photos?.[0]?.photo_reference : null;

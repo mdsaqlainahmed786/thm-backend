@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongodb';
+import { ContentType } from './../../common/index';
 import { Request, Response, NextFunction } from "express";
 import { parseFloatToFixed, parseQueryParam } from '../../utils/helper/basic';
 import { AccountType } from '../../database/models/user.model';
@@ -6,7 +6,8 @@ import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalS
 import { ErrorMessage } from '../../utils/response-message/error';
 import User from '../../database/models/user.model';
 import Post from '../../database/models/post.model';
-import Report from '../../database/models/reportedUser.model';
+import Report, { addPostInReport, addReportedByInReport, addUserInReport } from '../../database/models/reportedUser.model';
+const contentTypes = Object.values(ContentType)
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const currentMonth = new Date();
@@ -114,4 +115,80 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index }
+
+const topReportedContent = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        let { documentLimit, contentType, overview }: any = request.query;
+        documentLimit = parseQueryParam(documentLimit, 10);
+        const dbQuery = {};
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (contentType && contentTypes.includes(contentType)) {
+            Object.assign(dbQuery, { contentType: contentType })
+        }
+        const currentDate = new Date();
+        const dbQuery2 = {}
+        if (overview && overview === "monthly") {
+            const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);  // 1st day of current month
+            const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);  // Last day of current month
+            Object.assign(dbQuery2, { createdAt: { $gte: firstDayOfMonth, $lte: lastDayOfMonth } })
+        }
+        if (overview && overview === "yearly") {
+            const firstDayOfYear = new Date(currentDate.getFullYear(), 0, 1);  // January 1st of current year
+            const lastDayOfYear = new Date(currentDate.getFullYear(), 11, 31);  // December 31st of current year
+            Object.assign(dbQuery2, { createdAt: { $gte: firstDayOfYear, $lte: lastDayOfYear } })
+        }
+        const [reports, documents] = await Promise.all([
+            Report.aggregate([
+                {
+                    $match: dbQuery2
+                },
+                {
+                    $group: {
+                        _id: "$contentType",            // Group by contentType
+                        totalReports: { $sum: 1 }  // Sum report counts for each content
+                    }
+                },
+                {
+                    $project: {
+                        labelName: '$_id',
+                        totalReports: 1,
+                        _id: 0,
+                    }
+                }
+            ]),
+            Report.aggregate([
+                {
+                    $match: dbQuery
+                },
+                addPostInReport().lookup,
+                addPostInReport().unwindLookup,
+                addUserInReport().lookup,
+                addUserInReport().unwindLookup,
+                {
+                    $group: {
+                        _id: "$contentID",            // Group by content ID
+                        contentType: { '$first': "$contentType" },
+                        usersRef: { '$first': "$usersRef" },
+                        postsRef: { '$first': "$postsRef" },
+                        createdAt: { '$last': '$createdAt' },
+                        totalReports: { $sum: 1 }  // Sum report counts for each content
+                    }
+                },
+                { $sort: { totalReports: -1 } },
+                {
+                    $limit: documentLimit
+                },
+            ])
+        ]);
+        return response.send(httpOk({
+            reports,
+            documents,
+        }, 'Top reports fetched.'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { index, topReportedContent }

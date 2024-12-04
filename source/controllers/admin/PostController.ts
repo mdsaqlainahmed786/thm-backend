@@ -159,7 +159,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const ID = request?.params?.id;
-        const { isPublished, content, name, venue, streamingLink, startDate, startTime, endDate, endTime, type, feelings } = request.body;
+        const { isPublished, content, name, venue, streamingLink, startDate, startTime, endDate, endTime, type, feelings, rating } = request.body;
         const post = await Post.findOne({ _id: ID });
         if (!post) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
@@ -175,6 +175,9 @@ const update = async (request: Request, response: Response, next: NextFunction) 
             post.endDate = endDate ?? post.endDate;
             post.endTime = endTime ?? post.endTime;
             post.type = type ?? post.type;
+        }
+        if (post.postType === PostType.REVIEW) {
+            post.rating = rating ?? post.rating;
         }
         // post.code = code ?? post.code;
         // post.priceType = priceType ?? post.priceType;

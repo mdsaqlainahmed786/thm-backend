@@ -4,4 +4,5 @@ import HomeController from "../../../controllers/admin/HomeController";
 // import { validateRequest } from "../../../middleware/api-request-validator";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/home', HomeController.index);
+HomeEndpoints.get('/top-reports', HomeController.topReportedContent);
 export default HomeEndpoints;
