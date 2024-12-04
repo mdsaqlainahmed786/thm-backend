@@ -137,15 +137,17 @@ export default function createSocketServer(httpServer: https.Server) {
         });
 
 
-        socket.on(SocketChannel.CHAT_SCREEN, async (data: { query: string | undefined, pageNumber: number | undefined }) => {
-            const documentLimit = 20;
+        socket.on(SocketChannel.CHAT_SCREEN, async (data: { query: string | undefined, pageNumber: number | undefined, documentLimit: number | undefined }) => {
+
             const ID = (socket as AppSocketUser).userID;
+            let documentLimit;
             let pageNumber;
             let query;
             pageNumber = data?.pageNumber;
             query = data?.query;
 
             pageNumber = parseQueryParam(pageNumber, 1);
+            documentLimit = parseQueryParam(documentLimit, 20);
 
             const messages: Messages = {
                 totalMessages: 0,
@@ -192,15 +194,14 @@ export default function createSocketServer(httpServer: https.Server) {
             }
         })
         /**Done */
-        socket.on(SocketChannel.FETCH_CONVERSATIONS, async (data: { username: string, pageNumber: number }) => {
-            const documentLimit = 20;
-
+        socket.on(SocketChannel.FETCH_CONVERSATIONS, async (data: { username: string, pageNumber: number | undefined, documentLimit: number | undefined }) => {
             let username;
             let pageNumber;
-
+            let documentLimit;
             username = data?.username;
             pageNumber = data?.pageNumber;
             pageNumber = parseQueryParam(pageNumber, 1);
+            documentLimit = parseQueryParam(documentLimit, 20);
             const [user, targetUser] = await Promise.all([
                 User.findOne({ username: (socket as AppSocketUser).username }),
                 User.findOne({ username: username }),

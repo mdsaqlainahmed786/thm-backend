@@ -1,15 +1,21 @@
+import BusinessTypeModel from "../models/businessType.model";
 
-import BusinessType from "../models/businessType.model";
+export enum BusinessType {
+    HOTEL = 'Hotel',
+    BARS_CLUBS = 'Bars / Clubs',
+    HOME_STAYS = 'Home Stays',
+    MARRIAGE_BANQUETS = 'Marriage Banquets',
+    RESTAURANT = 'Restaurant'
+}
 
-
-export const BusinessTypes = ['Hotel', 'Bars / Clubs', 'Home Stays', 'Marriage Banquets', 'Restaurant'];
+export const BusinessTypes = Object.values(BusinessType);
 class BusinessTypeSeeder {
     hostAddress: string;
     constructor(hostAddress: string) {
         this.hostAddress = hostAddress;
     }
     async shouldRun() {
-        const count = await BusinessType.countDocuments().exec();
+        const count = await BusinessTypeModel.countDocuments().exec();
         return count === 0;
     }
     async run() {
@@ -21,9 +27,9 @@ class BusinessTypeSeeder {
             this.hostAddress + '/public/files/restaurant.png'
         ]
         return await Promise.all(BusinessTypes.map(async (businessType, index) => {
-            const isExits = await BusinessType.findOne({ name: businessType });
+            const isExits = await BusinessTypeModel.findOne({ name: businessType });
             if (!isExits) {
-                const newBusinessType = new BusinessType({
+                const newBusinessType = new BusinessTypeModel({
                     icon: BusinessIcons[index],
                     name: businessType,
                 });

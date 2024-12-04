@@ -1,3 +1,4 @@
+
 import { Request, Response, NextFunction, response } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
@@ -18,7 +19,7 @@ import Story, { addMediaInStory } from "../database/models/story.model";
 import { ObjectId } from "mongodb";
 import BusinessQuestionSeeder from "../database/seeders/BusinessQuestionSeeder";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
-import BusinessTypeSeeder from "../database/seeders/BusinessTypeSeeder";
+import BusinessTypeSeeder, { BusinessTypes } from "../database/seeders/BusinessTypeSeeder";
 import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
 import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
@@ -31,6 +32,7 @@ import AccountReach from "../database/models/accountReach.model";
 import User from "../database/models/user.model";
 import Comment from "../database/models/comment.model";
 import SharedContent from "../database/models/sharedContent.model";
+import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTypeSeeder";
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -131,14 +133,54 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
 const getBusinessByPlaceID = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { placeID } = request.params;
-        const businessProfileRef = await BusinessProfile.findOne({ placeID: placeID }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
+        let parsedQuerySet = request.query;
+        let { businessProfileID }: any = parsedQuerySet;
+        const dbQuery = { placeID: placeID, };
+        if (businessProfileID && businessProfileID !== '') {
+            Object.assign(dbQuery, { _id: businessProfileID });
+        }
+        console.log(dbQuery);
+        const businessProfileRef = await BusinessProfile.findOne(dbQuery, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
         if (!businessProfileRef) {
-            const apiResponse = await (await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`)).json();
+            const googlePlaceApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`;
+            const apiResponse = await (await fetch(googlePlaceApiUrl)).json();
             if (apiResponse.status === "OK") {
                 const data = apiResponse.result;
                 const name = data?.name ?? "";
                 const lat = data?.geometry?.location?.lat ?? 0;
                 const lng = data?.geometry?.location?.lng ?? 0;
+                /***
+                 * Review Question based on place type
+                 */
+                let reviewQuestions: any[] = [];
+                const types = data?.types ?? [];
+                console.log(types);
+                //Bars / Clubs
+                if (types.some((element: any) => ['bar', 'night_club'].includes(element))) {
+                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.BARS_CLUBS });
+                    if (businessTypeID) {
+                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
+                    }
+                    console.log('night_club /bar');
+                }
+                //Hotel
+                if (types.some((element: any) => ['lodging'].includes(element))
+                    && ['hotel'].some((word: string) => name.toLowerCase().includes(word))) {
+                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.HOTEL });
+                    if (businessTypeID) {
+                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
+                    }
+                    console.log('hotel');
+                }
+                //Restaurant
+                if (types.some((element: any) => ['cafe', 'restaurant', 'meal_delivery', 'meal_takeaway'].includes(element))
+                    && ['cafe', 'restaurant', 'kitchen'].some((word: string) => name.toLowerCase().includes(word))) {
+                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.RESTAURANT });
+                    if (businessTypeID) {
+                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
+                    }
+                    console.log('restaurant ');
+                }
 
                 const photoReference = data?.photos && data?.photos?.length !== 0 ? data?.photos?.[0]?.photo_reference : null;
                 let street = "";
@@ -193,7 +235,7 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
                     },
                     "coverImage": coverImage,
                 }
-                const reviewQuestions: any[] = [];
+
                 return response.send(httpOk({
                     businessProfileRef,
                     reviewQuestions
