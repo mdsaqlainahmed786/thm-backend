@@ -30,7 +30,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
         //Fetch following stories 
         const myFollowingIDs = await UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED });
-        const [myStories, likedByMe, userIDs] = await Promise.all(
+        const [myStories, likedByMe, userIDs, viewedStories] = await Promise.all(
             [
                 Story.aggregate([
                     {
@@ -93,9 +93,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         { timeStamp: { $gte: timeStamp }, userID: { $in: myFollowingIDs }, },
                         { timeStamp: { $gte: timeStamp }, userID: { $nin: [new ObjectId(id)] }, }
                     ]
-                })
+                }),
+                View.distinct('storyID', { userID: id, createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } })
             ]
         );
+        console.log(viewedStories);
         const dbQuery: {} = { _id: { $in: userIDs } };
         const [documents, totalDocument] = await Promise.all(
             [
@@ -106,9 +108,64 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         },
                         addBusinessProfileInUser().lookup,
                         addBusinessProfileInUser().unwindLookup,
-                        addStoriesInUser(likedByMe).lookup,
+                        addStoriesInUser(likedByMe, viewedStories).lookup,
+                        // {
+                        //     $addFields: {
+                        //         seenByMe: {
+                        //             $cond: {
+                        //                 if: {
+                        //                     $allElementsTrue: {
+                        //                         $map: {
+                        //                             input: "$storiesRef",
+                        //                             as: "story",
+                        //                             in: "$$story.seenByMe"
+                        //                         }
+                        //                     }
+                        //                 },
+                        //                  then: false,
+                        //                 else: true
+                        //             }
+                        //         }
+                        //     }
+                        // },
+                        {
+                            $addFields: {
+                                seenByMe: {
+                                    $cond: {
+                                        if: {
+                                            $eq: [
+                                                {
+                                                    $size: {
+                                                        $filter: {
+                                                            input: "$storiesRef",
+                                                            as: "story",
+                                                            cond: { $eq: ["$$story.seenByMe", true] }
+                                                        }
+                                                    }
+                                                },
+                                                { $size: "$storiesRef" }
+                                            ]
+                                        },
+                                        then: true,  // Return true if all items have seenByMe as true
+                                        else: false  // Otherwise return false
+                                    }
+                                },
+                                seenCount: {
+                                    $size: {
+                                        $filter: {
+                                            input: "$storiesRef",
+                                            as: "story",
+                                            cond: { $eq: ["$$story.seenByMe", true] }
+                                        }
+                                    }
+                                }
+                            }
+                        },
                         {
                             $sort: { createdAt: -1, id: 1 }
+                        },
+                        {
+                            $sort: { seenCount: 1 } //Sort viewed stories 
                         },
                         {
                             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -127,6 +184,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                                 'businessProfileRef.username': 1,
                                 'businessProfileRef.profilePic': 1,
                                 'storiesRef': 1,
+                                'seenByMe': 1,
+                                // 'seenCount': 1
                             }
                         }
                     ]

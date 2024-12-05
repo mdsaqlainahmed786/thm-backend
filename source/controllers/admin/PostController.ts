@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { parseQueryParam } from '../../utils/helper/basic';
 import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError } from '../../utils/response';
 import { ErrorMessage } from '../../utils/response-message/error';
-import Post, { addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
+import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
 import { addBusinessProfileInUser } from '../../database/models/user.model';
 import { ContentType } from '../../common';
 const postTypes = Object.values(PostType)
@@ -38,6 +38,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $match: dbQuery
                 },
+                addMediaInPost().lookup,
                 {
                     '$lookup': {
                         'from': 'businessprofiles',

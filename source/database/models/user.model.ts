@@ -323,7 +323,7 @@ export function addBusinessSubTypeInBusinessProfile() {
  * @param likeIDs Those IDs which are liked by the requested user will determine whether the current post was liked by them or not.
  * @returns 
  */
-export function addStoriesInUser(likeIDs?: MongoID[] | null) {
+export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: MongoID[] | null) {
     console.log(likeIDs);
     const lookup = {
         '$lookup': {
@@ -339,6 +339,19 @@ export function addStoriesInUser(likeIDs?: MongoID[] | null) {
                                 //FIXME Bro 
                                 {
                                     $in: ['$_id', likeIDs]
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    '$addFields': {
+                        'seenByMe': {
+                            $and: [
+                                { $ne: [viewedStories, null] },
+                                //FIXME Bro 
+                                {
+                                    $in: ['$_id', viewedStories]
                                 }
                             ]
                         }

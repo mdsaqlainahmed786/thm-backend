@@ -4,6 +4,8 @@ interface IViews extends Document {
     userID: MongoID;
     businessProfileID?: MongoID;
     storyID: MongoID;
+    createdAt: Date;
+    updatedAt: Date;
 }
 const ViewsSchema: Schema = new Schema<IViews>(
     {

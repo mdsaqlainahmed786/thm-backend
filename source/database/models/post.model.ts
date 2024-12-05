@@ -57,6 +57,8 @@ interface IPost extends IReview, IEvent, Document {
     media: MongoID[];
     tagged: MongoID[];
     feelings: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 
@@ -123,8 +125,6 @@ PostSchema.set('toObject', { virtuals: true });
 PostSchema.set('toJSON', { virtuals: true });
 
 export interface IPostModel extends IPost {
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 const Post = model<IPostModel>('Post', PostSchema);
