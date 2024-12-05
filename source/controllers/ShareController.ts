@@ -47,9 +47,9 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
             newSharedContent.userID = user.id;//Shared By
             newSharedContent.businessProfileID = user.businessProfileID ?? null;
             await newSharedContent.save();
-            return response.send(httpOk(post, "Content shared successfully"));
+            return response.send(httpOk(post[0], "Content shared successfully"));
         }
-        return response.send(httpOk(post, 'Content shared successfully'));
+        return response.send(httpOk(post[0], 'Content shared successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
