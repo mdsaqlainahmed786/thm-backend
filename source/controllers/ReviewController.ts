@@ -156,16 +156,16 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         /*** Only for individual account
          * 
          **/
-        if (savedPost && !haveSubscription && accountType === AccountType.INDIVIDUAL) {
-            if (!businessProfileID && hasNotIndexed) {
-                //This is not indexed review
-                const newNotIndexedReview = new NotIndexedReview();
-                newNotIndexedReview.postID = savedPost.id;
-                newNotIndexedReview.userID = id;
-                newNotIndexedReview.name = name;
-                newNotIndexedReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, }
-                await newNotIndexedReview.save();
-            }
+        if (savedPost && !businessProfileID && hasNotIndexed) {
+            //This is not indexed review
+            const newNotIndexedReview = new NotIndexedReview();
+            newNotIndexedReview.postID = savedPost.id;
+            newNotIndexedReview.userID = id;
+            newNotIndexedReview.name = name;
+            newNotIndexedReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, }
+            await newNotIndexedReview.save();
+        }
+        if (!haveSubscription && accountType === AccountType.INDIVIDUAL) {
             if (!dailyContentLimit) {
                 const today = new Date();
                 const midnightToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
