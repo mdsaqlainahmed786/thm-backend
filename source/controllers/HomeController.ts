@@ -33,6 +33,8 @@ import User from "../database/models/user.model";
 import Comment from "../database/models/comment.model";
 import SharedContent from "../database/models/sharedContent.model";
 import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTypeSeeder";
+import EncryptionService from "../services/EncryptionService";
+const encryptionService = new EncryptionService();
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -251,6 +253,23 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+const getBusinessPublicProfile = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { encryptedID } = request.params;
+        const decryptedBusinessProfileID = encryptionService.decrypt(encryptedID as string);
+        const businessProfileRef = await BusinessProfile.findOne({ _id: decryptedBusinessProfileID }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
+        if (!businessProfileRef) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        return response.send(httpOk({
+            businessProfileRef,
+            reviewQuestions
+        }, "Business profile fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 const insights = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -426,7 +445,7 @@ const transactions = async (request: Request, response: Response, next: NextFunc
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, insights, collectData, transactions };
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, getBusinessPublicProfile, insights, collectData, transactions };
 
 
 function createChartLabels(filter: string) {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNotFoundOr404 } from "../utils/response";
+import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
@@ -7,6 +7,7 @@ import Post, { PostType, Review } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import BusinessReviewQuestion from '../database/models/businessReviewQuestion.model';
 import NotIndexedReview from '../database/models/notIndexedReview.model';
+import User from "../database/models/user.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         // let { pageNumber, documentLimit, query }: any = request.query;
@@ -225,4 +226,56 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-export default { index, store, update, destroy };
+const publicReview = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { name, email, content, businessProfileID, placeID, reviews } = request.body;
+        if (reviews === undefined || reviews === "") {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Reviews is required field"), "Reviews is required field"));
+        }
+        const user = await User.findOne({ email: email });
+        let validateReviewJSON: Review[] = [];
+        await Promise.all(JSON.parse(reviews).map(async (review: Review) => {
+            if (review.questionID !== "not-indexed") {
+                const question = await BusinessReviewQuestion.findOne({ _id: review?.questionID })
+                if (question && review?.questionID !== undefined && review?.rating !== undefined) {
+                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+                }
+            } else {
+                if (review?.questionID !== undefined && review?.rating !== undefined) {
+                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+                }
+            }
+            return review;
+        }));
+        const totalRating = validateReviewJSON.reduce((total, item) => total + item.rating, 0);
+        const rating = totalRating / validateReviewJSON.length;
+        //remove reviews 
+        const hasNotIndexed = validateReviewJSON.some(item => item.questionID === "not-indexed");
+        if (hasNotIndexed) {
+            validateReviewJSON = [];
+        }
+        //IF user is register with us
+        if (user && user.accountType === AccountType.INDIVIDUAL) {
+            const newPost = new Post();
+            newPost.postType = PostType.REVIEW;
+            newPost.userID = user.id;
+            newPost.content = content;// Review for business
+            if (businessProfileID !== undefined && businessProfileID !== "") {
+                newPost.reviewedBusinessProfileID = businessProfileID;
+                newPost.isPublished = true;
+            }
+            newPost.location = null;
+            newPost.tagged = [];
+            newPost.media = [];
+            newPost.placeID = placeID ?? "";
+            newPost.reviews = validateReviewJSON;
+            newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+            const savedPost = await newPost.save();
+            return response.send(httpOk(savedPost, "Thanks for your review"));
+        }
+        return response.send(httpOk(null, "Thanks for your review"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { index, store, update, destroy, publicReview };

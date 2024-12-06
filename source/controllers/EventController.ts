@@ -17,7 +17,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 }
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { id, accountType } = request.user;
+        const { id, accountType, businessProfileID } = request.user;
         const { name, type, venue, streamingLink, description, placeName, lat, lng, startDate, startTime, endDate, endTime } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
@@ -48,6 +48,9 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newPost.location = { placeName, lat, lng };
         } else {
             newPost.location = null;
+        }
+        if (accountType === AccountType.BUSINESS && businessProfileID) {
+            newPost.businessProfileID = businessProfileID;
         }
         newPost.tagged = [];
         let mediaIDs: MongoID[] = []

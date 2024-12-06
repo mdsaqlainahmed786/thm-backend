@@ -35,130 +35,148 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         let documents = [];
         let totalDocument = 0;
         let totalPagesCount = 0;
-        switch (type) {
-            case "profile":
-                Object.assign(dbQuery, { ...activeUserQuery });
-                const businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
+        let businessProfileIDs = [];
+        if (type === "profile") {
+            Object.assign(dbQuery, { ...activeUserQuery });
+            businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
 
-                if (businessTypeID && businessTypeID !== '') {
-                    Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
-                }
-                if (query !== undefined && query !== "") {
-                    //Search business profile
-                    Object.assign(dbQuery,
-                        {
-                            $or: [
-                                { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                                { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                                { businessProfileID: { $in: businessProfileIDs } }
-                            ]
-                        }
-                    )
-                }
-                [documents, totalDocument] = await Promise.all([
-                    getUserProfile(dbQuery, pageNumber, documentLimit),
-                    User.find(dbQuery).countDocuments()
-                ])
-                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-                return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
-
-            case "posts":
-
-                /***
-                 * Base query
-                 */
-                //FIXME filter 
-                Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
-                if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await fetchBusinessIDs(query);
-
-                    const users = await User.distinct('_id', {
+            if (businessTypeID && businessTypeID !== '') {
+                Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
+            }
+            if (query !== undefined && query !== "") {
+                //Search business profile
+                Object.assign(dbQuery,
+                    {
                         $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                            { businessProfileID: { $in: businessProfileIDs } }
                         ]
-                    })
-                    Object.assign(dbQuery,
-                        {
-                            $or: [
-                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { userID: { $in: users }, isPublished: true }
-                            ]
-                        }
-                    )
-                }
-                [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                    Post.find(dbQuery).countDocuments()
-                ])
-                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-                return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
-
-            case "events":
-                //FIXME filter 
-                Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
-                if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await fetchBusinessIDs(query);
-
-                    const users = await User.distinct('_id', {
+                    }
+                )
+            }
+            [documents, totalDocument] = await Promise.all([
+                getUserProfile(dbQuery, pageNumber, documentLimit),
+                User.find(dbQuery).countDocuments()
+            ])
+            totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+            return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
+        } else if (type === "posts") {
+            //FIXME need to add geolocation or mach more
+            Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
+            const userQuery = { ...activeUserQuery, privateAccount: false };
+            businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
+            if (businessTypeID && businessTypeID !== '') {
+                Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
+            }
+            if (query !== undefined && query !== "") {
+                Object.assign(userQuery, {
+                    $or: [
+                        { name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery, privateAccount: false }
+                    ]
+                });
+            }
+            const userIDs = await User.distinct('_id', userQuery);
+            if (query !== undefined && query !== "") {
+                Object.assign(dbQuery,
+                    {
                         $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { userID: { $in: userIDs }, isPublished: true }
                         ]
-                    })
-                    Object.assign(dbQuery,
-                        {
-                            $or: [
-                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { userID: { $in: users }, isPublished: true }
-                            ]
-                        }
-                    )
-                }
-                [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                    Post.find(dbQuery).countDocuments()
-                ])
-                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-                return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
-                break;
-            case "reviews":
-                //FIXME filter 
-                Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
-                if (query !== undefined && query !== "") {
-                    const businessProfileIDs = await fetchBusinessIDs(query);
-                    const users = await User.distinct('_id', {
+                    }
+                )
+            } else {
+                Object.assign(dbQuery, { userID: { $in: userIDs } });
+            }
+            [documents, totalDocument] = await Promise.all([
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                Post.find(dbQuery).countDocuments()
+            ])
+            totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+            return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
+        } else if (type === "events") {
+            Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
+            const userQuery = { ...activeUserQuery, privateAccount: false };
+            businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
+            //FIXME need to add geolocation or mach more
+            if (businessTypeID && businessTypeID !== '') {
+                Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
+            }
+            if (query !== undefined && query !== "") {
+                Object.assign(userQuery, {
+                    $or: [
+                        { name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery, privateAccount: false }
+                    ]
+                });
+            }
+            const userIDs = await User.distinct('_id', userQuery);
+            if (query !== undefined && query !== "") {
+                Object.assign(dbQuery,
+                    {
                         $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                            { businessProfileID: { $in: businessProfileIDs }, privateAccount: false },
-
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { userID: { $in: userIDs }, isPublished: true }
                         ]
-                    })
-                    Object.assign(dbQuery,
-                        {
-                            $or: [
-                                { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                                { userID: { $in: users }, isPublished: true }
-                            ]
-                        }
-                    )
-                }
-                [documents, totalDocument] = await Promise.all([
-                    fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                    Post.find(dbQuery).countDocuments()
-                ])
-                totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-                return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
-            default:
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be profile | posts | events | reviews"), "Invalid type. Type must be profile | posts | events | reviews"))
+                    }
+                )
+            } else {
+                Object.assign(dbQuery, { userID: { $in: userIDs } });
+            }
+            [documents, totalDocument] = await Promise.all([
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                Post.find(dbQuery).countDocuments()
+            ])
+            totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+            return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
+        } else if (type === "reviews") {
+            Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
+            const userQuery = { ...activeUserQuery, privateAccount: false };
+            businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
+            //FIXME need to add geolocation or mach more
+            if (businessTypeID && businessTypeID !== '') {
+                Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
+            }
+            if (query !== undefined && query !== "") {
+                Object.assign(userQuery, {
+                    $or: [
+                        { name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery, privateAccount: false },
+                        { businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery, privateAccount: false }
+                    ]
+                });
+            }
+            const userIDs = await User.distinct('_id', userQuery);
+            if (query !== undefined && query !== "") {
+                Object.assign(dbQuery,
+                    {
+                        $or: [
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
+                            { userID: { $in: userIDs }, isPublished: true }
+                        ]
+                    }
+                )
+            } else {
+                Object.assign(dbQuery, { userID: { $in: userIDs } });
+            }
+            [documents, totalDocument] = await Promise.all([
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                Post.find(dbQuery).countDocuments()
+            ])
+            totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+            return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
+        } else {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be profile | posts | events | reviews"), "Invalid type. Type must be profile | posts | events | reviews"))
+
         }
 
     } catch (error: any) {

@@ -325,3 +325,8 @@ export const createPromoCodeApiValidator = [
     redeemedCountValidationRule
 
 ]
+export const publicReviewApiValidator = [
+    nameValidationRule,
+    emailValidationRule,
+    descriptionValidationRule,
+]
