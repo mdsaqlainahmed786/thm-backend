@@ -1,6 +1,6 @@
-import { Business, } from './../../database/models/user.model';
+import { Business, SocialAccount, } from './../../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
-import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, httpConflict, httpForbidden } from "../../utils/response";
+import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, httpConflict, httpForbidden, httpBadRequest } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
 import User, { AccountType } from "../../database/models/user.model";
 import { SuccessMessage } from "../../utils/response-message/success";
@@ -21,6 +21,8 @@ import Subscription from '../../database/models/subscription.model';
 import { generateFromEmail } from "unique-username-generator";
 import EmailNotificationService from '../../services/EmailNotificationService';
 import { Types } from '../../validation/rules/api-validation';
+import SocialProviders from '../../services/SocialProviders';
+import { v4 } from 'uuid';
 
 const emailNotificationService = new EmailNotificationService();
 const login = async (request: Request, response: Response, next: NextFunction) => {
@@ -105,6 +107,124 @@ const login = async (request: Request, response: Response, next: NextFunction) =
     }
 }
 
+const socialLogin = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken } = request.body;
+
+        let isDocumentUploaded = true;
+        let hasAmenities = true;
+        let hasSubscription = true;
+        let businessProfileRef = null;
+        if (socialType === SocialAccount.GOOGLE) {
+            try {
+                const { email, name, sub, picture } = await SocialProviders.verifyGoogleToken(token);
+                if (!email || !name) {
+                    return response.send(httpBadRequest(null, 'Email cannot be null or empty.'))
+                }
+                const [username, user] = await Promise.all([
+                    generateUsername(email, AccountType.INDIVIDUAL),
+                    User.findOne({ email: email }),
+                ]);
+                if (!user) {
+                    const newUser = new User();
+                    newUser.profilePic = { small: picture ?? '', large: picture ?? '', medium: picture ?? '' };
+                    newUser.username = username;
+                    newUser.email = email;
+                    newUser.name = name;
+                    newUser.accountType = AccountType.INDIVIDUAL;
+                    newUser.dialCode = dialCode;
+                    newUser.phoneNumber = phoneNumber;
+                    newUser.password = v4();
+                    newUser.isActivated = true;
+                    newUser.isVerified = true;
+                    newUser.socialIDs = [{
+                        socialUId: sub,
+                        socialType: socialType
+                    }];
+                    const savedUser = await newUser.save();
+                    const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, businessProfileID: savedUser.businessProfileID, role: savedUser.role };
+                    await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
+                    const accessToken = await generateAccessToken(authenticateUser);
+                    const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
+                    response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+                    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                    return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+
+                }
+                const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
+                //Update Social ID
+                if (!isSocialIDExist) {
+                    user.socialIDs.push({
+                        socialUId: sub,
+                        socialType: socialType
+                    })
+                    await user.save();
+                }
+                if (!user.isActivated) {
+                    return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT))
+                }
+                if (user.isDeleted) {
+                    return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
+                }
+                await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+                if (deviceID) {
+                    response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+                }
+
+                if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                    const [businessDocument, businessProfile, subscription] = await Promise.all(
+                        [
+                            BusinessDocument.find({ businessProfileID: user.businessProfileID }),
+                            BusinessProfile.findOne({ _id: user.businessProfileID }),
+                            Subscription.findOne({ businessProfileID: user.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
+                        ]
+                    )
+                    businessProfileRef = businessProfile;
+                    const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
+                    const accessToken = await generateAccessToken(authenticateUser, "15m");
+                    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                    if (!businessDocument || businessDocument.length === 0) {
+                        isDocumentUploaded = false;
+                    }
+                    if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
+                        hasAmenities = false;
+                    }
+
+                    if (!subscription) {
+                        hasSubscription = false;
+                    }
+
+                    if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                        return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+                    }
+                    const now = new Date();
+                    if (subscription && subscription.expirationDate < now) {
+                        hasSubscription = false;
+                        return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
+                    }
+                }
+                if (!user.isApproved) {
+                    return response.status(200).send(httpForbidden(null, "Your account is currently under review. We will notify you once it has been verified."))
+                }
+                const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
+                const accessToken = await generateAccessToken(authenticateUser);
+                const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
+                response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+                response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
+            } catch (error: any) {
+                next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+            }
+        }
+
+        if (socialType === SocialAccount.APPLE) {
+            const payload = await SocialProviders.verifyAppleToken(token);
+            return response.send(httpOk({ 'data': payload }))
+        }
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -341,4 +461,4 @@ export async function generateUsername(email: string, accountType: AccountType):
 }
 
 
-export default { login, resendOTP, verifyEmail, logout, refreshToken, signUp };
+export default { login, resendOTP, verifyEmail, logout, refreshToken, signUp, socialLogin }

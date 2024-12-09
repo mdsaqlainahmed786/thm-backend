@@ -11,6 +11,24 @@ import Post from "./post.model";
 import UserConnection, { ConnectionStatus } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
 import { ObjectId } from "mongodb";
+
+
+export enum SocialAccount {
+    FACEBOOK = "facebook",
+    GOOGLE = "google",
+    APPLE = "apple",
+}
+
+export interface ISocialID {
+    socialUId: string;
+    socialType: string,
+}
+const SocialIDSchema = new Schema<ISocialID>({
+    socialUId: { type: String },
+    socialType: { type: String, enum: SocialAccount, required: true },
+
+});
+
 export enum AccountType {
     INDIVIDUAL = "individual",
     BUSINESS = "business"
@@ -36,6 +54,7 @@ export interface Individual {
     notificationEnabled: boolean;
     role: Role;
     lastSeen: Date;
+    socialIDs: ISocialID[];
 }
 
 export interface Business {
@@ -104,6 +123,7 @@ const UserSchema: Schema = new Schema<IUser>(
         role: {
             type: String, enum: Role, default: Role.USER,
         },
+        socialIDs: [SocialIDSchema],
         lastSeen: { type: Date, default: Date.now },
     },
     {

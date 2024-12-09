@@ -1,4 +1,4 @@
-import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule, codeValidationRule, cartValueValidationRule, valueValidationRule, typeValidationRule, priceTypeValidationRule, validToValidationRule, quantityValidationRule, validFromValidationRule, maxDiscountValidationRule, redeemedCountValidationRule } from './../common-validation';
+import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule, codeValidationRule, cartValueValidationRule, valueValidationRule, typeValidationRule, priceTypeValidationRule, validToValidationRule, quantityValidationRule, validFromValidationRule, maxDiscountValidationRule, redeemedCountValidationRule, socialTypeValidationRule } from './../common-validation';
 import { ContentType } from '../../common';
 import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
@@ -329,4 +329,11 @@ export const publicReviewApiValidator = [
     nameValidationRule,
     emailValidationRule,
     descriptionValidationRule,
+]
+
+export const socialLoginApiValidator = [
+    socialTypeValidationRule,
+    deviceIDValidationRule,
+    notificationTokenValidationRule,
+    devicePlatformValidationRule
 ]

@@ -1,3 +1,4 @@
+import { SocialAccount } from './../database/models/user.model';
 
 import { body } from "express-validator";
 import { AccountType } from "../database/models/user.model";
@@ -12,11 +13,7 @@ export enum LogInWith {
     PHONE = "phone",
     SOCIAL = "social"
 }
-export enum SocialAccount {
-    FACEBOOK = "facebook",
-    GOOGLE = "google",
-    APPLE = "apple",
-}
+
 
 export enum DevicePlatform {
     IOS = 'ios',
@@ -28,6 +25,7 @@ const AccountTypeValues = Object.values(AccountType);
 const DevicePlatformValues = Object.values(DevicePlatform);
 const SubscriptionDurationValues = Object.values(SubscriptionDuration);
 const CurrencyCodeValues = Object.values(CurrencyCode);
+const SocialAccountValues = Object.values(SocialAccount);
 export const accountTypeValidationRule = body("accountType", "Account type is required field.").exists().bail().notEmpty().bail().isIn(AccountTypeValues).withMessage(`Account type must be in  ${AccountTypeValues.join(' | ')}`);
 export const emailValidationRule = body("email", "Email is a required field.").exists().bail().notEmpty().bail().isEmail().withMessage("Please enter valid email address.");
 export const phoneNumberValidationRule = body("phoneNumber", "Phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
@@ -60,7 +58,7 @@ export const notificationTokenValidationRule = body("notificationToken", `Notifi
 
 export const loginWithValidationRule = body("loginWith", "Login With is required field.").exists().bail().notEmpty().bail().isIn([LogInWith.EMAIL, LogInWith.PHONE, LogInWith.SOCIAL]).withMessage(`Login With must be in type of ${LogInWith.EMAIL} | ${LogInWith.PHONE} | ${LogInWith.SOCIAL}`);
 export const socialUIdValidationRule = body("socialUID", `Social UID is a required field.`).exists().bail().notEmpty().bail();
-export const socialTypeValidationRule = body("socialType", "Social Type is required field.").exists().bail().notEmpty().bail().isIn([SocialAccount.APPLE, SocialAccount.FACEBOOK, SocialAccount.GOOGLE]).withMessage(`Social Type must '${SocialAccount.APPLE}' | '${SocialAccount.FACEBOOK}' | '${SocialAccount.GOOGLE}'.`);
+export const socialTypeValidationRule = body("socialType", "Social Type is required field.").exists().bail().notEmpty().bail().isIn(SocialAccountValues).withMessage(`Social Type must '${SocialAccountValues.join(' | ')}}'.`);
 
 /**
  * Address Validation Rules for API's
