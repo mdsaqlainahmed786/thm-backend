@@ -47,7 +47,6 @@ class SocialProviders {
                 clientSecret: clientSecret
             };
             const tokenResponse = await appleSignin.getAuthorizationToken(code, options);
-
             const payload = await this.verifyAppleToken(tokenResponse.id_token);
             this.validateTokenProperties(payload);
             return payload;
