@@ -1,8 +1,9 @@
 import { Schema, Document, model, Types } from "mongoose";
-import { ILocation, LocationSchema } from "./common.model";
+import { AddressSchema, ILocation, LocationSchema } from "./common.model";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
+import { Address } from "./common.model";
 export enum PostType {
     POST = "post",
     REVIEW = "review",
@@ -31,30 +32,29 @@ export const ReviewQuestionSchema = new Schema<ReviewQuestion>(
     }
 );
 
-
-
-
-interface IReview extends Document {
-    postID: { type: Schema.Types.ObjectId, ref: "Post" },
+interface Customer {
     userID?: MongoID;
     businessProfileID?: MongoID;
+    name: string;
+    email: string;
+}
+interface Business {
     reviewedBusinessProfileID?: MongoID;//used as a review id
+    businessName: string
+    placeID: string;//used to map google business account or rating purpose
+    address: Address,
+}
+
+
+interface IReview extends Customer, Business, Document {
+    postID: { type: Schema.Types.ObjectId, ref: "Post" },
     content: string;
     isPublished: boolean;
     media: MongoID[];
     rating: number;
-    // placeID: string;//used to map google business account or rating purpose
     reviews: ReviewQuestion[];
     createdAt: Date;
     updatedAt: Date;
-
-
-
-
-    // name: { type: String },
-    // placeID: { type: String },
-    // address: AddressSchema,
-
 }
 
 const ReviewSchema: Schema = new Schema<IReview>(
@@ -67,9 +67,20 @@ const ReviewSchema: Schema = new Schema<IReview>(
             type: Schema.Types.ObjectId,
             ref: "BusinessProfile"
         },
+        name: { type: String, },
+        email: { type: String, lowercase: true, match: [/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, "email is invalid."], },
         reviewedBusinessProfileID: {
             type: Schema.Types.ObjectId,
             ref: "BusinessProfile"
+        },
+        postID: {
+            type: Schema.Types.ObjectId,
+            ref: "Post"
+        },
+        businessName: { type: String, },
+        address: AddressSchema,
+        placeID: {
+            type: String,
         },
         content: {
             type: String,
@@ -85,9 +96,6 @@ const ReviewSchema: Schema = new Schema<IReview>(
         rating: {
             type: Number,
         },
-        // placeID: {
-        //     type: String,
-        // },
         reviews: [ReviewQuestionSchema]
     },
     {

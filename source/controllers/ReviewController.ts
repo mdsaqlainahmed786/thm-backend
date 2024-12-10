@@ -6,43 +6,13 @@ import Subscription from "../database/models/subscription.model";
 import Post, { PostType, Review } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import BusinessReviewQuestion from '../database/models/businessReviewQuestion.model';
-import NotIndexedReview from '../database/models/notIndexedReview.model';
 import User from "../database/models/user.model";
+import ReviewModel from "../database/models/reviews.model";
+import BusinessProfile from "../database/models/businessProfile.model";
+import EncryptionService from "../services/EncryptionService";
+const encryptionService = new EncryptionService();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // let { pageNumber, documentLimit, query }: any = request.query;
-        // const dbQuery = {};
-        // pageNumber = parseQueryParam(pageNumber, 1);
-        // documentLimit = parseQueryParam(documentLimit, 20);
-        // if (query !== undefined && query !== "") {
-        //     Object.assign(dbQuery,
-        //         {
-        //             $or: [
-        //                 { DTNAME: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //                 { DTABBR: { $regex: new RegExp(query.toLowerCase(), "i") } },
-        //             ]
-        //         }
-        //     )
-        // }
-        // const documents = await DeathCode.aggregate(
-        //     [
-        //         {
-        //             $match: dbQuery
-        //         },
-        //         {
-        //             $sort: { _id: -1 }
-        //         },
-        //         {
-        //             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        //         },
-        //         {
-        //             $limit: documentLimit
-        //         },
-        //     ]
-        // ).exec();
-        // const totalDocument = await DeathCode.find(dbQuery).countDocuments();
-        // const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        // return response.send(httpOkExtended(documents, 'Death code fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -139,33 +109,44 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             validateReviewJSON = [];
         }
 
-        const newPost = new Post();
-        newPost.postType = PostType.REVIEW;
-        newPost.userID = id;
-        newPost.content = content;// Review for business
+        //IF business profile id is 
+        let postID = null;
         if (businessProfileID !== undefined && businessProfileID !== "") {
+            const newPost = new Post();
+            newPost.postType = PostType.REVIEW;
+            newPost.userID = id;
+            newPost.content = content;// Review for business
             newPost.reviewedBusinessProfileID = businessProfileID;
             newPost.isPublished = true;
+            newPost.location = null;
+            newPost.tagged = [];
+            newPost.media = [];
+            newPost.placeID = placeID ?? "";
+            newPost.reviews = validateReviewJSON;
+            newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+            const savedPost = await newPost.save();
+            postID = savedPost.id;
         }
-        newPost.location = null;
-        newPost.tagged = [];
-        newPost.media = [];
-        newPost.placeID = placeID ?? "";
-        newPost.reviews = validateReviewJSON;
-        newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
-        const savedPost = await newPost.save();
-        /*** Only for individual account
+        /*** 
+         * Only for individual account
          * 
          **/
-        if (savedPost && !businessProfileID && hasNotIndexed) {
-            //This is not indexed review
-            const newNotIndexedReview = new NotIndexedReview();
-            newNotIndexedReview.postID = savedPost.id;
-            newNotIndexedReview.userID = id;
-            newNotIndexedReview.name = name;
-            newNotIndexedReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, }
-            await newNotIndexedReview.save();
+        const newReview = new ReviewModel();
+        newReview.postID = postID;
+        newReview.userID = id;
+        newReview.content = content;// Review for business
+        if (businessProfileID !== undefined && businessProfileID !== "") {
+            newReview.reviewedBusinessProfileID = businessProfileID;
+            newReview.isPublished = true;
+        } else {
+            newReview.businessName = name;
+            newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
         }
+        newReview.media = [];
+        newReview.placeID = placeID ?? "";
+        newReview.reviews = validateReviewJSON;
+        newReview.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+        const savedReview = await newReview.save();
         if (!haveSubscription && accountType === AccountType.INDIVIDUAL) {
             if (!dailyContentLimit) {
                 const today = new Date();
@@ -183,44 +164,25 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 await dailyContentLimit.save();
             }
         }
-        return response.send(httpCreated(savedPost, 'Your review is published successfully'));
+        return response.send(httpCreated(savedReview, 'Your review is published successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // const ID = request?.params?.id;
-        // const { DTCODE, DTNAME, DTABBR } = request.body;
-        // const deathCode = await DeathCode.findOne({ _id: ID });
-        // if (!deathCode) {
-        //     return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Death code not found."), "Death code not found."));
-        // }
-        // deathCode.DTCODE = DTCODE ?? deathCode.DTCODE;
-        // deathCode.DTNAME = DTNAME ?? deathCode.DTNAME;
-        // deathCode.DTABBR = DTABBR ?? deathCode.DTABBR;
-        // const savedDeathCode = await deathCode.save();
-        // return response.send(httpAcceptedOrUpdated(savedDeathCode, 'Death code updated.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // const ID = request?.params?.id;
-        // const deathCode = await DeathCode.findOne({ _id: ID });
-        // if (!deathCode) {
-        //     return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Death code not found."), "Death code not found."));
-        // }
-        // await deathCode.deleteOne();
-        // return response.send(httpNoContent(null, 'Death code deleted.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk(null, "Not implemented"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -228,11 +190,16 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
 
 const publicReview = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { name, email, content, businessProfileID, placeID, reviews } = request.body;
+        const { name, email, content, id, placeID, reviews } = request.body;
         if (reviews === undefined || reviews === "") {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Reviews is required field"), "Reviews is required field"));
         }
         const user = await User.findOne({ email: email });
+        const businessProfileID = encryptionService.decrypt(id as string);
+        const businessProfile = await BusinessProfile.findOne({ _id: businessProfileID });
+        if (!businessProfile) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
         let validateReviewJSON: Review[] = [];
         await Promise.all(JSON.parse(reviews).map(async (review: Review) => {
             if (review.questionID !== "not-indexed") {
@@ -254,16 +221,16 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         if (hasNotIndexed) {
             validateReviewJSON = [];
         }
-        //IF user is register with us
+        const newReview = new ReviewModel();
+
+        //IF user is register with us then create a post with review 
         if (user && user.accountType === AccountType.INDIVIDUAL) {
             const newPost = new Post();
             newPost.postType = PostType.REVIEW;
             newPost.userID = user.id;
             newPost.content = content;// Review for business
-            if (businessProfileID !== undefined && businessProfileID !== "") {
-                newPost.reviewedBusinessProfileID = businessProfileID;
-                newPost.isPublished = true;
-            }
+            newPost.reviewedBusinessProfileID = businessProfile.id;
+            newPost.isPublished = true;
             newPost.location = null;
             newPost.tagged = [];
             newPost.media = [];
@@ -271,8 +238,26 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
             newPost.reviews = validateReviewJSON;
             newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
             const savedPost = await newPost.save();
-            return response.send(httpOk(savedPost, "Thanks for your review"));
+
+            //Map post id in review collection
+            newReview.postID = savedPost.id;
         }
+        if (user) {
+            newReview.userID = user.id;
+        } else {
+            newReview.email = email;
+            newReview.name = name;
+        }
+        newReview.content = content;// Review for business
+        newReview.reviewedBusinessProfileID = businessProfile.id;
+        if (newReview.postID) {
+            newReview.isPublished = true;
+        }
+        newReview.media = [];
+        newReview.placeID = placeID ?? "";
+        newReview.reviews = validateReviewJSON;
+        newReview.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+        const savedReview = await newReview.save();
         return response.send(httpOk(null, "Thanks for your review"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

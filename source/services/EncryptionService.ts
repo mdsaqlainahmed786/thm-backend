@@ -11,7 +11,7 @@ class EncryptionService {
         this.algorithm = AppConfig.ENCRYPTION.ALGORITHM;
     }
 
-    private encrypt(data: string): string {
+    public encrypt(data: string): string {
         const cipher = crypto.createCipheriv(this.algorithm, Buffer.from(this.key), Buffer.from(this.iv));
         let encrypted = cipher.update(data, 'utf8', 'base64');
         encrypted += cipher.final('base64');

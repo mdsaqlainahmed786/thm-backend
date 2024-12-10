@@ -109,7 +109,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
 
 const socialLogin = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken } = request.body;
+        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken, name } = request.body;
 
         let isDocumentUploaded = true;
         let hasAmenities = true;
@@ -232,7 +232,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     newUser.profilePic = { small: '', large: '', medium: '' };
                     newUser.username = username;
                     newUser.email = email;
-                    newUser.name = username;
+                    newUser.name = name ?? username;
                     newUser.accountType = AccountType.INDIVIDUAL;
                     newUser.dialCode = dialCode;
                     newUser.phoneNumber = phoneNumber;

@@ -7,13 +7,14 @@ import UserController from "../../controllers/UserController";
 import authenticateUser from "../../middleware/authenticate";
 import SubscriptionController from "../../controllers/SubscriptionController";
 import ReviewController from "../../controllers/ReviewController";
+import { publicReviewApiValidator } from "./../../validation/rules/api-validation";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/feed', authenticateUser, HomeController.feed);
 HomeEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessByPlaceID);
 
 // Public profile and review
 HomeEndpoints.get('/business/profile-profile/:encryptedID', HomeController.getBusinessPublicProfile);
-HomeEndpoints.post('/business/review', ReviewController.publicReview)
+HomeEndpoints.post('/business/review', publicReviewApiValidator, validateRequest, ReviewController.publicReview)
 
 HomeEndpoints.get('/business-types', HomeController.businessTypes);
 HomeEndpoints.get('/business-subtypes/:id', HomeController.businessSubTypes);

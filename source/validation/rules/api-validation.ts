@@ -328,7 +328,8 @@ export const createPromoCodeApiValidator = [
 export const publicReviewApiValidator = [
     nameValidationRule,
     emailValidationRule,
-    descriptionValidationRule,
+    body("content", "Review is required field.").exists().bail().notEmpty().bail(),
+    body("id", "Business ID is required field.").exists().bail().notEmpty().bail(),
 ]
 
 export const socialLoginApiValidator = [
