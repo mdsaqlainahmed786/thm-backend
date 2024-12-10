@@ -67,3 +67,12 @@ export interface BillingAddress {
 // }
 
 // type ContentType = PostType | Content;
+
+
+export type AppleSignInCredentials = {
+    privateKey: string;
+    teamId: string;
+    keyId: string;
+    clientId: string;
+}
+

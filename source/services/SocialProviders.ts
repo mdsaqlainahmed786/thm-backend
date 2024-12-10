@@ -1,15 +1,19 @@
 
 import { OAuth2Client, TokenPayload, LoginTicket } from 'google-auth-library';
-import appleSignin, { AppleIdTokenType } from 'apple-signin-auth';
+import appleSignin, { AppleIdTokenType, } from 'apple-signin-auth';
+import { AppConfig } from '../config/constants';
 const googleOAuth2Client = new OAuth2Client();
-// const clientSecret = appleSignin.getClientSecret({
-//     clientID: 'com.company.app', // Apple Client ID
-//     teamID: 'teamID', // Apple Developer Team ID.
-//     privateKey: 'PRIVATE_KEY_STRING', // private key associated with your client ID. -- Or provide a `privateKeyPath` property instead.
-//     keyIdentifier: 'XXX', // identifier of the private key.
-//     // OPTIONAL
-//     expAfter: 15777000, // Unix time in seconds after which to expire the clientSecret JWT. Default is now+5 minutes.
-// });
+const currentUnixTime = Math.floor(Date.now() / 1000);
+const expirationDurationInSeconds = 600; // 10 minutes 
+const expAfter = currentUnixTime + expirationDurationInSeconds;
+const clientSecret = appleSignin.getClientSecret({
+    clientID: AppConfig.APPLE.CLIENT_ID,
+    teamID: AppConfig.APPLE.TEAM_ID,
+    privateKey: AppConfig.APPLE.PRIVATE_KEY,
+    keyIdentifier: AppConfig.APPLE.KEY_IDENTIFIER,
+    // OPTIONAL
+    // expAfter: expAfter, // Unix time in seconds after which to expire the clientSecret JWT. Default is now+5 minutes.
+});
 class SocialProviders {
     /**
        * Verifies the ID token and returns user data from the payload.
@@ -35,17 +39,54 @@ class SocialProviders {
         }
         return payload;
     }
-    static async verifyAppleToken(token: string): Promise<AppleIdTokenType> {
-        const payload = await appleSignin.verifyIdToken(token, {
-            // Optional Options for further verification - Full list can be found here https://github.com/auth0/node-jsonwebtoken#jwtverifytoken-secretorpublickey-options-callback
-            audience: 'com.company.app', // client id - can also be an array
-            nonce: 'NONCE', // nonce // Check this note if coming from React Native AS RN automatically SHA256-hashes the nonce https://github.com/invertase/react-native-apple-authentication#nonce
-            // If you want to handle expiration on your own, or if you want the expired tokens decoded
-            ignoreExpiration: true, // default is false
-        });
-        return payload;
-    }
+    static async getAppleAuthorizationToken(code: string) {
+        try {
+            const options = {
+                clientID: AppConfig.APPLE.CLIENT_ID, // Apple Client ID
+                redirectUri: '/auth/apple/callback', // use the same value which you passed to authorisation URL.
+                clientSecret: clientSecret
+            };
+            const tokenResponse = await appleSignin.getAuthorizationToken(code, options);
 
+            const payload = await this.verifyAppleToken(tokenResponse.id_token);
+            this.validateTokenProperties(payload);
+            return payload;
+        } catch (error) {
+            throw error;
+        }
+
+    }
+    private static async verifyAppleToken(token: string): Promise<AppleIdTokenType> {
+        try {
+            const payload = await appleSignin.verifyIdToken(token, {
+                // Optional Options for further verification - Full list can be found here https://github.com/auth0/node-jsonwebtoken#jwtverifytoken-secretorpublickey-options-callback
+                clientID: AppConfig.APPLE.CLIENT_ID, // client id - can also be an array
+                // nonce: 'NONCE', // Check this note if coming from React Native AS RN automatically SHA256-hashes the nonce https://github.com/invertase/react-native-apple-authentication#nonce
+                // If you want to handle expiration on your own, or if you want the expired tokens decoded
+                ignoreExpiration: true, // default is false
+            });
+            return payload;
+        } catch (error) {
+            throw error;
+        }
+    }
+    static validateTokenProperties(payload: AppleIdTokenType) {
+        if (!payload.iss.includes('https://appleid.apple.com')) {
+            throw new Error('Token issuer is invalid.');
+        }
+        if (payload.aud !== AppConfig.APPLE.CLIENT_ID) {
+            throw new Error('Token audience is invalid.');
+        }
+        if (!payload.sub) {
+            throw new Error('Token subject is invalid.');
+        }
+        if (!payload.email_verified) {
+            throw new Error('Email not verified.');
+        }
+        // if (payload.nonce && payload.nonce !== clientNonce) {
+        //     throw new AppleAuthError('Nonce is invalid.');
+        // }
+    }
 
 
 }

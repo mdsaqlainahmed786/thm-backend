@@ -67,6 +67,12 @@ export abstract class AppConfig {
         IV: process.env.IV!,
         ALGORITHM: process.env.ALGORITHM!,
     }
+    static readonly APPLE = {
+        CLIENT_ID: process.env.APPLE_CLIENT_ID!,
+        PRIVATE_KEY: process.env.APPLE_PRIVATE_KEY!,
+        TEAM_ID: process.env.APPLE_TEAM_ID!,
+        KEY_IDENTIFIER: process.env.APPLE_KEY_IDENTIFIER!,
+    }
 }
 
 export abstract class SocketChannel {
