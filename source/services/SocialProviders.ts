@@ -47,15 +47,17 @@ class SocialProviders {
                 clientSecret: clientSecret
             };
             const tokenResponse = await appleSignin.getAuthorizationToken(code, options);
-            const payload = await this.verifyAppleToken(tokenResponse.id_token);
-            this.validateTokenProperties(payload);
-            return payload;
+            if (tokenResponse.id_token) {
+                const payload = await this.verifyAppleToken(tokenResponse.id_token);
+                return payload;
+            }
+            throw new Error((tokenResponse as any).error_description);
         } catch (error) {
             throw error;
         }
 
     }
-    private static async verifyAppleToken(token: string): Promise<AppleIdTokenType> {
+    static async verifyAppleToken(token: string): Promise<AppleIdTokenType> {
         try {
             const payload = await appleSignin.verifyIdToken(token, {
                 // Optional Options for further verification - Full list can be found here https://github.com/auth0/node-jsonwebtoken#jwtverifytoken-secretorpublickey-options-callback
@@ -64,6 +66,7 @@ class SocialProviders {
                 // If you want to handle expiration on your own, or if you want the expired tokens decoded
                 ignoreExpiration: true, // default is false
             });
+            this.validateTokenProperties(payload);
             return payload;
         } catch (error) {
             throw error;

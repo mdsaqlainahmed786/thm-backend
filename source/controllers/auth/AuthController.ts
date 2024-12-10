@@ -219,7 +219,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
         }
         if (socialType === SocialAccount.APPLE) {
             try {
-                const { sub, email } = await SocialProviders.getAppleAuthorizationToken(token);
+                const { sub, email } = await SocialProviders.verifyAppleToken(token);
                 if (!email) {
                     return response.send(httpBadRequest(null, 'Email cannot be null or empty.'))
                 }
