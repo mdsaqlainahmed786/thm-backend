@@ -6,6 +6,7 @@ import { ErrorMessage } from '../../utils/response-message/error';
 import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
 import { addBusinessProfileInUser } from '../../database/models/user.model';
 import { ContentType } from '../../common';
+import Review from '../../database/models/reviews.model';
 const postTypes = Object.values(PostType)
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -89,22 +90,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     }
                 },
                 {
-                    '$lookup': {
-                        'from': 'notindexedreviews',
-                        'let': { 'postID': '$_id' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$eq': ['$postID', '$$postID'] } } },
-                        ],
-                        'as': 'notIndexedReviewsRef'
-                    }
-                },
-                {
-                    '$unwind': {
-                        'path': '$notIndexedReviewsRef',
-                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                    }
-                },
-                {
                     '$unwind': {
                         'path': '$postedBy',
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
@@ -148,7 +133,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
 
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {

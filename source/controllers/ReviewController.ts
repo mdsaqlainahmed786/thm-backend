@@ -187,14 +187,14 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
+//FIXME one review for one email
 const publicReview = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { name, email, content, id, placeID, reviews } = request.body;
         if (reviews === undefined || reviews === "") {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Reviews is required field"), "Reviews is required field"));
         }
-        const user = await User.findOne({ email: email });
+        const user = await User.findOne({ email: email, accountType: AccountType.INDIVIDUAL });
         const businessProfileID = encryptionService.decrypt(id as string);
         const businessProfile = await BusinessProfile.findOne({ _id: businessProfileID });
         if (!businessProfile) {

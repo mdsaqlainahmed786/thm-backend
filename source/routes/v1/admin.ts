@@ -9,6 +9,7 @@ import ReviewQuestionEndpoints from "./admin/review-question";
 import SubscriptionEndpoints from "./admin/subscription";
 import PostEndpoints from "./admin/post";
 import PromoCodeEndpoints from "./admin/promo-code";
+import ReviewEndpoints from "./admin/review";
 const AdminApiEndpoints: Router = express.Router();
 AdminApiEndpoints.use('/auth', AuthEndpoint);
 AdminApiEndpoints.use('/', authenticateUser, isAdministrator, HomeEndpoints);
@@ -18,5 +19,6 @@ AdminApiEndpoints.use('/subscriptions/plans', authenticateUser, isAdministrator,
 AdminApiEndpoints.use('/reports', authenticateUser, isAdministrator, ReportEndpoints);
 AdminApiEndpoints.use('/review-questions', authenticateUser, isAdministrator, ReviewQuestionEndpoints);
 AdminApiEndpoints.use('/posts', authenticateUser, isAdministrator, PostEndpoints);
+AdminApiEndpoints.use('/reviews', authenticateUser, isAdministrator, ReviewEndpoints);
 AdminApiEndpoints.use('/promo-codes', authenticateUser, isAdministrator, PromoCodeEndpoints);
 export default AdminApiEndpoints;
