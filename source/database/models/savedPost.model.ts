@@ -6,7 +6,7 @@ interface ISavedPost extends Document {
     postID: MongoID;
     businessProfileID?: MongoID;
 }
-const LikeSchema: Schema = new Schema<ISavedPost>(
+const SavedPosSchema: Schema = new Schema<ISavedPost>(
     {
         userID: { type: Schema.Types.ObjectId, ref: "User", required: true },
         postID: { type: Schema.Types.ObjectId, ref: "Post", required: true },
@@ -16,11 +16,11 @@ const LikeSchema: Schema = new Schema<ISavedPost>(
         timestamps: true
     }
 );
-LikeSchema.set('toObject', { virtuals: true });
-LikeSchema.set('toJSON', { virtuals: true });
+SavedPosSchema.set('toObject', { virtuals: true });
+SavedPosSchema.set('toJSON', { virtuals: true });
 
 export interface ISavedPostModel extends Model<ISavedPost> {
 }
 
-const SavedPost = model<ISavedPost, ISavedPostModel>('SavedPost', LikeSchema);
+const SavedPost = model<ISavedPost, ISavedPostModel>('SavedPost', SavedPosSchema);
 export default SavedPost;

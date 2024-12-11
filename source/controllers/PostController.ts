@@ -19,6 +19,8 @@ import { ContentType } from '../common';
 import { addCommentsInPost, addLikesInComment, addSharedCountInPost } from '../database/models/comment.model';
 import EventJoin from '../database/models/eventJoin.model';
 import { AwsS3AccessEndpoints } from '../config/constants';
+import Comment from '../database/models/comment.model';
+import Review from '../database/models/reviews.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -170,8 +172,36 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+//FIXME remove media, comments , likes and notifications and reviews and many more need to be test 
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const { id, accountType, businessProfileID } = request.user;
+        const ID = request?.params?.id;
+        const post = await Post.findOne({ _id: ID });
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+        }
+        console.log(id);
+        console.log(post.userID);
+        if (post.userID.toString() !== id) {
+            return response.send(httpBadRequest(httpBadRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+        }
+        console.log('dddd')
+        const likes = await Like.deleteMany({ postID: ID });
+        console.log('likes', likes);
+        const comments = await Comment.deleteMany({ postID: ID });
+        console.log('comments', comments);
+        const savedPosts = await SavedPost.deleteMany({ postID: ID });
+        console.log('savedPosts', savedPosts);
+        const reviews = await Review.deleteMany({ postID: ID });
+        console.log('reviews', reviews);
+        const reportedContent = await Report.deleteMany({ contentID: ID, contentType: ContentType.POST });
+        console.log('reportedContent', reportedContent)
+        const eventJoins = await EventJoin.deleteMany({ postID: ID });
+        console.log('eventJoins', eventJoins);
+        await post.deleteOne();
+        return response.send(httpNoContent(null, 'Post deleted'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

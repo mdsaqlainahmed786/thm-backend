@@ -9,6 +9,7 @@ import { validate } from "node-cron";
 import SavedPostController from "../../controllers/SavedPostController";
 import CommentController from "../../controllers/CommentController";
 import ReportController from "../../controllers/ReportController";
+import Post from "../../database/models/post.model";
 
 const PostEndpoints: Router = express.Router();
 /**
@@ -30,4 +31,5 @@ PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeC
 //Posts
 PostEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
+PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);
 export default PostEndpoints;
