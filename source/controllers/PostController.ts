@@ -9,7 +9,7 @@ import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, add
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
-import { MediaType } from '../database/models/media.model';
+import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import SharedContent from '../database/models/sharedContent.model';
 import Like, { addLikesInPost } from '../database/models/like.model';
@@ -21,6 +21,8 @@ import EventJoin from '../database/models/eventJoin.model';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import Comment from '../database/models/comment.model';
 import Review from '../database/models/reviews.model';
+import S3Service from '../services/S3Service';
+const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -173,7 +175,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
     }
 }
 
-//FIXME remove media, comments , likes and notifications and reviews and many more need to be test 
+//FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test 
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -182,23 +184,36 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         if (!post) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
         }
-        console.log(id);
-        console.log(post.userID);
         if (post.userID.toString() !== id) {
             return response.send(httpBadRequest(httpBadRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
         }
-        console.log('dddd')
-        const likes = await Like.deleteMany({ postID: ID });
+        const mediaIDs = post.media;
+        if (mediaIDs.length !== 0) {
+            await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
+                const media = await Media.findOne({ _id: mediaID });
+                if (media) {
+                    await s3Service.deleteS3Object(media.s3Key);
+                    if (media.thumbnailUrl) {
+                        await s3Service.deleteS3Asset(media.thumbnailUrl);
+                    }
+                    await media.deleteOne();
+                }
+                return mediaID;
+            }));
+        }
+        const [likes, comments, savedPosts, reviews, reportedContent, eventJoins] = await Promise.all([
+            Like.deleteMany({ postID: ID }),
+            Comment.deleteMany({ postID: ID }),
+            SavedPost.deleteMany({ postID: ID }),
+            Review.deleteMany({ postID: ID }),
+            Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
+            EventJoin.deleteMany({ postID: ID }),
+        ]);
         console.log('likes', likes);
-        const comments = await Comment.deleteMany({ postID: ID });
         console.log('comments', comments);
-        const savedPosts = await SavedPost.deleteMany({ postID: ID });
         console.log('savedPosts', savedPosts);
-        const reviews = await Review.deleteMany({ postID: ID });
         console.log('reviews', reviews);
-        const reportedContent = await Report.deleteMany({ contentID: ID, contentType: ContentType.POST });
         console.log('reportedContent', reportedContent)
-        const eventJoins = await EventJoin.deleteMany({ postID: ID });
         console.log('eventJoins', eventJoins);
         await post.deleteOne();
         return response.send(httpNoContent(null, 'Post deleted'));

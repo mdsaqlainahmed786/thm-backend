@@ -40,6 +40,10 @@ class S3Service {
         });
         return await this.s3Client.send(deleteCommand);
     }
+    async deleteS3Asset(assetLink: string) {
+        const s3Key = await this.extractS3Key(assetLink);
+        return await this.deleteS3Object(s3Key);
+    }
     async putS3Object(body: StreamingBlobPayloadInputTypes, contentType: string, path: string): Promise<CompleteMultipartUploadCommandOutput> {
         const upload = new Upload({
             client: this.s3Client,
@@ -60,6 +64,29 @@ class S3Service {
         });
         // Generate the presigned URL, valid for 1 hour (3600 seconds)
         return await getSignedUrl(this.s3Client, command);
+    }
+    private async extractS3Key(url: string) {
+        let s3Key = '';
+        // Check if the URL is in s3:// format
+        if (url.startsWith('s3://')) {
+            // Remove the s3:// prefix and extract everything after the bucket name
+            s3Key = url.slice(5);  // Remove 's3://' prefix
+        } else if (url.startsWith('https://')) {
+            // Use RegExp to extract the key after the bucket name
+            const regex = /^https:\/\/([^/]+)\.s3\.[a-z0-9-]+\.amazonaws\.com\/(.*)$/;
+            const match = url.match(regex);
+            if (match) {
+                s3Key = match[2];  // The part after the bucket name
+                // Remove any query parameters or fragments (optional)
+                s3Key = s3Key.split('?')[0].split('#')[0];  // Remove any query or fragment
+            } else {
+                throw new Error('Invalid S3 URL format.');
+            }
+        } else {
+            throw new Error('Invalid URL format.');
+        }
+
+        return s3Key;
     }
 }
 
