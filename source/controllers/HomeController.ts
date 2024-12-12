@@ -132,7 +132,8 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
 
 }
 
-const getBusinessByPlaceID = async (request: Request, response: Response, next: NextFunction) => {
+//Fetch business based on google place id 
+const getBusinessProfileByPlaceID = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { placeID } = request.params;
         let parsedQuerySet = request.query;
@@ -253,7 +254,9 @@ const getBusinessByPlaceID = async (request: Request, response: Response, next: 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-const getBusinessPublicProfile = async (request: Request, response: Response, next: NextFunction) => {
+
+//Fetch business profile by encrypted business profile id
+const getBusinessProfileByID = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { encryptedID } = request.params;
         const decryptedBusinessProfileID = encryptionService.decrypt(encryptedID as string);
@@ -445,7 +448,7 @@ const transactions = async (request: Request, response: Response, next: NextFunc
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessByPlaceID, getBusinessPublicProfile, insights, collectData, transactions };
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions };
 
 
 function createChartLabels(filter: string) {

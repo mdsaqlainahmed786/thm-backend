@@ -22,7 +22,7 @@ ApiEndpoints.use('/faqs', FAQEndpoints);
 ApiEndpoints.use('/user', authenticateUser, UserConnectionEndpoints);
 ApiEndpoints.use('/user', authenticateUser, UserEndpoints);
 ApiEndpoints.use('/posts', authenticateUser, PostEndpoints);
-ApiEndpoints.use('/reviews', authenticateUser, ReviewEndpoints);
+ApiEndpoints.use('/reviews', ReviewEndpoints);
 ApiEndpoints.use('/events', authenticateUser, EventEndpoints);
 ApiEndpoints.use('/story', authenticateUser, StoryEndpoints);
 ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);

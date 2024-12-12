@@ -10,6 +10,12 @@ import User from "../database/models/user.model";
 import ReviewModel from "../database/models/reviews.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import EncryptionService from "../services/EncryptionService";
+import { MongoID } from "../common";
+import DevicesConfig from "../database/models/appDeviceConfig.model";
+import { v4 } from "uuid";
+import { Message } from "firebase-admin/lib/messaging/messaging-api";
+import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
+import { NotificationType } from "../database/models/notification.model";
 const encryptionService = new EncryptionService();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -21,11 +27,10 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const MAXIMUM_REVIEWS_PER_DAY = 3;
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
-
         const { id, accountType } = request.user;
         const { content, businessProfileID, placeID, reviews, city, state, zipCode, country, lat, lng, name, street } = request.body;
-
-        if (!accountType && !id) {
+        const userdata = await User.findOne({ _id: id });
+        if (!userdata) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         if (content === undefined || content === "") {
@@ -111,6 +116,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 
         //IF business profile id is 
         let postID = null;
+        const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
         if (businessProfileID !== undefined && businessProfileID !== "") {
             const newPost = new Post();
             newPost.postType = PostType.REVIEW;
@@ -123,7 +129,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newPost.media = [];
             newPost.placeID = placeID ?? "";
             newPost.reviews = validateReviewJSON;
-            newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+            newPost.rating = finalRating;
             const savedPost = await newPost.save();
             postID = savedPost.id;
         }
@@ -138,6 +144,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (businessProfileID !== undefined && businessProfileID !== "") {
             newReview.reviewedBusinessProfileID = businessProfileID;
             newReview.isPublished = true;
+            sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
         } else {
             newReview.businessName = name;
             newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
@@ -145,7 +152,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newReview.media = [];
         newReview.placeID = placeID ?? "";
         newReview.reviews = validateReviewJSON;
-        newReview.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+        newReview.rating = finalRating;
         const savedReview = await newReview.save();
         if (!haveSubscription && accountType === AccountType.INDIVIDUAL) {
             if (!dailyContentLimit) {
@@ -224,6 +231,7 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         const newReview = new ReviewModel();
 
         //IF user is register with us then create a post with review 
+        const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
         if (user && user.accountType === AccountType.INDIVIDUAL) {
             const newPost = new Post();
             newPost.postType = PostType.REVIEW;
@@ -236,17 +244,18 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
             newPost.media = [];
             newPost.placeID = placeID ?? "";
             newPost.reviews = validateReviewJSON;
-            newPost.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+            newPost.rating = finalRating;
             const savedPost = await newPost.save();
-
             //Map post id in review collection
             newReview.postID = savedPost.id;
         }
         if (user) {
             newReview.userID = user.id;
+            sendReviewNotification(businessProfileID, user.name, finalRating, content);
         } else {
             newReview.email = email;
             newReview.name = name;
+            sendReviewNotification(businessProfileID, name, finalRating, content);
         }
         newReview.content = content;// Review for business
         newReview.reviewedBusinessProfileID = businessProfile.id;
@@ -256,11 +265,33 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         newReview.media = [];
         newReview.placeID = placeID ?? "";
         newReview.reviews = validateReviewJSON;
-        newReview.rating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+        newReview.rating = finalRating;
         const savedReview = await newReview.save();
         return response.send(httpOk(null, "Thanks for your review"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+/* FIXME here need to be change App Notification model 
+**  because this is not flexible
+*/
+const sendReviewNotification = async (businessProfileID: MongoID, name: string, rating: number, review: string) => {
+    try {
+        const userIDs = await User.distinct('_id', { businessProfileID: businessProfileID });
+        const devicesConfigs = await DevicesConfig.find({ userID: { $in: userIDs } });
+        await Promise.all(devicesConfigs.map(async (devicesConfig) => {
+            if (devicesConfig && devicesConfig.notificationToken) {
+                const notificationID = v4();
+                const title = 'Congratulations 🎉 You’ve received a new rating!';
+                const description = `You’ve got a new rating! **${name}** rated you ${rating} stars.\nFeedback: '${review}'`;
+                const type = NotificationType.REVIEW;
+                const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
+                await sendNotification(message);
+            }
+            return devicesConfig;
+        }));
+    } catch (error) {
+        console.error("Error sending one or more notifications:", error);
     }
 }
 export default { index, store, update, destroy, publicReview };

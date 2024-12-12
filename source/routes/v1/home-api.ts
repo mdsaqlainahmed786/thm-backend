@@ -10,11 +10,9 @@ import ReviewController from "../../controllers/ReviewController";
 import { publicReviewApiValidator } from "./../../validation/rules/api-validation";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/feed', authenticateUser, HomeController.feed);
-HomeEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessByPlaceID);
 
-// Public profile and review
-HomeEndpoints.get('/business/profile-profile/:encryptedID', HomeController.getBusinessPublicProfile);
-HomeEndpoints.post('/business/review', publicReviewApiValidator, validateRequest, ReviewController.publicReview)
+HomeEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessProfileByPlaceID);
+HomeEndpoints.get('/get-business/public/:encryptedID', HomeController.getBusinessProfileByID);
 
 HomeEndpoints.get('/business-types', HomeController.businessTypes);
 HomeEndpoints.get('/business-subtypes/:id', HomeController.businessSubTypes);
