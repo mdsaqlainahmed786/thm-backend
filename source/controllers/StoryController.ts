@@ -16,7 +16,6 @@ import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import UserConnection from '../database/models/userConnection.model';
 const s3Service = new S3Service();
-///TODO Pending views for stories and comments 
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;

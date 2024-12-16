@@ -6,5 +6,6 @@ import { diskUpload, s3Upload } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 const EventEndpoints: Router = express.Router();
 EventEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 1, }]), createEventApiValidator, validateRequest, EventController.store);
+EventEndpoints.put('/:id', diskUpload.fields([{ name: 'images', maxCount: 1, }]), EventController.update);
 EventEndpoints.post('/join', joinEventApiValidator, validateRequest, EventController.joinEvent);
 export default EventEndpoints;
