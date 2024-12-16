@@ -24,7 +24,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const dbQuery = { isPublished: true, _id: { $in: savedByMe } };
+        const dbQuery = { isPublished: true, isDeleted: false, _id: { $in: savedByMe } };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()

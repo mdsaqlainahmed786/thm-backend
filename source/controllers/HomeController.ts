@@ -40,7 +40,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         //Only shows public profile post here and follower posts
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true };
+        const dbQuery = { isPublished: true, isDeleted: false };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         if (query !== undefined && query !== "") {

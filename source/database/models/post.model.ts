@@ -53,6 +53,7 @@ interface IPost extends IReview, IEvent, Document {
     postType: PostType;
     content: string;
     isPublished: boolean;
+    isDeleted: boolean;
     location: ILocation | null;
     media: MongoID[];
     tagged: MongoID[];
@@ -85,6 +86,10 @@ const PostSchema: Schema = new Schema<IPost>(
             required: true,
         },
         isPublished: {
+            type: Boolean,
+            default: false
+        },
+        isDeleted: {
             type: Boolean,
             default: false
         },
@@ -160,6 +165,7 @@ export function addPostedByInPost() {
                         "businessProfileRef.rating": 1,
                         "businessProfileRef.businessTypeRef": 1,
                         "businessProfileRef.businessSubtypeRef": 1,
+                        "businessProfileRef.address": 1,
                     }
                 }
             ],
@@ -435,4 +441,8 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             }
         ]
     ).exec();
+}
+
+export async function getPostsCount(userID: MongoID) {
+    return Post.find({ userID: userID, isPublished: true, isDeleted: false }).countDocuments()
 }

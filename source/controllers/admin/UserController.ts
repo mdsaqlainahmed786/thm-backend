@@ -4,7 +4,7 @@ import { httpAcceptedOrUpdated, httpBadRequest, httpCreated, httpInternalServerE
 import { ErrorMessage } from "../../utils/response-message/error";
 import { parseQueryParam } from "../../utils/helper/basic";
 import User, { AccountType, addBusinessProfileInUser } from "../../database/models/user.model";
-import Post from '../../database/models/post.model';
+import Post, { getPostsCount } from '../../database/models/post.model';
 import { ConnectionStatus } from './../../database/models/userConnection.model';
 import UserConnection from '../../database/models/userConnection.model';
 import BusinessProfile from '../../database/models/businessProfile.model';
@@ -176,7 +176,7 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                     $limit: 1
                 },
             ]),
-            Post.find({ userID: id }).countDocuments(),
+            getPostsCount(id),
             UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
         ]);

@@ -63,7 +63,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "posts") {
             //FIXME need to add geolocation or mach more
-            Object.assign(dbQuery, { postType: PostType.POST, isPublished: true });
+            Object.assign(dbQuery, { postType: PostType.POST, isPublished: true, isDeleted: false });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             if (businessTypeID && businessTypeID !== '') {
@@ -83,9 +83,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { userID: { $in: userIDs }, isPublished: true }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
                         ]
                     }
                 )
@@ -99,7 +99,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "events") {
-            Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true });
+            Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true, isDeleted: false });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             //FIXME need to add geolocation or mach more
@@ -120,11 +120,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { userID: { $in: userIDs }, isPublished: true }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
                         ]
                     }
                 )
@@ -138,7 +138,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "reviews") {
-            Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true });
+            Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true, isDeleted: false });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             //FIXME need to add geolocation or mach more
@@ -159,9 +159,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                            { userID: { $in: userIDs }, isPublished: true }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
+                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
                         ]
                     }
                 )

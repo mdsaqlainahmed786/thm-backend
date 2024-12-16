@@ -221,6 +221,28 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
+const deletePost = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        const ID = request?.params?.id;
+        const post = await Post.findOne({ _id: ID });
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+        }
+        if (post.userID.toString() !== id) {
+            return response.send(httpBadRequest(httpBadRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+        }
+        post.isDeleted = true;
+        await post.save();
+        return response.send(httpNoContent(null, 'Post deleted'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const postID = request?.params?.id;
@@ -326,4 +348,5 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
 
 
 
-export default { index, store, update, destroy, show };
+
+export default { index, store, update, destroy, deletePost, show };

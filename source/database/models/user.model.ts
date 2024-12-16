@@ -7,7 +7,7 @@ import { isArray } from "../../utils/helper/basic";
 import { IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
-import Post from "./post.model";
+import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
 import { ObjectId } from "mongodb";
@@ -516,7 +516,7 @@ export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
                 }
             }
         ]),
-        Post.find({ userID: userID }).countDocuments(),
+        getPostsCount(userID),
         UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
         UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
         UserConnection.findOne({ following: userID, follower: id, }),

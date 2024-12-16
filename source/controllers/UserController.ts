@@ -12,7 +12,7 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
-import Post, { fetchPosts, PostType } from '../database/models/post.model';
+import Post, { fetchPosts, PostType, getPostsCount } from '../database/models/post.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
@@ -115,7 +115,7 @@ const profile = async (request: Request, response: Response, next: NextFunction)
                 ]
             ),
             calculateProfileCompletion(id),
-            Post.find({ userID: id }).countDocuments(),
+            getPostsCount(id),
             UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserConnection.find({ follower: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
             UserAddress.findOne({ userID: id })
