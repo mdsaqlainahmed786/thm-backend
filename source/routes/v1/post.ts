@@ -32,5 +32,6 @@ PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeC
 PostEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
 PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);
-PostEndpoints.delete('/:id/soft', paramIDValidationRule, validateRequest, PostController.deletePost)
+PostEndpoints.delete('/:id/soft', paramIDValidationRule, validateRequest, PostController.deletePost);
+PostEndpoints.put("/:id", diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), paramIDValidationRule, validateRequest, PostController.update);
 export default PostEndpoints;
