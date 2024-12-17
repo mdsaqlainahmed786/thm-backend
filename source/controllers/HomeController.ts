@@ -5,7 +5,7 @@ import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
-import { parseQueryParam } from "../utils/helper/basic";
+import { parseQueryParam, randomColor } from "../utils/helper/basic";
 import Post, { fetchPosts, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
@@ -34,6 +34,7 @@ import Comment from "../database/models/comment.model";
 import SharedContent from "../database/models/sharedContent.model";
 import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTypeSeeder";
 import EncryptionService from "../services/EncryptionService";
+import sharp from 'sharp';
 const encryptionService = new EncryptionService();
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -448,7 +449,26 @@ const transactions = async (request: Request, response: Response, next: NextFunc
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions };
+const createThumbnail = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        let { letter, color }: any = request.query;
+        const svg = `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100%" height="100%" fill="${color ? '#' + color : randomColor()}" />
+            <text x="50%" y="50%" font-size="150" font-weight="500" text-anchor="middle" fill="white" dy=".3em" font-family="Roboto">${letter?.substring(0, 1)?.toUpperCase() ?? "A"}</text>
+        </svg>`;
+        const svgBuffer = Buffer.from(svg);
+        const pngBuffer = await sharp(svgBuffer).png().toBuffer();
+        response.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': Buffer.byteLength(pngBuffer),
+        });
+        response.write(pngBuffer);
+        return response.end();
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions, createThumbnail };
 
 
 function createChartLabels(filter: string) {

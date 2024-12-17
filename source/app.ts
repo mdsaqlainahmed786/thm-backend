@@ -30,15 +30,6 @@ const options: cors.CorsOptions = {
 App.use(cors(options));
 App.use(`/public`, express.static(path.join(__dirname, "../public")));
 App.use('', ApiEndpoints);
-App.get('/chat-app', function (request: Request, response: Response) {
-    const filePath = path.join(__dirname, "../public/files/index.html");
-    return response.sendFile(filePath);
-})
-
-App.get('/chat-react', function (request: Request, response: Response) {
-    const filePath = path.join(__dirname, "../public/files/index-react.html");
-    return response.sendFile(filePath);
-})
 App.use((request: Request, response: Response, next: NextFunction) => {
     console.log(request.path);
     console.log(request.headers.forwarded)

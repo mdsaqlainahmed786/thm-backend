@@ -175,3 +175,7 @@ export function truncate(string: string, length?: number) {
     let truncatedComment = string ? string : '';
     return truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
 }
+export function randomColor() {
+    const colors = ["#4285F4", "#0F9D58", "#DB4437", "#F4B400", "#9C27B0"];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
