@@ -4,7 +4,7 @@ import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, h
 import { ErrorMessage } from "../../utils/response-message/error";
 import User, { AccountType } from "../../database/models/user.model";
 import { SuccessMessage } from "../../utils/response-message/success";
-import { generateOTP } from "../../utils/helper/basic";
+import { generateOTP, getDefaultProfilePic } from "../../utils/helper/basic";
 import { AppConfig } from "../../config/constants";
 import { AuthenticateUser, Role } from "../../common";
 import { generateAccessToken, generateRefreshToken } from "../../middleware/authenticate";
@@ -126,8 +126,13 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     User.findOne({ email: email }),
                 ]);
                 if (!user) {
+
                     const newUser = new User();
-                    newUser.profilePic = { small: picture ?? '', large: picture ?? '', medium: picture ?? '' };
+                    newUser.profilePic = {
+                        small: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'small'),
+                        large: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'large'),
+                        medium: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+                    };
                     newUser.username = username;
                     newUser.email = email;
                     newUser.name = name;
@@ -229,7 +234,11 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 ]);
                 if (!user) {
                     const newUser = new User();
-                    newUser.profilePic = { small: '', large: '', medium: '' };
+                    newUser.profilePic = {
+                        small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
+                        large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
+                        medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+                    };
                     newUser.username = username;
                     newUser.email = email;
                     newUser.name = name ?? username;
@@ -348,7 +357,11 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
 
             /** Create business profile */
             const newBusinessProfile = new BusinessProfile();
-            newBusinessProfile.profilePic = { small: '', large: '', medium: '' };
+            newBusinessProfile.profilePic = {
+                small: getDefaultProfilePic(request, businessName.substring(0, 1), 'small'),
+                large: getDefaultProfilePic(request, businessName.substring(0, 1), 'large'),
+                medium: getDefaultProfilePic(request, businessName.substring(0, 1), 'medium')
+            };
             newBusinessProfile.username = username;
             newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
             newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
@@ -384,7 +397,11 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
         const newUser = new User();
-        newUser.profilePic = { small: '', large: '', medium: '' };
+        newUser.profilePic = {
+            small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
+            large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
+            medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+        };
         newUser.username = username;
         newUser.email = email;
         newUser.name = name;

@@ -451,10 +451,21 @@ const transactions = async (request: Request, response: Response, next: NextFunc
 }
 const createThumbnail = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        let { letter, color }: any = request.query;
-        const svg = `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        let { letter, color, size }: any = request.query;
+        let width = 240, height = 240, font = 150;
+        if (size && size === "large") {
+            height = 1000;
+            width = 1000;
+            font = 700;
+        }
+        if (size && size === "medium") {
+            width = 620;
+            height = 620;
+            font = 500
+        }
+        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
             <rect width="100%" height="100%" fill="${color ? '#' + color : randomColor()}" />
-            <text x="50%" y="50%" font-size="150" font-weight="500" text-anchor="middle" fill="white" dy=".3em" font-family="Roboto">${letter?.substring(0, 1)?.toUpperCase() ?? "A"}</text>
+            <text x="50%" y="50%" font-size="${font}" font-weight="500" text-anchor="middle" fill="white" dy=".3em" font-family="Roboto">${letter?.substring(0, 1)?.toUpperCase() ?? "A"}</text>
         </svg>`;
         const svgBuffer = Buffer.from(svg);
         const pngBuffer = await sharp(svgBuffer).png().toBuffer();

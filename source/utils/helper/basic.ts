@@ -2,6 +2,7 @@ import { Types, Schema } from "mongoose";
 import crypto from 'crypto';
 import { AppConfig } from "../../config/constants";
 import { MongoID } from "../../common";
+import { Request } from "express";
 declare global {
     interface String {
         capitalize(): string;
@@ -178,4 +179,9 @@ export function truncate(string: string, length?: number) {
 export function randomColor() {
     const colors = ["#4285F4", "#0F9D58", "#DB4437", "#F4B400", "#9C27B0"];
     return colors[Math.floor(Math.random() * colors.length)];
+}
+
+
+export function getDefaultProfilePic(request: Request, letter: string, size: string) {
+    return request.protocol + "://" + request.get("host") + `/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${letter}&size=${size}`;
 }
