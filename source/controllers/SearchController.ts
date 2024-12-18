@@ -1,3 +1,4 @@
+import { businessDialCodeValidationRule } from './../validation/rules/api-validation';
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
@@ -21,6 +22,7 @@ import { addBusinessProfileInUser } from "../database/models/user.model";
 import { getUserProfile } from '../database/models/user.model';
 import BusinessProfile, { fetchBusinessIDs } from '../database/models/businessProfile.model';
 import { activeUserQuery } from '../database/models/user.model';
+import BlockedUser from '../database/models/blockedUser.model';
 //FIXME deleted user and disabled user check
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -37,29 +39,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         let totalPagesCount = 0;
         let businessProfileIDs = [];
         if (type === "profile") {
-            Object.assign(dbQuery, { ...activeUserQuery });
-            businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
-
-            if (businessTypeID && businessTypeID !== '') {
-                Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
-            }
-            if (query !== undefined && query !== "") {
-                //Search business profile
-                Object.assign(dbQuery,
-                    {
-                        $or: [
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                            { businessProfileID: { $in: businessProfileIDs } }
-                        ]
-                    }
-                )
-            }
-            [documents, totalDocument] = await Promise.all([
-                getUserProfile(dbQuery, pageNumber, documentLimit),
-                User.find(dbQuery).countDocuments()
-            ])
-            totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+            const { documents, totalDocument, totalPagesCount } = await searchUsers(request);
             return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "posts") {
             //FIXME need to add geolocation or mach more
@@ -212,5 +192,46 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
+const searchUsers = async (request: Request,) => {
+    const { id, accountType, businessProfileID } = request.user;
+    let { pageNumber, documentLimit, query, businessTypeID }: any = request.query;
+    pageNumber = parseQueryParam(pageNumber, 1);
+    documentLimit = parseQueryParam(documentLimit, 20);
+    const dbQuery = {};
+    //Remove blocked user from search
+    let [blockedUsers, businessProfileIDs] = await Promise.all([
+        BlockedUser.distinct('blockedUserID', { userID: id }),
+        fetchBusinessIDs(query, businessTypeID)
+    ]);
+
+    Object.assign(dbQuery, { ...activeUserQuery, _id: { $nin: blockedUsers } });
+
+    if (businessTypeID && businessTypeID !== '') {
+        Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
+    }
+    if (query !== undefined && query !== "") {
+        //Search business profile
+        Object.assign(dbQuery,
+            {
+                $or: [
+                    { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                    { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
+                    { businessProfileID: { $in: businessProfileIDs } }
+                ]
+            }
+        )
+    }
+    const [documents, totalDocument] = await Promise.all([
+        getUserProfile(dbQuery, pageNumber, documentLimit),
+        User.find(dbQuery).countDocuments()
+    ])
+    let totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+    return { documents, totalDocument, totalPagesCount }
+
+}
+
+
 
 export default { index, store, update, destroy };
