@@ -437,7 +437,16 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
             }
             Object.assign(billingAddress, {
                 name: user.name,
-                address: userAddress,
+                address: {
+                    geoCoordinate: userAddress.geoCoordinate,
+                    street: userAddress.street,
+                    city: userAddress.city,
+                    state: userAddress.state,
+                    zipCode: userAddress.zipCode,
+                    country: userAddress.country,
+                    lat: userAddress.lat,
+                    lng: userAddress.lng
+                },
                 dialCode: user.dialCode,
                 phoneNumber: user.phoneNumber,
                 gstn: '',
@@ -533,6 +542,9 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                     "value": promocode.value
                 }
             })
+        }
+        if (promoCode && payment.total < subscriptionPlan.price) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest('Coupon cannot be applied: Payment total is below subscription plan price.'), 'Coupon cannot be applied: Payment total is below subscription plan price.'))
         }
         const razorPayOrder = await razorPayService.createOrder(payment.total, razorPayData);
         const data = await razorPayService.fetchOrder(razorPayOrder.id);

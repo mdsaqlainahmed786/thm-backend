@@ -3,6 +3,7 @@ import { Orders } from "razorpay/dist/types/orders";
 import crypto from "crypto";
 import { AppConfig } from "../config/constants";
 import { IAddress } from "../database/models/common.model";
+import { v4 } from "uuid";
 export interface BillingDetails {
     description: string,
     email?: string;
@@ -27,10 +28,11 @@ class RazorPayService {
             const options: Orders.RazorpayOrderBaseRequestBody = {
                 amount: amount, // amount in smallest currency unit
                 currency: 'INR',
-                receipt: 'receipt#1',
-                // description: data?.description ?? `Business Subscription`
+                receipt: v4(),
+                notes: {
+                    description: data?.description ? data?.description : ''
+                },
             };
-
             if (data) {
                 let customer_details: Object = {};
                 let billing_address: Object = {};
@@ -64,10 +66,10 @@ class RazorPayService {
                 if (Object.keys(customer_details).length !== 0) {
                     Object.assign(options, { customer_details: customer_details })
                 }
-                // Details of the customer's billing address.
-                // if (Object.keys(billing_address).length !== 0) {
-                //     Object.assign(options, { customer_details: billing_address })
-                // }
+                // Details of the customer's billing address.//TODO Need to be checked
+                if (Object.keys(billing_address).length !== 0) {
+                    // Object.assign(options, { customer_details: {billing_address,} })
+                }
             }
             console.log(options);
             const order = await this.instance.orders.create(options);
