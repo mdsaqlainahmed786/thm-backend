@@ -12,7 +12,8 @@ const promoCodes = [
         validFrom: '2024-10-17',
         validTo: '2025-10-17',
         redeemedCount: 1,
-        maxDiscount: 500
+        maxDiscount: 500,
+        type: "subscription"
     },
     {
         name: "Save 150",
@@ -25,7 +26,8 @@ const promoCodes = [
         validFrom: '2024-10-17',
         validTo: '2025-10-17',
         redeemedCount: 1,
-        maxDiscount: 500
+        maxDiscount: 500,
+        type: "subscription"
     }
 ];
 class PromoCodeSeeder {

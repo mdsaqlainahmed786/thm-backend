@@ -1,0 +1,183 @@
+import { HomeStays, Hotes } from './database/seeders/BusinessSubtypeSeeder';
+import { BusinessType as Business } from './database/seeders/BusinessTypeSeeder';
+import https from "http";
+import ExpressApp from "./app";
+import { AppConfig } from "./config/constants";
+import { DBOptimization } from "./cron/DbOptimizationCron";
+import createSocketServer from "./socket-server";
+import { GeoCoordinate } from "./database/models/common.model";
+import axios from "axios";
+import User, { AccountType } from "./database/models/user.model";
+import BusinessType from './database/models/businessType.model';
+import BusinessSubType from './database/models/businessSubType.model';
+import BusinessProfile from './database/models/businessProfile.model';
+import { randomColor } from './utils/helper/basic';
+const httpServer = https.createServer(ExpressApp);
+export const SocketServer = createSocketServer(httpServer);
+httpServer.listen(AppConfig.PORT, async () => {
+    //Basic Details for server
+    console.log(`The server is running\tPORT: ${AppConfig.PORT}\tDATED: ${new Date()}`,);
+    DBOptimization.start();
+    if (AppConfig.APP_ENV === "dev") {
+        console.log("DDD");
+        let counter = 0;
+        while (counter < 10) {
+            console.log("False")
+            console.log(counter);
+            await thenWait(100);
+            const apiCalls = [...Array(3).keys()].map((number) => {
+                return axios.get('https://randomuser.me/api/');
+            })
+            await Promise.all(apiCalls).then((responses) => {
+                responses.map(async (resp) => {
+                    let msg = {
+                        server: resp.headers.server,
+                        status: resp.status,
+                        fields: Object.keys(resp.data).toString(),
+                    };
+                    // console.log("===================")
+                    // console.info(resp.config.url);
+                    // console.table(msg);
+                    if (resp.status) {
+                        const responseData = resp.data.results?.[0];
+                        if (responseData) {
+                            console.log(responseData);
+
+
+                            const dialCode = '+1';
+                            const fullName = `${responseData?.name?.first} ${responseData?.name?.last}`;
+                            const birthday = responseData?.dob?.date?.split('T')?.[0];
+                            const gender = responseData?.gender;
+                            const email = responseData?.email;
+                            const number = responseData.phone?.replace(/[^0-9.]/g, '');
+                            const lat = responseData?.location?.coordinates?.latitude as number;
+                            const lng = responseData?.location?.coordinates?.longitude as number;
+                            const placeName = responseData?.location?.country ?? 'India' as string;
+                            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+                            const small = responseData?.picture?.thumbnail ?? '';
+                            const large = responseData?.picture?.large ?? '';
+                            const medium = responseData?.picture?.medium ?? ''
+                            const gstn = responseData?.login?.uuid ?? '';
+
+                            const city = responseData?.location?.city ?? '';
+                            const state = responseData?.location?.state ?? '';
+                            const street = responseData?.location?.street?.number + ' ' + responseData?.location?.street?.name;
+                            const zipCode = responseData?.location?.postcode ?? '';
+                            const country = responseData?.location?.country ?? '';
+
+
+
+
+                            const isUserExits = await User.findOne({ email: email });
+                            if (!isUserExits) {
+                                const BusinessTypeDATA = Hotes[Math.floor(Math.random() * Hotes.length)];
+                                const hotelNames = [
+                                    "The Ritz-Carlton",
+                                    "Four Seasons Hotel",
+                                    "Waldorf Astoria",
+                                    "Hilton Garden Inn",
+                                    "Marriott Marquis",
+                                    "Shangri-La Hotel",
+                                    "InterContinental Hotel",
+                                    "Holiday Inn Express",
+                                    "Hyatt Regency",
+                                    "Sofitel",
+                                    "Grand Hyatt",
+                                    "Mandarin Oriental",
+                                    "Radisson Blu",
+                                    "The St. Regis",
+                                    "The Langham",
+                                    "JW Marriott",
+                                    "Aloft Hotels",
+                                    "Fairmont Hotels",
+                                    "Rosewood Hotels",
+                                    "The Peninsula Hotels"
+                                ];
+                                const placeIds = [
+                                    "ChIJN1t_tDeuEmsRUsoyG83frY4",  // Google Sydney, Australia
+                                    "ChIJD7fiBh9u5kcRYJrF6iU1A5I",  // Sydney Opera House, Australia
+                                    "ChIJjYqgE8D2iUQR3Jk5Yh3Tpzo",  // Central Park, New York, USA
+                                    "ChIJw_XdppA_rjsR1p91BhFk-qY",  // Eiffel Tower, Paris, France
+                                    "ChIJE9on3F3HwoAR9AhGJW_fL-I",  // Statue of Liberty, New York, USA
+                                    "ChIJeX8fJtqV5kcRMLac1Yw4fO8",  // London Eye, London, UK
+                                    "ChIJH0sHeNlg5kcR4MVoU2gF0Ac",  // Tokyo Tower, Tokyo, Japan
+                                    "ChIJ-0neEGNqV0gRmfR2_3D6Y9w",  // Burj Khalifa, Dubai, UAE
+                                    "ChIJD7fiBh9u5kcRYJrF6iU1A5I",  // The White House, Washington, D.C., USA
+                                    "ChIJB1R8V6teo0gRhISNfjYwCH0"   // Times Square, New York, USA
+                                ];
+
+                                const isBusinessTypeExist = await BusinessType.findOne({ name: Business.HOTEL });
+                                const isBusinessSubTypeExist = await BusinessSubType.findOne({ name: BusinessTypeDATA, businessTypeID: isBusinessTypeExist?.id });
+                                const newBusinessProfile = new BusinessProfile();
+                                if (isBusinessTypeExist && isBusinessSubTypeExist) {
+                                    // newBusinessProfile.username = username;
+                                    newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
+                                    newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
+                                    newBusinessProfile.name = hotelNames[Math.floor(Math.random() * hotelNames.length)];
+                                    newBusinessProfile.bio = '';
+                                    const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+                                    newBusinessProfile.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
+                                    newBusinessProfile.email = email;
+                                    newBusinessProfile.phoneNumber = number;
+                                    newBusinessProfile.dialCode = dialCode;
+                                    newBusinessProfile.website = 'www.appcrunk.com';
+                                    newBusinessProfile.gstn = gstn;
+                                    newBusinessProfile.placeID = placeIds[Math.floor(Math.random() * placeIds.length)];
+                                    newBusinessProfile.privateAccount = false;
+                                    newBusinessProfile.profilePic = {
+                                        small: `http://localhost:9090/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${newBusinessProfile.name}&size=${'small'}`,
+                                        large: `http://localhost:9090/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${newBusinessProfile.name}&size=${'large'}`,
+                                        medium: `http://localhost:9090/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${newBusinessProfile.name}&size=${'medium'}`
+                                    };
+                                    console.log(newBusinessProfile);
+                                    const savedBusinessProfile = await newBusinessProfile.save();
+                                    if (savedBusinessProfile) {
+                                        const newUser = new User();
+                                        newUser.name = fullName;
+                                        newUser.email = email;
+                                        newUser.accountType = AccountType.BUSINESS;
+                                        newUser.profilePic = {
+                                            small: small,
+                                            large: large,
+                                            medium: medium
+                                        }
+                                        newUser.password = '12345678';
+                                        newUser.isVerified = true;
+                                        newUser.isApproved = true;
+                                        newUser.isActivated = true;
+                                        newUser.hasProfilePicture = true;
+                                        newUser.privateAccount = false;
+                                        newUser.dialCode = dialCode;
+                                        newUser.phoneNumber = number;
+                                        newUser.businessProfileID = savedBusinessProfile.id;
+                                        const usersData = await newUser.save();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // console.log("======================")
+                });
+            });
+            counter++;
+        }
+
+
+    }
+});
+httpServer.timeout = 1200000;  // 2 Minutes
+
+
+async function thenWait(ms: number) {
+    console.log("wait time:", ms)
+    return new Promise((resolve, reject) => {
+        if (ms) {
+            setTimeout(() => {
+                resolve('Done');
+            }, 3000);
+        } else {
+            reject('Failed')
+        }
+
+    });
+}
