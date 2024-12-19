@@ -1,12 +1,16 @@
-import { verify } from 'jsonwebtoken';
-import sgMail, { MailDataRequired } from "@sendgrid/mail";
 import { AppConfig } from "../config/constants";
 import path from "path";
 import fs from "fs/promises";
 import { PUBLIC_DIR } from '../middleware/file-uploading';
+import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
 class EmailNotificationService {
+    private mailer: MailerSend;
+    private sender: Sender;
     constructor() {
-        sgMail.setApiKey(AppConfig.SENDGRID.API_KEY);
+        this.mailer = new MailerSend({
+            apiKey: AppConfig.MAILER_SEND.API_KEY,
+        });
+        this.sender = new Sender(AppConfig.MAILER_SEND.FROM_ADDRESS, AppConfig.APP_NAME);
     }
     async sendEmailOTP(otp: number, toAddress: string, reason: 'verify-email' | 'forgot-password') {
         try {
@@ -23,20 +27,20 @@ class EmailNotificationService {
                 mailTextBody = `You are receiving this email because we received a password reset request for your account. Use ${otp} OTP to recover your account password.`;
                 mailHtmlBody = await this.forgotPasswordTemplate(otp);
             }
-            const mailData: MailDataRequired = {
-                to: toAddress,
-                from: {
-                    name: AppConfig.APP_NAME,
-                    email: AppConfig.SENDGRID.FROM_ADDRESS
-                },
-                subject: subject,
-                text: mailTextBody,
-                html: mailHtmlBody
-            };
+            const recipients = [
+                new Recipient(toAddress)
+            ];
+            const emailParams = new EmailParams()
+                .setFrom(this.sender)
+                .setTo(recipients)
+                .setReplyTo(this.sender)
+                .setSubject(subject)
+                .setHtml(mailHtmlBody)
+                .setText(mailTextBody);
             if (AppConfig.APP_ENV !== "dev") {
-                await sgMail.send(mailData);
+                await this.mailer.email.send(emailParams);
             } else {
-                console.log(mailData);
+                console.log(emailParams);
             }
         } catch (error) {
             console.error("EmailNotificationService sendEmailOTP", error)

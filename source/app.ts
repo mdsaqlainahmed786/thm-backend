@@ -29,6 +29,10 @@ const options: cors.CorsOptions = {
 };
 App.use(cors(options));
 App.use(`/public`, express.static(path.join(__dirname, "../public")));
+App.get('/chat-react', function (request: Request, response: Response) {
+    const filePath = path.join(__dirname, "../public/files/index-react.html");
+    return response.sendFile(filePath);
+})
 App.use('', ApiEndpoints);
 App.use((request: Request, response: Response, next: NextFunction) => {
     console.log(request.path);
