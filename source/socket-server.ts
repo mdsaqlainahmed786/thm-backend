@@ -3,7 +3,7 @@ import https from "http";
 import { allowedOrigins } from "./app";
 import { SocketUser, AppSocketUser, MongoID } from "./common";
 import InMemorySessionStore from "./utils/sessionStore";
-import User, { addBusinessProfileInUser } from "./database/models/user.model";
+import User, { activeUserQuery, addBusinessProfileInUser } from "./database/models/user.model";
 import { randomBytes } from 'crypto';
 import { SocketChannel } from "./config/constants";
 import moment from "moment";
@@ -13,6 +13,7 @@ import { ObjectId } from "mongodb";
 import { parseQueryParam } from "./utils/helper/basic";
 import { Messages } from "./common";
 import MessagingController from "./controllers/MessagingController";
+import { fetchUserFollowing } from "./database/models/userConnection.model";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
@@ -26,7 +27,19 @@ export default function createSocketServer(httpServer: https.Server) {
 
     /** Auth middleware */
     io.use(async (socket, next) => {
+        // const sessionID = socket.handshake.auth.username;
+        // const sessionID = socket.handshake.query.username as string;
+        // console.log(sessionID);
+        // if (sessionID) {
+        //     const session = sessionStore.findSession(sessionID);
+        //     if (session) {
+        //         (socket as AppSocketUser).sessionID = sessionID;
+        //         (socket as AppSocketUser).username = session.username;
+        //         return next();
+        //     }
+        // }
         const username = socket.handshake.auth.username;
+        // const username = socket.handshake.query.username as string;
         if (!username) {
             console.error("invalid username", socket.handshake.auth);
             return next(new Error("invalid username"));
@@ -277,9 +290,9 @@ export default function createSocketServer(httpServer: https.Server) {
 
 
         socket.on("disconnect", async () => {
+            console.log("disconnect", (socket as AppSocketUser).username);
             socket.broadcast.emit(SocketChannel.USER_DISCONNECTED, (socket as AppSocketUser).username);
             sessionStore.destroySession((socket as AppSocketUser).username);
-            onlineUsers(socket, (socket as AppSocketUser).username);
             updateLastSeen(socket);
         });
     });
@@ -287,29 +300,20 @@ export default function createSocketServer(httpServer: https.Server) {
 }
 
 async function onlineUsers(socket: Socket, currentUsername: string) {
-    let onlineUsers: string[] = [];
-    let filteredUsers: Object = {};
+    let onlineUsers: (string | ObjectId)[] = [];
+    let users: string[] = [];
     sessionStore.findAllSessions().map((session) => {
-        onlineUsers.push(session.username);
+        onlineUsers.push(session.userID);
+        users.push(session.username);
     });
-    // console.log(onlineUsers);
-    // const connectionIDs: (string | Types.ObjectId)[] = [];
-    // const connectionQuery = userConnectionDBQuery((socket as AppSocketUser).userID);
-    // const userConnections = await UserConnection.find(connectionQuery);
-    // if (userConnections.length !== 0) {
-    //     userConnections.map((connection) => {
-    //         connectionIDs.push(connection.userID);
-    //         connectionIDs.push(connection.targetUserID);
-    //     });
-    //     Object.assign(filteredUsers, { userID: { $in: connectionIDs.filter((connectionID) => connectionID.toString() !== (socket as AppSocketUser).userID.toString()) } });//Remove current user from list
-    // } else {
-    //     Object.assign(filteredUsers, { userID: { $in: [] } });//Remove all user form list 
-    // }
-    const currentUser = await User.findOne({ username: currentUsername });
-    // const isLastSeenAndIsOnlineEnabled = currentUser?.privacySettings?.lastSeenAndIsOnline;
+    const myFollowingIDs = await fetchUserFollowing((socket as AppSocketUser).userID);
+    const onlineFollowing = myFollowingIDs.filter((following) => onlineUsers.includes(following.toString()));
     const userList = await User.aggregate([
         {
-            $match: {}
+            $match: {
+                ...activeUserQuery,
+                _id: { $in: onlineFollowing }
+            }
         },
         {
             $addFields: {
@@ -329,7 +333,7 @@ async function onlineUsers(socket: Socket, currentUsername: string) {
             $addFields: {
                 isOnline: {
                     $cond: {
-                        if: { "$in": ["$username", onlineUsers] },
+                        if: { "$in": ["$username", users] },
                         then: true,
                         else: false
                     }

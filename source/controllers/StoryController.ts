@@ -1,4 +1,4 @@
-import { ConnectionStatus } from './../database/models/userConnection.model';
+import { ConnectionStatus, fetchUserFollowing } from './../database/models/userConnection.model';
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpOkExtended, httpNoContent, httpOk } from "../utils/response";
@@ -28,7 +28,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         documentLimit = parseQueryParam(documentLimit, 20);
         const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
         //Fetch following stories 
-        const myFollowingIDs = await UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED });
+        const myFollowingIDs = await fetchUserFollowing(id);
         const [myStories, likedByMe, userIDs, viewedStories] = await Promise.all(
             [
                 Story.aggregate([
@@ -96,7 +96,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 View.distinct('storyID', { userID: id, createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } })
             ]
         );
-        console.log(viewedStories);
         const dbQuery: {} = { _id: { $in: userIDs } };
         const [documents, totalDocument] = await Promise.all(
             [

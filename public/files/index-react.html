@@ -106,7 +106,7 @@
         }
 
         function App() {
-            const [accounts, setAccounts] = React.useState([]);
+            const [accounts, setAccounts] = React.useState(['kiranappcrunk22', 'lauramorales11', 'irmgardraith74']);
             const [username, setUsername] = React.useState('');
             const [loginForm, showLoginForm] = React.useState(true);
             const [onlineUsers, setOnlineUsers] = React.useState([]);
@@ -148,7 +148,7 @@
                         }
                     }).showToast();
                 }
-                function onDisconnect() {
+                function onDisconnect(data) {
                     Toastify({
                         text: "ChatScreen:: onDisconnect",
                         className: "info",
@@ -156,6 +156,7 @@
                             background: "linear-gradient(to right, #00b09b, #96c93d)",
                         }
                     }).showToast();
+                    console.log(data);
                     socket.emit("users");
                 }
 
@@ -279,10 +280,21 @@
                     setTyping(null)
                     console.log("stop typing", data)
                 }
+                function onUserConnect() {
+                    // Toastify({
+                    //     text: "MessageScreen:: onUserConnect",
+                    //     className: "info",
+                    //     style: {
+                    //         background: "linear-gradient(to right, #00b09b, #96c93d)",
+                    //     }
+                    // }).showToast();
+                    socket.emit("users");
+                }
 
                 /** Default handler */
                 socket.on('connect', onConnect);
-                socket.on('disconnect', onDisconnect);
+                socket.on('user disconnected', onDisconnect);
+                socket.on('user connected', onUserConnect)
                 socket.on("users", onUsers);
                 socket.on("chat screen", onChatScreen);
                 socket.on('fetch conversations', onFetchConversations);
@@ -293,7 +305,8 @@
                 socket.on("stop typing", stopTyping)
                 return () => {
                     socket.off('connect', onConnect);
-                    socket.off('disconnect', onDisconnect);
+                    socket.off('user disconnected', onDisconnect);
+                    socket.off('user connected', onUserConnect);
                     socket.off("users", onUsers);
                     socket.off("chat screen", onChatScreen);
                     socket.off('fetch conversations', onFetchConversations);
@@ -432,12 +445,12 @@
                                             </div>
                                             <input type="text" id="search" className="form-control form-control-sm hidden" />
                                         </div>
-                                        <div className="flex gap-3 py-2 border-t border-black/10 overflow-hidden">
+                                        <div className="flex gap-3 py-2 border-t border-black/10 ">
                                             {onlineUsers && onlineUsers.map((user, index) => {
                                                 return (
                                                     <div key={index} className="flex flex-col justify-center items-center cursor-pointer" onClick={() => handleUserListClick(user)}>
                                                         <div className="bg-light/20  relative" title={`${user.username}`}>
-                                                            {user.isOnline ? <div className="w-3 h-3 bg-text-black/60 rounded-full absolute z-1"></div> : null}
+                                                            {user.isOnline ? <div className="w-3 h-3 bg-black/60 rounded-full absolute z-1"></div> : null}
                                                             <img src={`${user.profilePic ? user.profilePic.small : ''}`} className="w-[56px] h-[56px] rounded-full" />
                                                         </div>
                                                         <div className="w-[60px] px-2">
