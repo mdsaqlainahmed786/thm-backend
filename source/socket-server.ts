@@ -27,19 +27,7 @@ export default function createSocketServer(httpServer: https.Server) {
 
     /** Auth middleware */
     io.use(async (socket, next) => {
-        // const sessionID = socket.handshake.auth.username;
-        // const sessionID = socket.handshake.query.username as string;
-        // console.log(sessionID);
-        // if (sessionID) {
-        //     const session = sessionStore.findSession(sessionID);
-        //     if (session) {
-        //         (socket as AppSocketUser).sessionID = sessionID;
-        //         (socket as AppSocketUser).username = session.username;
-        //         return next();
-        //     }
-        // }
         const username = socket.handshake.auth.username;
-        // const username = socket.handshake.query.username as string;
         if (!username) {
             console.error("invalid username", socket.handshake.auth);
             return next(new Error("invalid username"));
