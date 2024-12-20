@@ -67,7 +67,7 @@ export const s3Upload = (endPoint: string) => multer({
                     cb(null, `${endPoint}${file.fieldname}/${v4()}${path.extname(file.originalname)}`);
                     break;
                 default:
-                    cb(null, `${endPoint}${v4()}${path.extname(file.originalname)}`);
+                    cb(null, `${endPoint}/${Date.now()}-${v4()}${path.extname(file.originalname)}`);
                     break;
             }
         },
@@ -85,7 +85,7 @@ export const DiskStorage = multer.diskStorage({
         callback(null, normalize(PUBLIC_DIR));
     },
     filename: function (request, file, callback) {
-        callback(null, v4() + path.extname(file.originalname));
+        callback(null, `${v4()}-${Date.now()}` + path.extname(file.originalname));
     }
 });
 

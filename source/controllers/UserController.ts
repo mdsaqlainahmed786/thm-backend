@@ -503,7 +503,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     }
 }
 
-
+//FIXME view only verified user 
 const tagPeople = async (request: Request, response: Response, next: NextFunction) => {
     try {
 

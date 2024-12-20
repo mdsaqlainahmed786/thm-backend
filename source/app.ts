@@ -34,14 +34,9 @@ App.get('/chat-react', function (request: Request, response: Response) {
     return response.sendFile(filePath);
 })
 App.use('', ApiEndpoints);
-App.use((request: Request, response: Response, next: NextFunction) => {
-    console.log(request.path);
-    console.log(request.headers.forwarded)
-    return response.sendStatus(404);
-});
-App.use((request: Request, response: Response, next: NextFunction) => {
-    console.log(request.path);
-    console.log(request.headers.forwarded)
+App.use((request: Request, response: Response) => {
+    console.log("Request Path:", request.path);
+    console.log("Forwarded Headers:", request.headers.forwarded);
     return response.sendStatus(404);
 });
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
@@ -55,12 +50,14 @@ App.use((err: any, request: Request, response: Response, next: NextFunction) => 
 });
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
     if (request.xhr) {
-        response.status(500).send({ error: 'Something failed!' })
+        const statusCode = err.status || 500;
+        const errorMessage = err.message || 'Internal Server Error';
+        response.status(statusCode).send(httpInternalServerError(err, errorMessage))
     } else {
         next(err)
     }
 });
-App.use((err: any, request: Request, response: Response, next: NextFunction) => {
+App.use((err: any, request: Request, response: Response) => {
     const statusCode = err.status || 500;
     const errorMessage = err.message || 'Internal Server Error';
     return response.status(statusCode).send(httpInternalServerError(err, errorMessage))

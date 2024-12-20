@@ -14,6 +14,7 @@ import FAQEndpoints from "./faq";
 import ContactUsEndpoints from "./contact";
 import AdminApiEndpoints from "./admin";
 import ShareEndpoints from "./share";
+import FileQueueEndpoints from "./filequeues";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
 ApiEndpoints.use('/auth', AuthEndpoint);
@@ -27,7 +28,8 @@ ApiEndpoints.use('/events', authenticateUser, EventEndpoints);
 ApiEndpoints.use('/story', authenticateUser, StoryEndpoints);
 ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
-ApiEndpoints.use('/share', ShareEndpoints)
+ApiEndpoints.use('/share', ShareEndpoints);
+ApiEndpoints.use('/files-queue', FileQueueEndpoints);
 
 //Admin Routes
 ApiEndpoints.use('/admin', AdminApiEndpoints)

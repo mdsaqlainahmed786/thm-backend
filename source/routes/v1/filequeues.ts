@@ -1,0 +1,12 @@
+import express, { Router } from "express";
+import FrequentlyAskedQuestionsController from "../../controllers/FrequentlyAskedQuestionsController";
+import authenticateUser, { isAdministrator } from "../../middleware/authenticate";
+import { createQuestionApiValidator, paramIDValidationRule } from "../../validation/rules/api-validation";
+import { validateRequest } from "../../middleware/api-request-validator";
+import MediaController from "../../controllers/MediaController";
+const FileQueueEndpoints: Router = express.Router();
+FileQueueEndpoints.get('/', MediaController.getFileQueues);
+// FileQueueEndpoints.post('/', authenticateUser, isAdministrator, createQuestionApiValidator, validateRequest, FrequentlyAskedQuestionsController.store);
+FileQueueEndpoints.put('/:id', [paramIDValidationRule], validateRequest, MediaController.updateFileQueues);
+// FileQueueEndpoints.delete('/:id', authenticateUser, isAdministrator, [paramIDValidationRule], validateRequest, FrequentlyAskedQuestionsController.destroy);
+export default FileQueueEndpoints;

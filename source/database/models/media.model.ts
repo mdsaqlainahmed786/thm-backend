@@ -22,6 +22,7 @@ export interface BaseMedia {
 
 export interface Video extends BaseMedia {
     duration: number;
+    videoUrl: string;
 }
 
 interface IMedia extends Document, Video {
@@ -40,6 +41,7 @@ const MediaSchema: Schema = new Schema<IMedia>(
         mediaType: { type: String, required: true, enum: MediaType },
         mimeType: { type: String, required: true },
         sourceUrl: { type: String, required: true },
+        videoUrl: { type: String },
         thumbnailUrl: { type: String, required: true },
         s3Key: { type: String, required: false },
         duration: { type: Number },

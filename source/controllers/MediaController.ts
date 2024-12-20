@@ -1,5 +1,6 @@
+import { Request, Response, NextFunction } from "express";
 import sharp from "sharp";
-import { addStringBeforeExtension } from "../utils/helper/basic";
+import { addStringBeforeExtension, isArray } from "../utils/helper/basic";
 import S3Object, { IS3Object } from "../database/models/s3Object.model";
 import { MongoID } from "../common";
 import Media, { MediaType } from "../database/models/media.model";
@@ -10,6 +11,9 @@ import { AwsS3AccessEndpoints } from "../config/constants";
 import { generateScreenshot } from "../middleware/file-uploading";
 import path from "path";
 import fileSystem from "fs/promises";
+import FileQueue, { QueueStatus } from "../database/models/file-processing.model";
+import { ErrorMessage } from "../utils/response-message/error";
+import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404 } from "../utils/response";
 const s3Service = new S3Service();
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
     const s3Image = await s3Service.getS3Object(media.key);
@@ -146,7 +150,14 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                     }
                 }
             }
-            await fileSystem.unlink(file.path);
+            if (file && file.mimetype.startsWith('video/')) {
+                await FileQueue.create({
+                    filePath: file.path,
+                    s3Key: fileObject.s3Key
+                });
+            } else {
+                await fileSystem.unlink(file.path);
+            }
             fileList.push(fileObject)
         }));
     }
@@ -164,6 +175,45 @@ async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     }
 
 }
+const getFileQueues = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const fileQueues = await FileQueue.find({ status: { $in: [QueueStatus.CREATED] } }).limit(10);
+        return response.send(httpOk(fileQueues, 'File queues fetched'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const updateFileQueues = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request?.params?.id;
+        const { status, s3Location } = request.body;
+        const fileQueue = await FileQueue.findOne({ _id: ID });
+        if (!fileQueue) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("File queue not found"), "File queue not found"));
+        }
+        fileQueue.status = status ?? fileQueue.status;
+        if (s3Location && isArray(s3Location)) {
+            fileQueue.s3Location = s3Location ? s3Location : fileQueue.s3Location;
+        }
+        const savedFileQueue = await fileQueue.save();
+        if (savedFileQueue && savedFileQueue.status === QueueStatus.COMPLETED && savedFileQueue.s3Location && savedFileQueue.s3Location.length !== 0) {
+            const media = await Media.findOne({ s3Key: savedFileQueue.s3Key });
+            if (media) {
+                const m3u8Urls = savedFileQueue.s3Location.filter((url) => url.endsWith('.m3u8'));
+                const sourceUrl = media.sourceUrl;
+                media.videoUrl = sourceUrl ?? media.sourceUrl;
+                if (m3u8Urls.length !== 0) {
+                    media.sourceUrl = m3u8Urls[0] ?? media.sourceUrl;
+                }
+                await media.save();
+            }
+        }
+        return response.send(httpAcceptedOrUpdated(savedFileQueue, 'File queue updated'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
+export { storeMedia, generateThumbnail, deleteUnwantedFiles, }
 
-export { storeMedia, generateThumbnail, deleteUnwantedFiles }
+export default { getFileQueues, updateFileQueues }
