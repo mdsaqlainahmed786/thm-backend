@@ -543,9 +543,9 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 }
             })
         }
-        if (promoCode && payment.total < subscriptionPlan.price) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest('Coupon cannot be applied: Payment total is below subscription plan price.'), 'Coupon cannot be applied: Payment total is below subscription plan price.'))
-        }
+        // if (promoCode && payment.total < subscriptionPlan.price) {
+        //     return response.send(httpBadRequest(ErrorMessage.invalidRequest('Coupon cannot be applied: Payment total is below subscription plan price.'), 'Coupon cannot be applied: Payment total is below subscription plan price.'))
+        // }
         const razorPayOrder = await razorPayService.createOrder(payment.total, razorPayData);
         const data = await razorPayService.fetchOrder(razorPayOrder.id);
         newOrder.razorPayOrderID = razorPayOrder.id;
