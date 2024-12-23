@@ -205,11 +205,15 @@ const updateFileQueues = async (request: Request, response: Response, next: Next
                 if (m3u8Urls.length !== 0) {
                     media.sourceUrl = m3u8Urls[0] ?? media.sourceUrl;
                 }
-                fileQueue.mediaID = media.id;
-                await fileQueue.save();
+
                 await media.save();
                 //Remove public file in main server after conversion
                 await fileSystem.unlink(savedFileQueue.filePath);
+                if (m3u8Urls.length !== 0) {
+                    fileQueue.filePath = m3u8Urls[0];
+                }
+                fileQueue.mediaID = media.id;
+                await fileQueue.save();
             }
         }
         return response.send(httpAcceptedOrUpdated(savedFileQueue, 'File queue updated'));
