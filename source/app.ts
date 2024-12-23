@@ -57,7 +57,7 @@ App.use((err: any, request: Request, response: Response, next: NextFunction) => 
         next(err)
     }
 });
-App.use((err: any, request: Request, response: Response) => {
+App.use((err: any, request: Request, response: Response, next: NextFunction) => {
     const statusCode = err.status || 500;
     const errorMessage = err.message || 'Internal Server Error';
     return response.status(statusCode).send(httpInternalServerError(err, errorMessage))

@@ -522,6 +522,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                     console.log("Maximum discount");
                 }
                 subtotal = (subtotal - discount);
+                console.log(subtotal);
                 gst = (subtotal * 18) / 100;
                 total = (gst + subtotal);
                 payment.gst = gst;
@@ -543,10 +544,7 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 }
             })
         }
-        // if (promoCode && payment.total < subscriptionPlan.price) {
-        //     return response.send(httpBadRequest(ErrorMessage.invalidRequest('Coupon cannot be applied: Payment total is below subscription plan price.'), 'Coupon cannot be applied: Payment total is below subscription plan price.'))
-        // }
-        const razorPayOrder = await razorPayService.createOrder(payment.total, razorPayData);
+        const razorPayOrder = await razorPayService.createOrder(Math.round(payment.total), razorPayData);
         const data = await razorPayService.fetchOrder(razorPayOrder.id);
         newOrder.razorPayOrderID = razorPayOrder.id;
         console.log(razorPayOrder, "razorPayOrder", data);
@@ -565,7 +563,13 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
             payment: payment
         }, "Checkout data fetched"));
     } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        if (error.error && error.statusCode) {
+            // Provide specific error message based on the Razorpay error
+            const errorMessage = error.error.description || 'Internal Server Error';
+            next(httpInternalServerError(error.error, errorMessage));
+        } else {
+            next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        }
     }
 }
 
