@@ -1,4 +1,4 @@
-import { addBusinessProfileInUser, calculateProfileCompletion, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
+import { activeUserQuery, addBusinessProfileInUser, calculateProfileCompletion, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -13,7 +13,7 @@ import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
 import Post, { fetchPosts, PostType, getPostsCount } from '../database/models/post.model';
-import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
+import UserConnection, { ConnectionStatus, fetchUserFollowing } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
@@ -503,7 +503,6 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     }
 }
 
-//FIXME view only verified user 
 const tagPeople = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -513,7 +512,7 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
         documentLimit = parseQueryParam(documentLimit, 20);
         const [inMyFollower] = await Promise.all(
             [
-                UserConnection.distinct('follower', { following: id, status: ConnectionStatus.ACCEPTED })
+                fetchUserFollowing(id),
             ]
         );
         if (!id) {
@@ -521,7 +520,6 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
         }
         const dbQuery: any[] = []
         if (query !== undefined && query !== "") {
-            //Search business profile
             const businessProfileIDs = await BusinessProfile.distinct('_id', {
                 $or: [
                     { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
@@ -530,16 +528,13 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
             });
             dbQuery.push({
                 $or: [
-                    { _id: { $in: inMyFollower }, name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                    { _id: { $in: inMyFollower }, username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                    { name: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                    { username: { $regex: new RegExp(query.toLowerCase(), "i") }, privateAccount: false },
-                    { businessProfileID: { $in: businessProfileIDs }, privateAccount: false }
+                    { _id: { $in: inMyFollower }, name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
+                    { _id: { $in: inMyFollower }, username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
+                    { _id: { $in: inMyFollower }, businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery }
                 ]
             })
         } else {
-            dbQuery.push({ _id: { $in: inMyFollower } })
-            dbQuery.push({ privateAccount: false, })
+            dbQuery.push({ _id: { $in: inMyFollower }, ...activeUserQuery })
         }
         const [documents, totalDocument] = await Promise.all([
             getUserProfile({

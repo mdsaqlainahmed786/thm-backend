@@ -199,6 +199,7 @@ export function addTaggedPeopleInPost() {
                         "name": 1,
                         "profilePic": 1,
                         "accountType": 1,
+                        'username': 1,
                         "businessProfileID": 1,
                         "businessProfileRef._id": 1,
                         "businessProfileRef.name": 1,
