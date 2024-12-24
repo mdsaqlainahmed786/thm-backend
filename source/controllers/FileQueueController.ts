@@ -7,6 +7,11 @@ import { isArray } from "../utils/helper/basic";
 import Media from "../database/models/media.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        let { status }: any = request.query;
+        if (status && status) {
+            const fileQueues = await FileQueue.find({ status: status }).limit(10);
+            return response.send(httpOk(fileQueues, 'Processing queue fetched'));
+        }
         const fileQueues = await FileQueue.find({ status: { $in: [QueueStatus.CREATED] } }).limit(10);
         return response.send(httpOk(fileQueues, 'File queues fetched'));
     } catch (error: any) {
