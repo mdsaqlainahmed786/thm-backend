@@ -106,7 +106,7 @@
         }
 
         function App() {
-            const [accounts, setAccounts] = React.useState(['kiranappcrunk22', 'lauramorales11', 'irmgardraith74']);
+            const [accounts, setAccounts] = React.useState(['atulappcrunk84', 'prime59']);
             const [username, setUsername] = React.useState('');
             const [loginForm, showLoginForm] = React.useState(true);
             const [onlineUsers, setOnlineUsers] = React.useState([]);
@@ -134,6 +134,7 @@
                 if (chatScreen) {
                     socket.emit("users");
                     socket.emit("chat screen");
+                    socket.emit("in chat");
                 }
             }, [inChatView])
 
@@ -332,7 +333,7 @@
                 const currentPage = localStorage.getItem('currentPage')
                 socket.emit("fetch last seen", senderID);
                 socket.emit("fetch conversations", { username: senderID, pageNumber: currentPage });
-                socket.emit("in chat", senderID);
+                socket.emit("in private chat", senderID);
                 socket.emit("message seen", senderID);
                 // scrollToBottom();
             }
@@ -504,7 +505,8 @@
                                         <div className="flex  gap-4 border-b border-black/10 mb-2 py-2">
                                             <button type="button" className="" onClick={(event) => {
                                                 event.preventDefault();
-                                                socket.emit("leave chat", chatScreen.username)
+                                                socket.emit("leave private chat", chatScreen.username)
+                                                socket.emit("leave chat")
                                                 setChatView(false);
                                             }}>
                                                 <svg width="10" height="18" viewBox="0 0 10 18" fill="none" xmlns="http://www.w3.org/2000/svg">

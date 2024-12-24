@@ -14,6 +14,12 @@ import { parseQueryParam } from "./utils/helper/basic";
 import { Messages } from "./common";
 import MessagingController from "./controllers/MessagingController";
 import { fetchUserFollowing } from "./database/models/userConnection.model";
+import DevicesConfig from "./database/models/appDeviceConfig.model";
+import { v4 } from "uuid";
+import { createMessagePayload } from "./notification/FirebaseNotificationController";
+import { Message as FMessage } from "firebase-admin/lib/messaging/messaging-api";
+import { sendNotification } from "./notification/FirebaseNotificationController";
+import { NotificationType } from "./database/models/notification.model";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
@@ -48,6 +54,7 @@ export default function createSocketServer(httpServer: https.Server) {
             sessionID: (socket as AppSocketUser).sessionID,
             username: (socket as AppSocketUser).username,
             userID: (socket as AppSocketUser).userID,
+            inChatScreen: false
         }
         console.log("Connection :::\n", socket.id, sessionUser)
 
@@ -82,6 +89,7 @@ export default function createSocketServer(httpServer: https.Server) {
         socket.on(SocketChannel.PRIVATE_MESSAGE, async (data: PrivateIncomingMessagePayload, next) => {
             const currentSession = sessionStore.findSession(data.to);
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
+            const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
             const messageData = {
                 message: data.message,
                 from: (socket as AppSocketUser).username,
@@ -119,7 +127,10 @@ export default function createSocketServer(httpServer: https.Server) {
                             newMessage.mediaUrl = data.message.mediaUrl;
                             break;
                     }
-                    await newMessage.save();
+                    const savedMessage = await newMessage.save();
+                    if (!inChatScreen) {
+                        sendMessageNotification(sendTo.id, sendedBy, savedMessage.message);
+                    }
                 }
             } catch (error: any) {
                 console.error(error)
@@ -225,15 +236,37 @@ export default function createSocketServer(httpServer: https.Server) {
             }
         });
 
-
-        socket.on(SocketChannel.IN_CHAT, (username: string) => {
+        socket.on(SocketChannel.IN_PRIVATE_CHAT, (username: string) => {
             sessionStore.saveSession((socket as AppSocketUser).username, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
                 chatWith: username ?? undefined,
+                inChatScreen: (socket as AppSocketUser).inChatScreen,
             });
             console.log("in chat", username);
+        });
+
+        socket.on(SocketChannel.LEAVE_PRIVATE_CHAT, () => {
+            sessionStore.saveSession((socket as AppSocketUser).username, {
+                username: (socket as AppSocketUser).username,
+                sessionID: (socket as AppSocketUser).sessionID,
+                userID: (socket as AppSocketUser).userID,
+                chatWith: undefined,
+                inChatScreen: (socket as AppSocketUser).inChatScreen,
+            });
+            console.log("leave chat");
+        });
+
+        socket.on(SocketChannel.IN_CHAT, () => {
+            sessionStore.saveSession((socket as AppSocketUser).username, {
+                username: (socket as AppSocketUser).username,
+                sessionID: (socket as AppSocketUser).sessionID,
+                userID: (socket as AppSocketUser).userID,
+                chatWith: (socket as AppSocketUser).chatWith,
+                inChatScreen: true,
+            });
+            console.log("in chat screen",);
         });
 
         socket.on(SocketChannel.LEAVE_CHAT, () => {
@@ -241,9 +274,10 @@ export default function createSocketServer(httpServer: https.Server) {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
-                chatWith: undefined,
+                chatWith: (socket as AppSocketUser).chatWith,
+                inChatScreen: false,
             });
-            console.log("leave chat");
+            console.log("leave chat screen");
         });
 
         socket.on(SocketChannel.MESSAGE_SEEN, async (username: string) => {
@@ -358,3 +392,22 @@ async function updateLastSeen(socket: Socket) {
     }
 }
 
+async function sendMessageNotification(targetUserID: MongoID, data: any, message: string) {
+    try {
+        const notificationID = v4();
+        const type = NotificationType.MESSAGING;
+        const image = data?.profilePic?.small ?? '';
+        let title = `New message from ${data.name ?? 'User'}`;
+        const description = message;
+        const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
+        await Promise.all(devicesConfigs.map(async (devicesConfig) => {
+            if (devicesConfig && devicesConfig.notificationToken) {
+                const message: FMessage = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type, image);
+                await sendNotification(message);
+            }
+            return devicesConfig;
+        }));
+    } catch (error) {
+        console.error("Error sending one or more notifications:", error);
+    }
+}

@@ -90,6 +90,8 @@ export abstract class SocketChannel {
     static readonly MESSAGE_SEEN = "message seen";
     static readonly IN_CHAT = "in chat";
     static readonly LEAVE_CHAT = "leave chat";
+    static readonly IN_PRIVATE_CHAT = "in private chat";
+    static readonly LEAVE_PRIVATE_CHAT = "leave private chat";
 }
 
 

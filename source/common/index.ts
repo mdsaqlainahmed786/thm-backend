@@ -23,6 +23,7 @@ export interface SocketUser {
     username: string;
     userID: string | Types.ObjectId;
     chatWith?: string | undefined;
+    inChatScreen: boolean;
 }
 
 

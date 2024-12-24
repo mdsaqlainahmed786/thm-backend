@@ -21,7 +21,7 @@ export async function verifyDeviceConfig(fcmToken: string): Promise<string> {
     };
     return firebase.messaging().send(message, true);
 }
-export const createMessagePayload = (token: string, title: string, description: string, notificationID: string, devicePlatform?: DevicePlatform | undefined, type?: string | undefined,) => {
+export const createMessagePayload = (token: string, title: string, description: string, notificationID: string, devicePlatform?: DevicePlatform | undefined, type?: string | undefined, image?: string | undefined) => {
     const message: Message = {
         token: token,
         notification: {
@@ -30,7 +30,8 @@ export const createMessagePayload = (token: string, title: string, description: 
         },
         data: {
             notificationID: notificationID,
-            screen: type ?? ""
+            screen: type ?? "",
+            image: image ?? ""
         },
     };
     if (devicePlatform && devicePlatform === DevicePlatform.ANDROID) {
