@@ -22,6 +22,8 @@ import { AwsS3AccessEndpoints } from '../config/constants';
 import Comment from '../database/models/comment.model';
 import Review from '../database/models/reviews.model';
 import S3Service from '../services/S3Service';
+import AppNotificationController from './AppNotificationController';
+import { NotificationType } from '../database/models/notification.model';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -140,6 +142,11 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
         newPost.media = mediaIDs;
         const savedPost = await newPost.save();
+        if (savedPost && savedPost.tagged && savedPost.tagged.length !== 0) {
+            savedPost.tagged.map((tagged) => {
+                AppNotificationController.store(id, tagged, NotificationType.TAGGED, { postID: savedPost.id, userID: tagged }).catch((error) => console.error(error));
+            });
+        }
 
         /**
          * Only for individual account 
@@ -479,7 +486,6 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
 
 
 

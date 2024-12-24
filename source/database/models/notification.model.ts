@@ -9,7 +9,8 @@ export enum NotificationType {
     FOLLOWING = "following",
     COMMENT = "comment",
     REPLY = "reply",
-    REVIEW = 'review'
+    REVIEW = 'review',
+    TAGGED = 'tagged',
 }
 
 export interface INotification extends Document {

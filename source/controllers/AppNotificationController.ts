@@ -157,7 +157,11 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     break;
                 case NotificationType.REPLY:
                     title = AppConfig.APP_NAME
-                    description = `${name}  replied to your comment: '${truncate(metadata?.message)}'.`;
+                    description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
+                    break;
+                case NotificationType.TAGGED:
+                    title = AppConfig.APP_NAME
+                    description = `${name} tagged you in a post.`;
                     break;
             }
             const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
