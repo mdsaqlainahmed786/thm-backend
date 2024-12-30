@@ -26,4 +26,5 @@ HomeEndpoints.get('/db', HomeController.dbSeeder);
 HomeEndpoints.get('/db/s', SubscriptionController.index);
 HomeEndpoints.get('/transactions', authenticateUser, HomeController.transactions);
 HomeEndpoints.get('/profile-picture/thumbnail', HomeController.createThumbnail);
+HomeEndpoints.get('/professions', HomeController.professions);
 export default HomeEndpoints;

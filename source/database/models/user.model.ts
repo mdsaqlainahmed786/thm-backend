@@ -55,6 +55,7 @@ export interface Individual {
     role: Role;
     lastSeen: Date;
     socialIDs: ISocialID[];
+    profession: string;
 }
 
 export interface Business {
@@ -125,6 +126,10 @@ const UserSchema: Schema = new Schema<IUser>(
         },
         socialIDs: [SocialIDSchema],
         lastSeen: { type: Date, default: Date.now },
+        profession: {
+            type: String,
+            default: ""
+        }
     },
     {
         timestamps: true

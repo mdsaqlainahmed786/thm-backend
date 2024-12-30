@@ -30,7 +30,7 @@ import UserAddress from '../database/models/user-address.model';
 import { SuccessMessage } from '../utils/response-message/success';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -72,6 +72,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             const savedUser = await user.save();
             return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef }, SuccessMessage.PROFILE_UPDATE));
         } else {
+            user.profession = profession ?? user.profession;
             user.name = name ?? user.name;
             user.dialCode = dialCode ?? user.dialCode;
             user.phoneNumber = phoneNumber ?? user.phoneNumber;

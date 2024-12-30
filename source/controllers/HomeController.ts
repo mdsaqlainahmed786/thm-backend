@@ -479,7 +479,21 @@ const createThumbnail = async (request: Request, response: Response, next: NextF
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions, createThumbnail };
+const professions = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const professions = [
+            'Business Person/ Man',
+            'Government Sector/ Employee',
+            'Self Employee/ Private Job',
+            'Belongs To Hotel Industry',
+            'Others',
+        ];
+        return response.send(httpOk(professions.map((profession) => ({ name: profession })), "Profession fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions, createThumbnail, professions };
 
 
 function createChartLabels(filter: string) {

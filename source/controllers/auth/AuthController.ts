@@ -337,7 +337,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
 
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID } = request.body;
+        const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession } = request.body;
         const [username, isUserExist] = await Promise.all([
             generateUsername(email, accountType),
             User.findOne({ email: email }),
@@ -402,6 +402,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
             medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
         };
+        newUser.profession = profession;
         newUser.username = username;
         newUser.email = email;
         newUser.name = name;
