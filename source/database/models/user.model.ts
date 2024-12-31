@@ -468,21 +468,26 @@ export function getUserProfile(match: { [key: string]: any; }, pageNumber: numbe
             {
                 $limit: documentLimit
             },
-            {
-                $project: {
-                    _id: 1,
-                    name: 1,
-                    accountType: 1,
-                    username: 1,
-                    profilePic: 1,
-                    "businessProfileRef.name": 1,
-                    "businessProfileRef.profilePic": 1,
-                    "businessProfileRef.businessTypeRef": 1,
-                    "businessProfileRef.address": 1,
-                }
-            }
+            profileProject(),
         ]
     ).exec()
+}
+
+export function profileProject() {
+    return {
+        "$project": {
+            "_id": 1,
+            "name": 1,
+            "profilePic": 1,
+            "role": 1,
+            "accountType": 1,
+            "username": 1,
+            "businessProfileRef.name": 1,
+            "businessProfileRef.profilePic": 1,
+            "businessProfileRef.businessTypeRef": 1,
+            "businessProfileRef.address": 1,
+        }
+    }
 }
 
 
