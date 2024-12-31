@@ -57,8 +57,7 @@ export function addSharedCountInPost() {
             from: 'sharedcontents',
             let: { contentID: '$_id' },
             pipeline: [
-                { $match: { $expr: { $eq: ['$contentID', '$$contentID'] } }, contentType: ContentType.POST },
-
+                { $match: { $expr: { $eq: ['$contentID', '$$contentID'] }, contentType: ContentType.POST } },
             ],
             as: 'sharedRef'
         }
