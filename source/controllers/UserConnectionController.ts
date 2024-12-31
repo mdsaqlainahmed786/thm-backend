@@ -8,7 +8,9 @@ import { parseQueryParam } from '../utils/helper/basic';
 import BusinessProfile from '../database/models/businessProfile.model';
 import AppNotificationController from "./AppNotificationController";
 import { NotificationType } from "../database/models/notification.model";
-
+import { AccountType } from "../database/models/user.model";
+import { v4 } from "uuid";
+import { Role } from "../common";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -257,5 +259,35 @@ const following = async (request: Request, response: Response, next: NextFunctio
     }
 }
 
+const createDefaultProfile = async () => {
+    const email = 'contact@thehotelmedia.com';
+    const username = 'thehotelmedia';
+    const name = 'The Hotel Media';
+    const dialCode = '+91';
+    const phoneNumber = '7738727020'
+    const hostAddress = 'https://thehotelmedia.com/';
+    const isAccountExit = await User.findOne({ email: email, role: Role.COMPANY });
+    if (!isAccountExit) {
+        const newUser = new User();
+        newUser.profilePic = {
+            small: hostAddress + '/public/files/thm-logo-sm.png',
+            large: hostAddress + '/public/files/thm-logo-md.png',
+            medium: hostAddress + '/public/files/thm-logo-lg.png'
+        };
+        newUser.username = username;
+        newUser.email = email;
+        newUser.name = name;
+        newUser.accountType = AccountType.INDIVIDUAL;
+        newUser.dialCode = dialCode;
+        newUser.phoneNumber = phoneNumber;
+        newUser.password = v4();
+        newUser.isActivated = true;
+        newUser.isVerified = true;
+        newUser.hasProfilePicture = true;
+        newUser.role = Role.COMPANY;
+        return await newUser.save();
+    }
+    return isAccountExit;
+}
 
-export default { index, sendFollowRequest, acceptFollow, rejectFollow, unFollow, follower, following, followBack };
+export default { index, sendFollowRequest, acceptFollow, rejectFollow, unFollow, follower, following, followBack, createDefaultProfile };

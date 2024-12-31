@@ -1,5 +1,5 @@
 import { Document, Model, Schema, model, Types } from "mongoose";
-import { MongoID } from "../../common";
+import { ContentType, MongoID } from "../../common";
 
 interface IComment extends Document {
     userID: MongoID;
@@ -55,9 +55,9 @@ export function addSharedCountInPost() {
     const lookup = {
         $lookup: {
             from: 'sharedcontents',
-            let: { postID: '$_id' },
+            let: { contentID: '$_id' },
             pipeline: [
-                { $match: { $expr: { $eq: ['$postID', '$$postID'] } } },
+                { $match: { $expr: { $eq: ['$contentID', '$$contentID'] } }, contentType: ContentType.POST },
 
             ],
             as: 'sharedRef'

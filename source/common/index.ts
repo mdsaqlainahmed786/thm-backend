@@ -6,7 +6,8 @@ import { MessageType } from "../database/models/message.model";
 import { Address } from "../database/models/common.model";
 export enum Role {
     USER = 'user',
-    ADMINISTRATOR = 'administrator'
+    ADMINISTRATOR = 'administrator',
+    COMPANY = 'company'
 }
 export interface AuthenticateUser {
     id: string | Types.ObjectId;
