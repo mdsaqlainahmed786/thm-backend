@@ -13,9 +13,11 @@ import PromoCode, { PriceType, PromoType } from "../database/models/promoCode.mo
 import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
 import RazorPayService, { BillingDetails } from "../services/RazorPayService";
 import { parseFloatToFixed } from "../utils/helper/basic";
-import { BillingAddress } from '../common';
+import { BillingAddress, Role } from '../common';
 import UserAddress from '../database/models/user-address.model';
+import EmailNotificationService from '../services/EmailNotificationService';
 const razorPayService = new RazorPayService();
+const emailNotificationService = new EmailNotificationService();
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -43,12 +45,12 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Payment not verified. please try again"), "Payment not verified. please try again"))
         }
         //FIXME remove console logs
-        console.log(isPaymentVerified);
-        console.log("\n\n\n")
-        console.log(razorPayOrder);
-        console.log("SUBSCRIPTION")
-        console.log(payment);
-        console.log("\n\n\n");
+        // console.log(isPaymentVerified);
+        // console.log("\n\n\n")
+        // console.log(razorPayOrder);
+        // console.log("SUBSCRIPTION")
+        // console.log(payment);
+        // console.log("\n\n\n");
         order.status = OrderStatus.COMPLETED;
         const amount = parseInt(`${payment.amount}`) / 100;
         order.paymentDetail = {
@@ -99,7 +101,20 @@ const buySubscription = async (request: Request, response: Response, next: NextF
                 hasSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
         }
         hasSubscription.subscriptionPlanID = order.subscriptionPlanID;
-        return response.send(httpOk(hasSubscription, "Subscription updated."));
+        const savedSubscription = await hasSubscription.save();
+        const admins = await User.distinct('email', { role: Role.ADMINISTRATOR });
+        emailNotificationService.sendSubscriptionEmail({
+            name: user.name ?? user.username,
+            toAddress: user.email,
+            cc: admins,
+            subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
+            orderID: order.orderID,
+            purchaseDate: order.createdAt.toString(),
+            grandTotal: order.grandTotal.toString(),
+            transactionID: order.paymentDetail.transactionID,
+            paymentMethod: order.paymentDetail.paymentMethod
+        });
+        return response.send(httpOk(savedSubscription, "Subscription updated."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

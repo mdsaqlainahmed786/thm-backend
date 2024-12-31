@@ -157,6 +157,8 @@ OrderSchema.set('toJSON', { virtuals: true });
 
 
 export interface IOrderModel extends IOrder {
+    createdAt: Date;
+    updatedAt: Date;
 }
 const Order = mongoose.model<IOrderModel>('Order', OrderSchema);
 export default Order;

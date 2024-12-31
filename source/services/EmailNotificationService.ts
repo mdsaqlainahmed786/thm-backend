@@ -3,14 +3,34 @@ import path from "path";
 import fs from "fs/promises";
 import { PUBLIC_DIR } from '../middleware/file-uploading';
 import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
+import moment from "moment";
+
+interface SubscriptionEmail {
+    name: string
+    toAddress: string
+    cc: string[]
+    subscriptionName: string
+    orderID: string
+    purchaseDate: string
+    grandTotal: string
+    transactionID: string
+    paymentMethod: string
+
+}
+
 class EmailNotificationService {
     private mailer: MailerSend;
     private sender: Sender;
+    private privacyPolicyLink: string;
+    private termsAndConditions: string;
     constructor() {
         this.mailer = new MailerSend({
-            apiKey: AppConfig.MAILER_SEND.API_KEY,
+            apiKey: AppConfig.MAILER_SEND.API_KEY!
+
         });
         this.sender = new Sender(AppConfig.MAILER_SEND.FROM_ADDRESS, AppConfig.APP_NAME);
+        this.privacyPolicyLink = '/privacy-policy';
+        this.termsAndConditions = '/terms-and-conditions';
     }
     async sendEmailOTP(otp: number, toAddress: string, reason: 'verify-email' | 'forgot-password') {
         try {
@@ -46,29 +66,71 @@ class EmailNotificationService {
             console.error("EmailNotificationService sendEmailOTP", error)
         }
     }
+    async sendSubscriptionEmail(data: SubscriptionEmail) {
+        try {
+            const { toAddress, name, cc, subscriptionName, orderID, purchaseDate, grandTotal, transactionID, paymentMethod, } = data;
+            let subject = 'Subscription Purchased';
+            let mailTextBody = `
+                Hello, \nThank you for purchasing the ${subscriptionName} subscription! \n\nWe are excited to have you with us. If you have any questions or need assistance, feel free to contact us. \n\nBest regards, \n${AppConfig.APP_NAME}
+            `;
+            let mailHtmlBody = await this.subscriptionEmailTemplate(name, subscriptionName, orderID, purchaseDate, grandTotal, transactionID, paymentMethod,);
+            const recipients = [
+                new Recipient(toAddress, name)
+            ];
+            const ccRecipients = cc.map((email) => new Recipient(email));
+            const emailParams = new EmailParams()
+                .setFrom(this.sender)
+                .setTo(recipients)
+                .setCc(ccRecipients)
+                .setReplyTo(this.sender)
+                .setSubject(subject)
+                .setHtml(mailHtmlBody)
+                .setText(mailTextBody);
+            if (AppConfig.APP_ENV !== "dev") {
+                await this.mailer.email.send(emailParams);
+            } else {
+                console.log(emailParams);
+            }
+        } catch (error) {
+            console.error("EmailNotificationService sendSubscriptionEmail", error)
+        }
+    }
+    async subscriptionEmailTemplate(name: string, subscriptionName: string, orderID: string, purchaseDate: string, grandTotal: string, transactionID: string, paymentMethod: string) {
+        const fileData = await this.readTemplate('/template/subscription.html');
+        const base64Logo = await this.readLogo();
+        const replacedData = fileData
+            .replace(/{{Name}}/g, name)
+            .replace(/{{SubscriptionName}}/g, subscriptionName)
+            .replace(/{{TransactionID}}/g, transactionID)
+            .replace(/{{PaymentMethod}}/g, paymentMethod)
+            .replace(/{{OrderID}}/g, orderID)
+            .replace(/{{GrandTotal}}/g, grandTotal)
+            .replace(/{{PurchaseDate}}/g, moment(purchaseDate).format('dd mm yyyy'))
+            .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+            .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
+            .replace(/{{AppName}}/g, AppConfig.APP_NAME);
+        return replacedData;
+    }
     async verifyEmailTemplate(otp: number) {
-        const privacyPolicyLink = '/privacy-policy';
-        const termsAndConditions = '/terms-and-conditions';
         const fileData = await this.readTemplate('/template/verify-email.html');
         const base64Logo = await this.readLogo();
         const replacedData = fileData
             .replace(/{{OTP}}/g, otp.toString())
             .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
-            .replace(/{{PrivacyPolicyLink}}/g, privacyPolicyLink)
-            .replace(/{{TermsAndConditions}}/g, termsAndConditions)
+            .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+            .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
             .replace(/{{AppName}}/g, AppConfig.APP_NAME);
         return replacedData;
     }
     async forgotPasswordTemplate(otp: number) {
-        const privacyPolicyLink = '/privacy-policy';
-        const termsAndConditions = '/terms-and-conditions';
         const fileData = await this.readTemplate('/template/forgot-password.html');
         const base64Logo = await this.readLogo();
         const replacedData = fileData
             .replace(/{{OTP}}/g, otp.toString())
             .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
-            .replace(/{{PrivacyPolicyLink}}/g, privacyPolicyLink)
-            .replace(/{{TermsAndConditions}}/g, termsAndConditions)
+            .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+            .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
             .replace(/{{AppName}}/g, AppConfig.APP_NAME);
         return replacedData;
     }
