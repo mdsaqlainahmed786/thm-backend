@@ -1,5 +1,4 @@
 import { ObjectId } from 'mongodb';
-import S3Object, { IS3Object } from './../database/models/s3Object.model';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk, httpAcceptedOrUpdated } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";

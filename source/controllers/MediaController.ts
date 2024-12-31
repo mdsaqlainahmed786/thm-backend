@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import sharp from "sharp";
 import { addStringBeforeExtension, isArray } from "../utils/helper/basic";
-import S3Object, { IS3Object } from "../database/models/s3Object.model";
 import { MongoID } from "../common";
 import Media, { MediaType } from "../database/models/media.model";
 import S3Service from "../services/S3Service";
@@ -166,7 +165,6 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
 
 async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     try {
-        let objectToDelete: IS3Object[] = [];
         await Promise.all(files.map(async (file) => {
             await fileSystem.unlink(file.path)
         }))

@@ -265,7 +265,7 @@ const createDefaultProfile = async () => {
     const name = 'The Hotel Media';
     const dialCode = '+91';
     const phoneNumber = '7738727020'
-    const hostAddress = 'https://thehotelmedia.com/';
+    const hostAddress = 'https://thehotelmedia.com';
     const isAccountExit = await User.findOne({ email: email, role: Role.COMPANY });
     if (!isAccountExit) {
         const newUser = new User();
@@ -274,6 +274,7 @@ const createDefaultProfile = async () => {
             large: hostAddress + '/public/files/thm-logo-md.png',
             medium: hostAddress + '/public/files/thm-logo-lg.png'
         };
+        newUser.bio = 'Your go-to app 📱 for honest reviews 💬\n and trusted ratings across a wide range of categories.'
         newUser.username = username;
         newUser.email = email;
         newUser.name = name;

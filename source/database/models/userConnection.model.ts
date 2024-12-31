@@ -38,3 +38,6 @@ export default UserConnection;
 export async function fetchUserFollowing(userID: MongoID) {
     return await UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED });
 }
+export async function fetchUserFollower(userID: MongoID) {
+    return await UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED })
+}
