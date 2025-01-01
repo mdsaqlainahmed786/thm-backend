@@ -6,6 +6,7 @@ import Subscription from "../../database/models/subscription.model";
 import { ObjectId } from "mongodb";
 import { ErrorMessage } from "../../utils/response-message/error";
 import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../../database/models/user.model";
+import Order from "../../database/models/order.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -17,14 +18,16 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         if (query !== undefined && query !== "") {
-            Object.assign(dbQuery,
+            const orders = await Order.distinct('_id',
                 {
                     $or: [
-                        { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { description: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        { orderID: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        { razorPayOrderID: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        { "paymentDetail.transactionID": { $regex: new RegExp(query.toLowerCase(), "i") } }
                     ]
                 }
-            )
+            );
+            Object.assign(dbQuery, { orderID: { $in: orders } });
         }
         if (businessTypeID && businessTypeID !== undefined) {
             Object.assign(dbQuery, { businessTypeID: { $in: [new ObjectId(businessTypeID)] } })
