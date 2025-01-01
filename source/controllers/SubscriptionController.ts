@@ -63,7 +63,10 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
             Object.assign(dbQuery, { businessProfileID: user.businessProfileID })
         }
-        const hasSubscription = await Subscription.findOne(dbQuery);
+        const [hasSubscription, admins] = await Promise.all([
+            Subscription.findOne(dbQuery),
+            User.distinct('email', { role: Role.ADMINISTRATOR })
+        ]);
         if (!hasSubscription) {
             const newSubscription = new Subscription();
             newSubscription.businessProfileID = user.businessProfileID;
@@ -84,6 +87,18 @@ const buySubscription = async (request: Request, response: Response, next: NextF
                     newSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
             }
             const savedSubscription = await newSubscription.save();
+            console.log(moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'))
+            emailNotificationService.sendSubscriptionEmail({
+                name: user.name ?? user.username,
+                toAddress: user.email,
+                cc: admins,
+                subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
+                orderID: order.orderID,
+                purchaseDate: moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'),
+                grandTotal: order.grandTotal.toString(),
+                transactionID: order.paymentDetail.transactionID,
+                paymentMethod: order.paymentDetail.paymentMethod
+            });
             return response.send(httpOk(savedSubscription, "Subscription added."));
         }
         hasSubscription.orderID = order.id;
@@ -102,7 +117,6 @@ const buySubscription = async (request: Request, response: Response, next: NextF
         }
         hasSubscription.subscriptionPlanID = order.subscriptionPlanID;
         const savedSubscription = await hasSubscription.save();
-        const admins = await User.distinct('email', { role: Role.ADMINISTRATOR });
         console.log(moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'))
         emailNotificationService.sendSubscriptionEmail({
             name: user.name ?? user.username,
