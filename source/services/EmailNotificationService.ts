@@ -35,8 +35,8 @@ class EmailNotificationService {
             name: AppConfig.APP_NAME,
             email: AppConfig.SENDGRID.FROM_ADDRESS
         }
-        this.privacyPolicyLink = '/privacy-policy';
-        this.termsAndConditions = '/terms-and-conditions';
+        this.privacyPolicyLink = 'https://thehotelmedia.com/privacy-policy';
+        this.termsAndConditions = 'https://thehotelmedia.com/terms-and-conditions';
     }
     async sendEmailOTP(otp: number, toAddress: string, reason: 'verify-email' | 'forgot-password') {
         try {
@@ -90,7 +90,7 @@ class EmailNotificationService {
                 Hello ${name}, \nThank you for purchasing the ${subscriptionName} subscription! \n\nWe are excited to have you with us. If you have any questions or need assistance, feel free to contact us. \n\nBest regards, \n${AppConfig.APP_NAME}
             `;
             let mailHtmlBody = await this.subscriptionEmailTemplate(name, subscriptionName, orderID, purchaseDate, grandTotal, transactionID, paymentMethod,);
-            const ccRecipients = cc.map((email) => ({ email: email, name: '' }));
+            const ccRecipients = cc.filter((email) => email !== toAddress).map((email) => ({ email: email, name: '' }));
             const mailData: MailDataRequired = {
                 to: toAddress,
                 from: this.fromAddress,
@@ -118,7 +118,8 @@ class EmailNotificationService {
                 // console.log(emailParams);
                 console.log(mailData);
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.log(error?.response?.body?.errors);
             console.error("EmailNotificationService sendSubscriptionEmail", error)
         }
     }
@@ -132,7 +133,7 @@ class EmailNotificationService {
             .replace(/{{PaymentMethod}}/g, paymentMethod)
             .replace(/{{OrderID}}/g, orderID)
             .replace(/{{GrandTotal}}/g, grandTotal)
-            .replace(/{{PurchaseDate}}/g, moment(purchaseDate).format('dd mm yyyy'))
+            .replace(/{{PurchaseDate}}/g, purchaseDate)
             // .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
             .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
             .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
