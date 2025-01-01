@@ -4,11 +4,5 @@ import AppNotificationController from "../../controllers/AppNotificationControll
 
 const NotificationEndpoints: Router = express.Router();
 NotificationEndpoints.get('/', AppNotificationController.index);
-// NotificationEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessByPlaceID);
-
-// NotificationEndpoints.get('/business-types', HomeController.businessTypes);
-// NotificationEndpoints.get('/business-subtypes/:id', HomeController.businessSubTypes);
-// NotificationEndpoints.post('/business-questions', businessQuestionsApiValidator, validateRequest, HomeController.businessQuestions);
-// NotificationEndpoints.get('/db', HomeController.dbSeeder);
-// NotificationEndpoints.get('/db/s', SubscriptionController.index);
+NotificationEndpoints.get('/status', AppNotificationController.status);
 export default NotificationEndpoints;

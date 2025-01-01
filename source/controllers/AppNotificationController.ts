@@ -41,6 +41,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 UserConnection.distinct('following', { follower: id, status: ConnectionStatus.ACCEPTED })
             ]
         );
+        await Notification.updateMany(dbQuery, { isSeen: true });
         const documents = await Notification.aggregate(
             [
                 {
@@ -104,6 +105,21 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const totalDocument = await Notification.find(dbQuery).countDocuments();
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'Notification fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+const status = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        const dbQuery = { isDeleted: false, targetUserID: new ObjectId(id), isSeen: false };
+        const documents = await Notification.find(dbQuery).countDocuments();
+        const responseObject = {
+            hasUnreadMessages: documents > 0,
+            count: documents
+        }
+        return response.send(httpOk(responseObject, 'Notification fetched.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -248,4 +264,4 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-export default { index, store, update, destroy };
+export default { index, status, store, update, destroy };
