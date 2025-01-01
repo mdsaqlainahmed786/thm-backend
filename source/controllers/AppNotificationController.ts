@@ -119,8 +119,8 @@ const status = async (request: Request, response: Response, next: NextFunction) 
         const documents = await Notification.find(dbQuery).countDocuments();
         let findQuery = {
             $or: [
-                { userID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] } },
-                { targetUserID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] } }
+                { userID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] }, isSeen: false },
+                { targetUserID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] }, isSeen: false }
             ]
         }
         const messages = await ChatMessage.find(findQuery).countDocuments();
