@@ -15,6 +15,8 @@ import { httpOkExtended } from "../utils/response";
 import { addBusinessProfileInUser } from "../database/models/user.model";
 import { v4 } from 'uuid';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
+import ChatMessage from '../database/models/message.model';
+
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -115,9 +117,24 @@ const status = async (request: Request, response: Response, next: NextFunction) 
         const { id, accountType, businessProfileID } = request.user;
         const dbQuery = { isDeleted: false, targetUserID: new ObjectId(id), isSeen: false };
         const documents = await Notification.find(dbQuery).countDocuments();
-        const responseObject = {
+        let findQuery = {
+            $or: [
+                { userID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] } },
+                { targetUserID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] } }
+            ]
+        }
+        const messages = await ChatMessage.find(findQuery).countDocuments();
+        const messageObj = {
+            hasUnreadMessages: messages > 0,
+            count: messages
+        }
+        const notificationObj = {
             hasUnreadMessages: documents > 0,
             count: documents
+        }
+        const responseObject = {
+            notifications: notificationObj,
+            messages: messageObj
         }
         return response.send(httpOk(responseObject, 'Notification fetched.'));
     } catch (error: any) {
