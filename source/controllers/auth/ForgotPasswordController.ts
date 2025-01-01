@@ -6,6 +6,8 @@ import { generateOTP } from "../../utils/helper/basic";
 import { AuthenticateUser } from "../../common";
 import PasswordResetToken from "../../database/models/passwordResetToken.model";
 import { sign } from "jsonwebtoken";
+import EmailNotificationService from "../../services/EmailNotificationService";
+const emailNotificationService = new EmailNotificationService();
 const forgotPasswordRequest = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email } = request.body;
@@ -14,6 +16,7 @@ const forgotPasswordRequest = async (request: Request, response: Response, next:
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         account.otp = generateOTP();
+        emailNotificationService.sendEmailOTP(account.otp, account.email, "forgot-password");
         await account.save();
         return response.json(httpOk({ email }, `OTP sent to your email.`));
     } catch (error: any) {
