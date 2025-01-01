@@ -54,6 +54,12 @@ export abstract class AppConfig {
         MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID!
     }
 
+    //SendGrid
+    static readonly SENDGRID = {
+        API_KEY: process.env.SENDGRID_API_KEY!,
+        FROM_ADDRESS: process.env.SENDGRID_FROM_ADDRESS!
+    }
+
     //Mailersend
     static readonly MAILER_SEND = {
         API_KEY: process.env.MAILERSEND_API_KEY!,

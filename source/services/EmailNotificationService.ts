@@ -4,7 +4,8 @@ import fs from "fs/promises";
 import { PUBLIC_DIR } from '../middleware/file-uploading';
 import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
 import moment from "moment";
-
+import sgMail, { MailDataRequired } from "@sendgrid/mail";
+import { EmailData } from "@sendgrid/helpers/classes/email-address";
 interface SubscriptionEmail {
     name: string
     toAddress: string
@@ -19,16 +20,21 @@ interface SubscriptionEmail {
 }
 
 class EmailNotificationService {
-    private mailer: MailerSend;
-    private sender: Sender;
+    // private mailer: MailerSend;
+    // private sender: Sender;
+    private fromAddress: EmailData;
     private privacyPolicyLink: string;
     private termsAndConditions: string;
     constructor() {
-        this.mailer = new MailerSend({
-            apiKey: AppConfig.MAILER_SEND.API_KEY!
-
-        });
-        this.sender = new Sender(AppConfig.MAILER_SEND.FROM_ADDRESS, AppConfig.APP_NAME);
+        // this.mailer = new MailerSend({
+        //     apiKey: AppConfig.MAILER_SEND.API_KEY!
+        // });
+        // this.sender = new Sender(AppConfig.MAILER_SEND.FROM_ADDRESS, AppConfig.APP_NAME);
+        sgMail.setApiKey(AppConfig.SENDGRID.API_KEY);
+        this.fromAddress = {
+            name: AppConfig.APP_NAME,
+            email: AppConfig.SENDGRID.FROM_ADDRESS
+        }
         this.privacyPolicyLink = '/privacy-policy';
         this.termsAndConditions = '/terms-and-conditions';
     }
@@ -47,20 +53,30 @@ class EmailNotificationService {
                 mailTextBody = `You are receiving this email because we received a password reset request for your account. Use ${otp} OTP to recover your account password.`;
                 mailHtmlBody = await this.forgotPasswordTemplate(otp);
             }
-            const recipients = [
-                new Recipient(toAddress)
-            ];
-            const emailParams = new EmailParams()
-                .setFrom(this.sender)
-                .setTo(recipients)
-                .setReplyTo(this.sender)
-                .setSubject(subject)
-                .setHtml(mailHtmlBody)
-                .setText(mailTextBody);
+            const mailData: MailDataRequired = {
+                to: toAddress,
+                from: this.fromAddress,
+                subject: subject,
+                text: mailTextBody,
+                html: mailHtmlBody
+            };
+            //FIXME  Remove me
+            // const recipients = [
+            //     new Recipient(toAddress)
+            // ];
+            // const emailParams = new EmailParams()
+            //     .setFrom(this.sender)
+            //     .setTo(recipients)
+            //     .setReplyTo(this.sender)
+            //     .setSubject(subject)
+            //     .setHtml(mailHtmlBody)
+            //     .setText(mailTextBody);
             if (AppConfig.APP_ENV !== "dev") {
-                await this.mailer.email.send(emailParams);
+                // await this.mailer.email.send(emailParams);
+                await sgMail.send(mailData);
             } else {
-                console.log(emailParams);
+                // console.log(emailParams);
+                console.log(mailData);
             }
         } catch (error) {
             console.error("EmailNotificationService sendEmailOTP", error)
@@ -71,25 +87,36 @@ class EmailNotificationService {
             const { toAddress, name, cc, subscriptionName, orderID, purchaseDate, grandTotal, transactionID, paymentMethod, } = data;
             let subject = 'Subscription Purchased';
             let mailTextBody = `
-                Hello, \nThank you for purchasing the ${subscriptionName} subscription! \n\nWe are excited to have you with us. If you have any questions or need assistance, feel free to contact us. \n\nBest regards, \n${AppConfig.APP_NAME}
+                Hello ${name}, \nThank you for purchasing the ${subscriptionName} subscription! \n\nWe are excited to have you with us. If you have any questions or need assistance, feel free to contact us. \n\nBest regards, \n${AppConfig.APP_NAME}
             `;
             let mailHtmlBody = await this.subscriptionEmailTemplate(name, subscriptionName, orderID, purchaseDate, grandTotal, transactionID, paymentMethod,);
-            const recipients = [
-                new Recipient(toAddress, name)
-            ];
-            const ccRecipients = cc.map((email) => new Recipient(email));
-            const emailParams = new EmailParams()
-                .setFrom(this.sender)
-                .setTo(recipients)
-                .setCc(ccRecipients)
-                .setReplyTo(this.sender)
-                .setSubject(subject)
-                .setHtml(mailHtmlBody)
-                .setText(mailTextBody);
+            const ccRecipients = cc.map((email) => ({ email: email, name: '' }));
+            const mailData: MailDataRequired = {
+                to: toAddress,
+                from: this.fromAddress,
+                cc: ccRecipients,
+                subject: subject,
+                text: mailTextBody,
+                html: mailHtmlBody
+            };
+            // const recipients = [
+            //     new Recipient(toAddress, name)
+            // ];
+            // const ccRecipients = cc.map((email) => new Recipient(email));
+            // const emailParams = new EmailParams()
+            //     .setFrom(this.sender)
+            //     .setTo(recipients)
+            //     .setCc(ccRecipients)
+            //     .setReplyTo(this.sender)
+            //     .setSubject(subject)
+            //     .setHtml(mailHtmlBody)
+            //     .setText(mailTextBody);
             if (AppConfig.APP_ENV !== "dev") {
-                await this.mailer.email.send(emailParams);
+                await sgMail.send(mailData);
+                // await this.mailer.email.send(emailParams);
             } else {
-                console.log(emailParams);
+                // console.log(emailParams);
+                console.log(mailData);
             }
         } catch (error) {
             console.error("EmailNotificationService sendSubscriptionEmail", error)
@@ -106,7 +133,8 @@ class EmailNotificationService {
             .replace(/{{OrderID}}/g, orderID)
             .replace(/{{GrandTotal}}/g, grandTotal)
             .replace(/{{PurchaseDate}}/g, moment(purchaseDate).format('dd mm yyyy'))
-            .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            // .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
             .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
             .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
             .replace(/{{AppName}}/g, AppConfig.APP_NAME);
@@ -117,7 +145,8 @@ class EmailNotificationService {
         const base64Logo = await this.readLogo();
         const replacedData = fileData
             .replace(/{{OTP}}/g, otp.toString())
-            .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            // .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
             .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
             .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
             .replace(/{{AppName}}/g, AppConfig.APP_NAME);
@@ -128,7 +157,8 @@ class EmailNotificationService {
         const base64Logo = await this.readLogo();
         const replacedData = fileData
             .replace(/{{OTP}}/g, otp.toString())
-            .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            // .replace(/{{Logo}}/g, `data:image/png;base64,${base64Logo}`)
+            .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
             .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
             .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
             .replace(/{{AppName}}/g, AppConfig.APP_NAME);
