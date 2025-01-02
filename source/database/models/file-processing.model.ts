@@ -14,6 +14,7 @@ interface FileQueue extends Document {
     s3Location: string[];
     status: string;
     mediaID: MongoID;
+    jobID: string;
 }
 
 const FileQueueSchema: Schema = new Schema<FileQueue>(
@@ -22,6 +23,7 @@ const FileQueueSchema: Schema = new Schema<FileQueue>(
         status: { type: String, enum: QueueStatus, default: QueueStatus.CREATED, required: true },
         s3Key: { type: String, required: true },
         s3Location: [{ type: String }],
+        jobID: { type: String },
         mediaID: {
             type: Schema.Types.ObjectId,
             ref: "Media"

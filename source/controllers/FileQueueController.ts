@@ -25,12 +25,13 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const ID = request?.params?.id;
-        const { status, s3Location } = request.body;
+        const { status, s3Location, jobID } = request.body;
         const fileQueue = await FileQueue.findOne({ _id: ID });
         if (!fileQueue) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("File queue not found"), "File queue not found"));
         }
         fileQueue.status = status ?? fileQueue.status;
+        fileQueue.jobID = jobID ?? fileQueue.jobID;
         if (s3Location && isArray(s3Location)) {
             fileQueue.s3Location = s3Location ? s3Location : fileQueue.s3Location;
         }
