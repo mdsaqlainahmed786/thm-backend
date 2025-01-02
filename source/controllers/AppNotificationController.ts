@@ -193,7 +193,8 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     break;
                 case NotificationType.COMMENT:
                     title = AppConfig.APP_NAME
-                    description = `${name} commented on your post: '${truncate(metadata?.message)}'.`;
+                    const postType = metadata.postType ?? "post";
+                    description = `${name} commented on your ${postType}: '${truncate(metadata?.message)}'.`;
                     profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.REPLY:
