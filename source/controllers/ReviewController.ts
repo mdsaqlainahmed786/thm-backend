@@ -285,7 +285,13 @@ const sendReviewNotification = async (businessProfileID: MongoID, name: string, 
                 const title = 'Congratulations 🎉 You’ve received a new rating!';
                 const description = `You’ve got a new rating! **${name}** rated you ${rating} stars.\nFeedback: '${review}'`;
                 const type = NotificationType.REVIEW;
-                const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
+                const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, {
+                    notificationID: notificationID,
+                    devicePlatform: devicesConfig.devicePlatform,
+                    type: type,
+                    image: "",
+                    profileImage: ""
+                });
                 await sendNotification(message);
             }
             return devicesConfig;

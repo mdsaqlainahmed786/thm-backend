@@ -399,10 +399,16 @@ async function sendMessageNotification(targetUserID: MongoID, data: any, message
         const image = data?.profilePic?.small ?? '';
         let title = `New message from ${data.name ?? 'User'}`;
         const description = message;
-        const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
+        const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
         await Promise.all(devicesConfigs.map(async (devicesConfig) => {
             if (devicesConfig && devicesConfig.notificationToken) {
-                const message: FMessage = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type, image);
+                const message: FMessage = createMessagePayload(devicesConfig.notificationToken, title, description, {
+                    notificationID: notificationID,
+                    devicePlatform: devicesConfig.devicePlatform,
+                    type: type,
+                    image: "",
+                    profileImage: image
+                });
                 await sendNotification(message);
             }
             return devicesConfig;

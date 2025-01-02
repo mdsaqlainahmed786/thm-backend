@@ -21,17 +21,24 @@ export async function verifyDeviceConfig(fcmToken: string): Promise<string> {
     };
     return firebase.messaging().send(message, true);
 }
-export const createMessagePayload = (token: string, title: string, description: string, notificationID: string, devicePlatform?: DevicePlatform | undefined, type?: string | undefined, image?: string | undefined) => {
+type NotificationData = {
+    notificationID: string;
+    devicePlatform?: DevicePlatform | undefined;
+    type?: string | undefined;
+    image?: string | undefined;
+    profileImage?: string | undefined;
+}
+export const createMessagePayload = (token: string, title: string, description: string, data: NotificationData) => {
+    const { notificationID, devicePlatform, type, image, profileImage } = data;
     const message: Message = {
         token: token,
-        notification: {
-            title: title,
-            body: description
-        },
         data: {
+            title: title,
+            body: description,
             notificationID: notificationID,
             screen: type ?? "",
-            image: image ?? ""
+            image: image ?? "",
+            profileImage: profileImage ?? ""
         },
     };
     if (devicePlatform && devicePlatform === DevicePlatform.ANDROID) {
@@ -41,22 +48,30 @@ export const createMessagePayload = (token: string, title: string, description: 
                 data: {
                     title: title,
                     body: description,
-                    screen: type,
                     notificationID: notificationID,
+                    screen: type,
+                    image: image ?? "",
+                    profileImage: profileImage ?? ""
                 },
             },
         })
     }
     if (devicePlatform && devicePlatform === DevicePlatform.IOS) {
         Object.assign(message, {
+            notification: {
+                title: title,
+                body: description
+            },
             apns: {
                 payload: {
                     aps: {
                         "alert": {
-                            title: title,
-                            body: description
+                            "title": title,
+                            "body": description
                         },
-                        "sound": "default"
+                        "sound": "default",
+                        "mutable-content": 1,
+                        // "content-available": 1,
                     }
                 }
             }

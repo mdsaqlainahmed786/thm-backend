@@ -119,7 +119,6 @@ const status = async (request: Request, response: Response, next: NextFunction) 
         const documents = await Notification.find(dbQuery).countDocuments();
         let findQuery = {
             $or: [
-                { userID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] }, isSeen: false },
                 { targetUserID: new ObjectId(id), deletedByID: { $nin: [new ObjectId(id)] }, isSeen: false }
             ]
         }
@@ -152,18 +151,22 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
         if (userData && targetUserData) {
             console.log(userData.name, targetUserData.name, type);
             const name = userData.name;
+
             const targetUserName = targetUserData.name;
 
+            let profileImage = "";
             let title: string = AppConfig.APP_NAME;
             let description: string = 'Welcome to The Hotel Media';
             switch (type) {
                 case NotificationType.LIKE_A_STORY:
                     title = AppConfig.APP_NAME;
                     description = `${name} liked your story.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.LIKE_POST:
                     title = AppConfig.APP_NAME;
                     description = `${name} liked your post.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.LIKE_COMMENT:
                     title = AppConfig.APP_NAME;
@@ -171,33 +174,40 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     // let truncatedComment = metadata?.message ? metadata.message : '';
                     // truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
                     description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.FOLLOW_REQUEST:
                     title = AppConfig.APP_NAME;
                     description = `${name} requested to follow you.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.FOLLOWING:
                     title = AppConfig.APP_NAME;
                     description = `${name} started following you.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.ACCEPT_FOLLOW_REQUEST:
                     title = AppConfig.APP_NAME;
                     description = `${name} accepted your follow request.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.COMMENT:
                     title = AppConfig.APP_NAME
                     description = `${name} commented on your post: '${truncate(metadata?.message)}'.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.REPLY:
                     title = AppConfig.APP_NAME
                     description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.TAGGED:
                     title = AppConfig.APP_NAME
                     description = `${name} tagged you in a post.`;
+                    profileImage = userData.profilePic.small ?? "";
                     break;
             }
-            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
+            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
             const newNotification = new Notification();
             newNotification.userID = userID;
             newNotification.targetUserID = targetUserID;
@@ -211,7 +221,14 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     await Promise.all(devicesConfigs.map(async (devicesConfig) => {
                         if (devicesConfig && devicesConfig.notificationToken) {
                             const notificationID = newNotification.id ? newNotification.id : v4();
-                            const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description, notificationID, devicesConfig.devicePlatform, type);
+                            const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description,
+                                {
+                                    notificationID: notificationID,
+                                    devicePlatform: devicesConfig.devicePlatform,
+                                    type: type,
+                                    image: "",
+                                    profileImage: profileImage
+                                });
                             await sendNotification(message);
                         }
                         return devicesConfig;
@@ -254,12 +271,19 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
         }
         const notification = await Notification.findOne(dbQuery);
         if (notification) {
-            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID }, 'notificationToken');
+            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
             try {
                 await Promise.all(devicesConfigs.map(async (devicesConfig) => {
                     if (devicesConfig && devicesConfig.notificationToken) {
                         const notificationID = notification.id ? notification?.id : v4();
-                        const message: Message = createMessagePayload(devicesConfig.notificationToken, 'New Message', 'Checking for New Messages ...', notificationID, devicesConfig.devicePlatform, 'destroy');
+                        const message: Message = createMessagePayload(devicesConfig.notificationToken, 'New Message', 'Checking for New Messages ...',
+                            {
+                                notificationID: notificationID,
+                                devicePlatform: devicesConfig.devicePlatform,
+                                type: 'destroy',
+                                image: "",
+                                profileImage: ""
+                            });
                         // await sendNotification(message);
                     }
                     return devicesConfig;

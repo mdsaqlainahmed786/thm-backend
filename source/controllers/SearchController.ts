@@ -14,7 +14,6 @@ import { AppConfig } from "../config/constants";
 import Notification from "../database/models/notification.model";
 import DevicesConfig from "../database/models/appDeviceConfig.model";
 import { Message } from "firebase-admin/lib/messaging/messaging-api";
-import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
 import { DevicePlatform } from "../validation/common-validation";
 import { parseQueryParam, truncate } from "../utils/helper/basic";
 import { httpOkExtended } from "../utils/response";
