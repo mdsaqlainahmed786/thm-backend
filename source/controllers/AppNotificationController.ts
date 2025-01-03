@@ -157,6 +157,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             let profileImage = "";
             let title: string = AppConfig.APP_NAME;
             let description: string = 'Welcome to The Hotel Media';
+            let postType = "post";
             switch (type) {
                 case NotificationType.LIKE_A_STORY:
                     title = AppConfig.APP_NAME;
@@ -165,14 +166,12 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     break;
                 case NotificationType.LIKE_POST:
                     title = AppConfig.APP_NAME;
-                    description = `${name} liked your post.`;
+                    postType = metadata.postType ?? "post";
+                    description = `${name} liked your ${postType}.`;
                     profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.LIKE_COMMENT:
                     title = AppConfig.APP_NAME;
-                    // const messageLength = 150;
-                    // let truncatedComment = metadata?.message ? metadata.message : '';
-                    // truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment
                     description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
                     profileImage = userData.profilePic.small ?? "";
                     break;
@@ -193,7 +192,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     break;
                 case NotificationType.COMMENT:
                     title = AppConfig.APP_NAME
-                    const postType = metadata.postType ?? "post";
+                    postType = metadata.postType ?? "post";
                     description = `${name} commented on your ${postType}: '${truncate(metadata?.message)}'.`;
                     profileImage = userData.profilePic.small ?? "";
                     break;
@@ -263,7 +262,7 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
             case NotificationType.LIKE_POST:
                 Object.assign(dbQuery, { type: type, "metadata.postID": metadata?.postID })
                 break;
-            case NotificationType.LIKE_POST:
+            case NotificationType.LIKE_COMMENT:
                 Object.assign(dbQuery, { type: type, "metadata.commentID": metadata?.commentID })
                 break;
             case NotificationType.FOLLOW_REQUEST:

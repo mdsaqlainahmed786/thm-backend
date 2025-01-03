@@ -129,7 +129,19 @@ export default function createSocketServer(httpServer: https.Server) {
                     }
                     const savedMessage = await newMessage.save();
                     if (!inChatScreen) {
-                        sendMessageNotification(sendTo.id, sendedBy, savedMessage.message);
+                        let message = savedMessage.message;
+                        switch (savedMessage.type) {
+                            case MessageType.IMAGE:
+                                message = "📸 image";
+                                break;
+                            case MessageType.VIDEO:
+                                message = "🎬 video";
+                                break;
+                            case MessageType.PDF:
+                                message = "📝 pdf";
+                                break;
+                        }
+                        sendMessageNotification(sendTo.id, message, sendedBy);
                     }
                 }
             } catch (error: any) {
@@ -392,7 +404,7 @@ async function updateLastSeen(socket: Socket) {
     }
 }
 
-async function sendMessageNotification(targetUserID: MongoID, data: any, message: string) {
+async function sendMessageNotification(targetUserID: MongoID, message: string, data: any,) {
     try {
         const notificationID = v4();
         const type = NotificationType.MESSAGING;
