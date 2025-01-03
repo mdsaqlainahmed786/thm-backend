@@ -54,7 +54,8 @@ export default function createSocketServer(httpServer: https.Server) {
             sessionID: (socket as AppSocketUser).sessionID,
             username: (socket as AppSocketUser).username,
             userID: (socket as AppSocketUser).userID,
-            inChatScreen: false
+            chatWith: undefined,
+            inChatScreen: false,
         }
         console.log("Connection :::\n", socket.id, sessionUser)
 
@@ -90,7 +91,7 @@ export default function createSocketServer(httpServer: https.Server) {
             const currentSession = sessionStore.findSession(data.to);
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
             const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
-            const inPrivateChatScreen = currentSession?.chatWith ? true : false;
+            const isOnline = currentSession ? true : false;
             const messageData = {
                 message: data.message,
                 from: (socket as AppSocketUser).username,
@@ -129,19 +130,24 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                     }
                     const savedMessage = await newMessage.save();
-                    if (!inChatScreen || !inPrivateChatScreen) {
-                        let message = savedMessage.message;
-                        switch (savedMessage.type) {
-                            case MessageType.IMAGE:
-                                message = "📸 image";
-                                break;
-                            case MessageType.VIDEO:
-                                message = "🎬 video";
-                                break;
-                            case MessageType.PDF:
-                                message = "📝 pdf";
-                                break;
+
+                    let message = savedMessage.message;
+                    switch (savedMessage.type) {
+                        case MessageType.IMAGE:
+                            message = "📸 image";
+                            break;
+                        case MessageType.VIDEO:
+                            message = "🎬 video";
+                            break;
+                        case MessageType.PDF:
+                            message = "📝 pdf";
+                            break;
+                    }
+                    if (isOnline) {
+                        if (!inChatScreen) {
+                            sendMessageNotification(sendTo.id, message, sendedBy);
                         }
+                    } else {
                         sendMessageNotification(sendTo.id, message, sendedBy);
                     }
                 }
@@ -250,25 +256,27 @@ export default function createSocketServer(httpServer: https.Server) {
         });
 
         socket.on(SocketChannel.IN_PRIVATE_CHAT, (username: string) => {
+            console.log("in private chat", username);
             sessionStore.saveSession((socket as AppSocketUser).username, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
-                chatWith: username ?? undefined,
-                inChatScreen: (socket as AppSocketUser).inChatScreen,
+                chatWith: username ?? (socket as AppSocketUser).chatWith,
+                inChatScreen: true,
             });
-            console.log("in chat", username);
+            console.log(sessionStore);
         });
 
         socket.on(SocketChannel.LEAVE_PRIVATE_CHAT, () => {
+            console.log("leave private chat", (socket as AppSocketUser).chatWith);
             sessionStore.saveSession((socket as AppSocketUser).username, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
                 chatWith: undefined,
-                inChatScreen: (socket as AppSocketUser).inChatScreen,
+                inChatScreen: false,
             });
-            console.log("leave chat");
+            console.log(sessionStore);
         });
 
         socket.on(SocketChannel.IN_CHAT, () => {
@@ -276,10 +284,10 @@ export default function createSocketServer(httpServer: https.Server) {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
-                chatWith: (socket as AppSocketUser).chatWith,
+                chatWith: undefined,
                 inChatScreen: true,
             });
-            console.log("in chat screen",);
+            console.log("in chat screen");
         });
 
         socket.on(SocketChannel.LEAVE_CHAT, () => {
@@ -287,7 +295,7 @@ export default function createSocketServer(httpServer: https.Server) {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
-                chatWith: (socket as AppSocketUser).chatWith,
+                chatWith: undefined,
                 inChatScreen: false,
             });
             console.log("leave chat screen");
