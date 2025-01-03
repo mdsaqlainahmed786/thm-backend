@@ -282,9 +282,10 @@ const sendReviewNotification = async (businessProfileID: MongoID, name: string, 
         await Promise.all(devicesConfigs.map(async (devicesConfig) => {
             if (devicesConfig && devicesConfig.notificationToken) {
                 const notificationID = v4();
-                const title = 'Congratulations 🎉 You’ve received a new rating!';
+                let title = 'Congratulations 🎉 You’ve received a new rating!';
                 let description = `You’ve got a new rating! **${name}** rated you ${rating} stars.\nFeedback: '${review}'`;
                 if (rating <= 3) {
+                    title = '⚠️ You’ve received a new rating!';
                     description = `📢❗🚨 You’ve got a new rating! **${name}** rated you ${rating} stars.\nFeedback: '${review}'`;
                 }
                 const type = NotificationType.REVIEW;

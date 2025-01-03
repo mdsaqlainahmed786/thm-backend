@@ -9,6 +9,8 @@ import { MongoID } from '../common';
 import EventJoin from "../database/models/eventJoin.model";
 import { AwsS3AccessEndpoints } from "../config/constants";
 import S3Service from "../services/S3Service";
+import AppNotificationController from "./AppNotificationController";
+import { NotificationType } from "../database/models/notification.model";
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -176,9 +178,11 @@ const joinEvent = async (request: Request, response: Response, next: NextFunctio
             eventJoin.userID = id;
             eventJoin.postID = postID;
             const savedEventJoin = await eventJoin.save();
+            AppNotificationController.store(id, post.userID, NotificationType.EVENT_JOIN, { postID: post.id, userID: post.userID, postType: post.postType, name: post.name }).catch((error) => console.error(error));
             return response.send(httpCreated(savedEventJoin, "Your action saved successfully"));
         }
         await joinedAllReady.deleteOne();
+        AppNotificationController.destroy(id, post.userID, NotificationType.EVENT_JOIN, { postID: post.id, userID: post.userID, postType: post.postType }).catch((error) => console.error(error));
         return response.send(httpNoContent(null, 'Your action saved successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

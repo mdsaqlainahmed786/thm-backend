@@ -11,7 +11,8 @@ export enum NotificationType {
     REPLY = "reply",
     REVIEW = 'review',
     TAGGED = 'tagged',
-    MESSAGING = 'messaging'
+    MESSAGING = 'messaging',
+    EVENT_JOIN = "event-join"
 }
 
 export interface INotification extends Document {

@@ -155,6 +155,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             const targetUserName = targetUserData.name;
 
             let profileImage = "";
+            let image = "";
             let title: string = AppConfig.APP_NAME;
             let description: string = 'Welcome to The Hotel Media';
             let postType = "post";
@@ -206,6 +207,12 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                     description = `${name} tagged you in a post.`;
                     profileImage = userData.profilePic.small ?? "";
                     break;
+                case NotificationType.EVENT_JOIN:
+                    title = AppConfig.APP_NAME
+                    const eventName = metadata.name ?? '';
+                    description = `${name} has joined the event \n${eventName}.`;
+                    profileImage = userData.profilePic.small ?? "";
+                    break;
             }
             const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
             const newNotification = new Notification();
@@ -226,7 +233,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                                     notificationID: notificationID,
                                     devicePlatform: devicesConfig.devicePlatform,
                                     type: type,
-                                    image: "",
+                                    image: image,
                                     profileImage: profileImage
                                 });
                             await sendNotification(message);
@@ -267,6 +274,9 @@ const destroy = async (userID: MongoID, targetUserID: MongoID, type: Notificatio
                 break;
             case NotificationType.FOLLOW_REQUEST:
                 Object.assign(dbQuery, { type: type, "metadata.connectionID": metadata?.connectionID })
+                break;
+            case NotificationType.EVENT_JOIN:
+                Object.assign(dbQuery, { type: type, "metadata.postID": metadata?.postID })
                 break;
         }
         const notification = await Notification.findOne(dbQuery);

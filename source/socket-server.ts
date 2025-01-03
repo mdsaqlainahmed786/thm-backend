@@ -409,7 +409,7 @@ async function sendMessageNotification(targetUserID: MongoID, message: string, d
         const notificationID = v4();
         const type = NotificationType.MESSAGING;
         const image = data?.profilePic?.small ?? '';
-        let title = `New message from ${data.name ?? 'User'}`;
+        let title = `${data.name ?? 'User'}`;
         const description = message;
         const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
         await Promise.all(devicesConfigs.map(async (devicesConfig) => {
