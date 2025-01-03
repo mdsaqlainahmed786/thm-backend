@@ -2,12 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { httpNotFoundOr404, httpCreated, httpInternalServerError, httpNoContent, httpOkExtended } from "../utils/response";
 import Report, { addPostInReport, addReportedByInReport, addUserInReport } from "../database/models/reportedUser.model";
 import { ErrorMessage } from "../utils/response-message/error";
-import { ContentType } from "../common";
+import { ContentType, Role } from "../common";
 import Post from "../database/models/post.model";
 import User from "../database/models/user.model";
-import { ObjectId } from 'mongodb';
 import { parseQueryParam } from "../utils/helper/basic";
-
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -58,7 +56,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const reportContent = async (request: Request, response: Response, next: NextFunction) => {
     try {
         let contentID = request.params.id;
-        const { id, accountType, businessProfileID } = request.user;
+        const { id, accountType, businessProfileID, role } = request.user;
         const { reason } = request.body;
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -66,12 +64,16 @@ const reportContent = async (request: Request, response: Response, next: NextFun
         const [totalReports, isReportedBefore,] = await Promise.all([
             Report.find({ contentID: contentID, contentType: ContentType.POST }),
             Report.findOne({ contentID: contentID, contentType: ContentType.POST, reportedBy: id }),
-        ])
+        ]);
         const post = await Post.findOne({ _id: contentID });
         if (!post) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Content not found"), "Content not found"))
         }
         if (totalReports && totalReports.length >= 5) {//If some post is reported more then 5 time then remove from feed
+            post.isPublished = false;
+            await post.save();
+        }
+        if (role && role === Role.MODERATOR) {
             post.isPublished = false;
             await post.save();
         }

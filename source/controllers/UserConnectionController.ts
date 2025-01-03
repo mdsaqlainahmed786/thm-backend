@@ -266,7 +266,7 @@ const createDefaultProfile = async () => {
     const dialCode = '+91';
     const phoneNumber = '7738727020'
     const hostAddress = 'https://thehotelmedia.com';
-    const isAccountExit = await User.findOne({ email: email, role: Role.COMPANY });
+    const isAccountExit = await User.findOne({ email: email, role: Role.OFFICIAL });
     if (!isAccountExit) {
         const newUser = new User();
         newUser.profilePic = {
@@ -285,7 +285,7 @@ const createDefaultProfile = async () => {
         newUser.isActivated = true;
         newUser.isVerified = true;
         newUser.hasProfilePicture = true;
-        newUser.role = Role.COMPANY;
+        newUser.role = Role.OFFICIAL;
         return await newUser.save();
     }
     return isAccountExit;

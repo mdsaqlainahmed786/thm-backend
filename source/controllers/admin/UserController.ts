@@ -8,6 +8,7 @@ import Post, { getPostsCount } from '../../database/models/post.model';
 import { ConnectionStatus } from './../../database/models/userConnection.model';
 import UserConnection from '../../database/models/userConnection.model';
 import BusinessProfile from '../../database/models/businessProfile.model';
+import { Role } from '../../common';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -110,7 +111,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
         let { id } = request.params;
-        const { name, bio, isVerified, isApproved, isActivated } = request.body;
+        const { name, bio, isVerified, isApproved, isActivated, role } = request.body;
         const user = await User.findOne({ _id: id })
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -120,6 +121,9 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         user.isVerified = isVerified ?? user.isVerified;
         user.isApproved = isApproved ?? user.isApproved;
         user.isActivated = isActivated ?? user.isActivated;
+        if (role && [Role.USER, Role.MODERATOR].includes(role)) {
+            user.role = role ?? user.role;
+        }
         const savedUser = await user.save();
         return response.send(httpAcceptedOrUpdated(savedUser, 'User updated'));
     } catch (error: any) {

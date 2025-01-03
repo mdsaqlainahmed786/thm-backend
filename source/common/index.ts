@@ -7,7 +7,8 @@ import { Address } from "../database/models/common.model";
 export enum Role {
     USER = 'user',
     ADMINISTRATOR = 'administrator',
-    COMPANY = 'company'
+    OFFICIAL = 'official',//Only use as official The hotel Media Account
+    MODERATOR = "moderator" //Moderators have the ability to manage comments and prevent spam or inappropriate content post but do not have full access to account settings or posting.
 }
 export interface AuthenticateUser {
     id: string | Types.ObjectId;
