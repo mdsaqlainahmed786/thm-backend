@@ -390,6 +390,9 @@ async function onlineUsers(socket: Socket, currentUsername: string) {
                 isOnline: 1,
             }
         },
+        {
+            $limit: 20
+        }
     ]);
     socket.emit(SocketChannel.USERS, userList);
 }

@@ -11,10 +11,9 @@ import Story, { addMediaInStory } from '../database/models/story.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
 import Like, { addUserInLike } from '../database/models/like.model';
-import View from '../database/models/storyView.model.';
+import View from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
-import UserConnection from '../database/models/userConnection.model';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {

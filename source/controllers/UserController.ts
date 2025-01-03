@@ -40,6 +40,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
+            user.bio = bio ?? user.bio;
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
 
             if (businessProfileRef) {
@@ -407,11 +408,27 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
                     $limit: documentLimit
                 },
                 {
+                    $lookup: {
+                        from: 'views',
+                        let: { mediaID: '$_id' },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$mediaID', '$$mediaID'] }, postID: { $ne: null } } },
+                        ],
+                        as: 'viewsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                    }
+                },
+                {
                     $project: {
                         _id: 1,
                         mediaType: 1,
                         mimeType: 1,
                         sourceUrl: 1,
+                        views: 1,
                     }
                 }
 

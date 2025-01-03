@@ -17,6 +17,8 @@ export const placeIDValidationRule = body('placeID', 'Place ID is a required fie
 
 export const paramIDValidationRule = param("id", 'ID is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
 export const postIDValidationRule = body("postID", 'Post ID is required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
+export const mediaIDValidationRule = body("mediaID", 'Media ID is required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
+
 export const messageValidationRule = body("message", "Message is required field.").exists().bail().notEmpty().bail();
 
 
@@ -337,4 +339,9 @@ export const socialLoginApiValidator = [
     deviceIDValidationRule,
     notificationTokenValidationRule,
     devicePlatformValidationRule
+]
+
+export const createMediaViewsApiValidator = [
+    postIDValidationRule,
+    mediaIDValidationRule,
 ]

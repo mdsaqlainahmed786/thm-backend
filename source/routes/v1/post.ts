@@ -3,14 +3,12 @@ import PostController from "../../controllers/PostController";
 import { diskUpload, s3Upload } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
 import LikeController from "../../controllers/LikeController";
-import { createCommentApiValidator, createLikesApiValidator, paramIDValidationRule, savedPostApiValidator } from "../../validation/rules/api-validation";
+import { createCommentApiValidator, createLikesApiValidator, createMediaViewsApiValidator, paramIDValidationRule, savedPostApiValidator } from "../../validation/rules/api-validation";
 import { validateRequest } from "../../middleware/api-request-validator";
-import { validate } from "node-cron";
 import SavedPostController from "../../controllers/SavedPostController";
 import CommentController from "../../controllers/CommentController";
 import ReportController from "../../controllers/ReportController";
-import Post from "../../database/models/post.model";
-
+import MediaController from "../../controllers/MediaController";
 const PostEndpoints: Router = express.Router();
 /**
  * Saved post endpoints
@@ -34,4 +32,8 @@ PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController
 PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);
 PostEndpoints.delete('/:id/soft', paramIDValidationRule, validateRequest, PostController.deletePost);
 PostEndpoints.put("/:id", diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), paramIDValidationRule, validateRequest, PostController.update);
+
+//MediaViews
+PostEndpoints.post('/media/views', createMediaViewsApiValidator, validateRequest, MediaController.storeViews);
+
 export default PostEndpoints;

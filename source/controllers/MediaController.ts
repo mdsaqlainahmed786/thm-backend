@@ -1,3 +1,4 @@
+import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import sharp from "sharp";
 import { addStringBeforeExtension, isArray } from "../utils/helper/basic";
@@ -12,7 +13,9 @@ import path from "path";
 import fileSystem from "fs/promises";
 import FileQueue, { QueueStatus } from "../database/models/file-processing.model";
 import { ErrorMessage } from "../utils/response-message/error";
-import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404 } from "../utils/response";
+import View from "../database/models/view.model.";
+import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404, httpCreated, httpNoContent } from "../utils/response";
+import Post from "../database/models/post.model";
 const s3Service = new S3Service();
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
     const s3Image = await s3Service.getS3Object(media.key);
@@ -173,4 +176,36 @@ async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     }
 
 }
-export { storeMedia, generateThumbnail, deleteUnwantedFiles, }
+
+const storeViews = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        const { postID, mediaID } = request.body;
+        const [post, isViewed, media] = await Promise.all([
+            Post.findOne({ _id: postID, media: { $in: [new ObjectId(mediaID)] } }),
+            View.findOne({ postID: postID, mediaID: mediaID, userID: id }),
+            Media.findOne({ _id: mediaID })
+        ])
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
+        }
+        if (!media || media && media.mediaType !== MediaType.VIDEO) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
+        }
+        if (!isViewed) {
+            const newView = new View();
+            newView.userID = id;
+            newView.postID = postID;
+            newView.mediaID = mediaID;
+            newView.businessProfileID = businessProfileID ?? null;
+            const savedView = await newView.save();
+            return response.send(httpCreated(savedView, "View saved successfully"));
+        }
+        return response.send(httpNoContent(isViewed, 'View saved successfully'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export { storeMedia, generateThumbnail, deleteUnwantedFiles }
+export default { storeViews }
