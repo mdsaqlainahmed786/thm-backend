@@ -90,6 +90,7 @@ export default function createSocketServer(httpServer: https.Server) {
             const currentSession = sessionStore.findSession(data.to);
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
             const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
+            const inPrivateChatScreen = currentSession?.chatWith ? true : false;
             const messageData = {
                 message: data.message,
                 from: (socket as AppSocketUser).username,
@@ -128,7 +129,7 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                     }
                     const savedMessage = await newMessage.save();
-                    if (!inChatScreen) {
+                    if (!inChatScreen || !inPrivateChatScreen) {
                         let message = savedMessage.message;
                         switch (savedMessage.type) {
                             case MessageType.IMAGE:
