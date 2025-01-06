@@ -182,8 +182,8 @@ export default function createSocketServer(httpServer: https.Server) {
                 });
                 const findQuery = {
                     $or: [
-                        { userID: new ObjectId(ID), deletedByID: { $nin: [ID] } },
-                        { targetUserID: new ObjectId(ID), deletedByID: { $nin: [ID] } },
+                        { userID: new ObjectId(ID), deletedByID: { $nin: [new ObjectId(ID)] } },
+                        { targetUserID: new ObjectId(ID), deletedByID: { $nin: [new ObjectId(ID)] } },
 
                     ]
                 }
@@ -235,8 +235,8 @@ export default function createSocketServer(httpServer: https.Server) {
             if (targetUser && user) {
                 let findQuery = {
                     $or: [
-                        { userID: new ObjectId(user.id), targetUserID: new ObjectId(targetUser.id), deletedByID: { $nin: [user.id] } },
-                        { userID: new ObjectId(targetUser.id), targetUserID: new ObjectId(user.id), deletedByID: { $nin: [user.id] } }
+                        { userID: new ObjectId(user.id), targetUserID: new ObjectId(targetUser.id), deletedByID: { $nin: [new ObjectId(user.id)] } },
+                        { userID: new ObjectId(targetUser.id), targetUserID: new ObjectId(user.id), deletedByID: { $nin: [new ObjectId(user.id)] } }
                     ]
                 }
                 await Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true });
