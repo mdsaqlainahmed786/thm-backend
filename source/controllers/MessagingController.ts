@@ -311,8 +311,7 @@ const exportChat = async (request: Request, response: Response, next: NextFuncti
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Nothing to export."), "Nothing to export."))
         }
         const hostAddress = request.protocol + "://" + request.get("host");
-        const filename = `${v4()}.txt`;
-        const filePath = `${PUBLIC_DIR}/chat-exports/${filename}`;
+        let chatWith = "User"
         const data = await Promise.all(conversations.map(async (chat) => {
             let name = "User";
             const user = await User.findOne({ _id: chat.userID });
@@ -320,18 +319,26 @@ const exportChat = async (request: Request, response: Response, next: NextFuncti
                 const business = await BusinessProfile.findOne({ _id: user.businessProfileID });
                 if (business) {
                     name = business.name;
+                    if (user.id.toString() !== userID) {
+                        chatWith = user.name ?? user.username;
+                    }
                 }
             } else if (user) {
                 name = user.name ?? user.username;
+                if (user.id.toString() !== userID) {
+                    chatWith = user.name ?? user.username;
+                }
             }
             const file = [MessageType.VIDEO, MessageType.IMAGE, MessageType.PDF].includes(chat.type);
             const link = chat.mediaUrl;
-            return `${moment(chat.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A')} ${name}: ${chat.message} ${file ? '(file attached) link::' + link : ''
-                } \n`;
+            return `${moment(chat.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A')} ${name}: ${chat.message} ${file ? '(file attached) link::' + link : ''} \n`;
         }));
+        const filename = `${v4()}.txt`;
+        const filePath = `${PUBLIC_DIR}/chat-exports/${filename}`;
         const chatContent = data.join("")
         fs.writeFileSync(filePath, chatContent, 'utf8');
         return response.send(httpOk({
+            filename: `Chat with ${chatWith}.txt`,
             filePath: `${hostAddress}/${filePath}`
         }, "Chat exported."));
     } catch (error: any) {
