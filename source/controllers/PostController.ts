@@ -23,6 +23,7 @@ import Review from '../database/models/reviews.model';
 import S3Service from '../services/S3Service';
 import AppNotificationController from './AppNotificationController';
 import { NotificationType } from '../database/models/notification.model';
+import FileQueue, { QueueStatus } from '../database/models/file-processing.model';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -331,12 +332,20 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         if (mediaIDs.length !== 0) {
             await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
                 const media = await Media.findOne({ _id: mediaID });
+                const fileQueues = await FileQueue.findOne({ mediaID: mediaID });
                 if (media) {
                     await s3Service.deleteS3Object(media.s3Key);
                     if (media.thumbnailUrl) {
                         await s3Service.deleteS3Asset(media.thumbnailUrl);
                     }
                     await media.deleteOne();
+                }
+                if (fileQueues && fileQueues.status === QueueStatus.COMPLETED) {
+                    await Promise.all(fileQueues.s3Location.map(async (location) => {
+                        await s3Service.deleteS3Asset(location);
+                        return location;
+                    }));
+                    await fileQueues.deleteOne();
                 }
                 return mediaID;
             }));
