@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpAcceptedOrUpdated, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { addBusinessProfileInUser, getUserProfile } from "../database/models/user.model";
+import { addBusinessProfileInUser, getBlockedUsers, getUserProfile } from "../database/models/user.model";
 import User from '../database/models/user.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
@@ -174,12 +174,15 @@ const follower = async (request: Request, response: Response, next: NextFunction
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 30);
-        const user = await User.findOne({ _id: userID });
+        const [user, blockedUsers] = await Promise.all([
+            User.findOne({ _id: userID }),
+            getBlockedUsers(id),
+        ])
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         const [followersIDs, inMyFollowing] = await Promise.all([
-            UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED }),
+            UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED, follower: { $nin: blockedUsers } }),
             UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
         ]);
         if (userID !== id && !inMyFollowing && user.privateAccount) {
@@ -221,12 +224,15 @@ const following = async (request: Request, response: Response, next: NextFunctio
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 30);
-        const user = await User.findOne({ _id: userID });
+        const [user, blockedUsers] = await Promise.all([
+            User.findOne({ _id: userID }),
+            getBlockedUsers(id),
+        ])
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         const [followingIDs, inMyFollowing] = await Promise.all([
-            UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED }),
+            UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED, following: { $nin: blockedUsers } }),
             UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED })
         ]);
         if (userID !== id && !inMyFollowing && user.privateAccount) {
