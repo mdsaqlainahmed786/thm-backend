@@ -1,5 +1,6 @@
+import { PUBLIC_DIR } from './../middleware/file-uploading';
 import Message from "../database/models/message.model";
-import User, { addBusinessProfileInUser } from "../database/models/user.model";
+import User, { AccountType, addBusinessProfileInUser } from "../database/models/user.model";
 import { ObjectId } from "mongodb";
 import { MongoID } from "../common";
 import { Request, Response, NextFunction } from "express";
@@ -8,8 +9,10 @@ import { ErrorMessage } from "../utils/response-message/error";
 import { MessageType } from "../database/models/message.model";
 import { httpOk, httpBadRequest, httpNotFoundOr404 } from "../utils/response";
 import { PrivateIncomingMessagePayload } from "../common";
-import { SocketServer } from "../server";
-import { SocketChannel } from "../config/constants";
+import fs from "fs";
+import { v4 } from 'uuid';
+import moment from 'moment';
+import BusinessProfile from '../database/models/businessProfile.model';
 /**
  * 
  * @param query 
@@ -249,6 +252,92 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
     }
 }
 
+const deleteChat = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const requestedUserID = request.user?.id;
+        const userID = request.params.id;
+        let findQuery = {
+            $or: [
+                { userID: new ObjectId(requestedUserID), targetUserID: new ObjectId(userID) },
+                { userID: new ObjectId(userID), targetUserID: new ObjectId(requestedUserID) }
+            ]
+        }
+        let updateQuery = {
+            $addToSet: { "deletedByID": requestedUserID }
+        };
+        await Message.updateMany(findQuery, updateQuery);
+        return response.send(httpOk(null, "Chat deleted."));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+//FIXME Deleted chat will not be exported.
+const exportChat = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const requestedUserID = request.user?.id;
+        const userID = request.params.id;
+        const user = await User.findOne({ userID: userID });
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        let findQuery = {
+            $or: [
+                { userID: new ObjectId(requestedUserID), targetUserID: new ObjectId(userID), deletedByID: { $nin: [new ObjectId(requestedUserID)] } },
+                { userID: new ObjectId(userID), targetUserID: new ObjectId(requestedUserID), deletedByID: { $nin: [new ObjectId(requestedUserID)] } }
+            ]
+        }
+        const conversations = await Message.aggregate([
+            { $match: findQuery },
+            {
+                $sort: { createdAt: 1, id: 1 }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    userID: 1,
+                    message: 1,
+                    type: 1,
+                    link: 1,
+                    gift: 1,
+                    location: 1,
+                    mediaUrl: 1,
+                    contact: 1,
+                    createdAt: 1,
+                }
+            }
+        ]);
+        if (conversations.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Nothing to export."), "Nothing to export."))
+        }
+        const hostAddress = request.protocol + "://" + request.get("host");
+        const filename = `${v4()}.txt`;
+        const filePath = `${PUBLIC_DIR}/chat-exports/${filename}`;
+        const data = await Promise.all(conversations.map(async (chat) => {
+            let name = "User";
+            const user = await User.findOne({ _id: chat.userID });
+            if (user && user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                const business = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (business) {
+                    name = business.name;
+                }
+            } else if (user) {
+                name = user.name ?? user.username;
+            }
+            const file = [MessageType.VIDEO, MessageType.IMAGE, MessageType.PDF].includes(chat.type);
+            const link = chat.mediaUrl;
+            return `${moment(chat.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A')} ${name}: ${chat.message} ${file ? '(file attached) link::' + link : ''
+                } \n`;
+        }));
+        const chatContent = data.join("")
+        fs.writeFileSync(filePath, chatContent, 'utf8');
+        return response.send(httpOk({
+            filePath: `${hostAddress}/${filePath}`
+        }, "Chat exported."));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
 
-export default { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage }
+export default { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, deleteChat, exportChat }
