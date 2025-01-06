@@ -27,6 +27,9 @@ const sendFollowRequest = async (request: Request, response: Response, next: Nex
         if (!id || !followingUser) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
+        if (id === followingID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Following your own account is not allowed. Please follow other users.z"), "Following your own account is not allowed. Please follow other users."))
+        }
         const haveConnectedBefore = await UserConnection.findOne({
             $or: [
                 // { follower: followingUser.id, following: id, status: { $in: [ConnectionStatus.PENDING, ConnectionStatus.ACCEPTED] } },

@@ -1,4 +1,4 @@
-import { activeUserQuery, addBusinessProfileInUser, calculateProfileCompletion, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
+import { activeUserQuery, addBusinessProfileInUser, calculateProfileCompletion, getBlockedUsers, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -648,14 +648,14 @@ const blockedUsers = async (request: Request, response: Response, next: NextFunc
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const userIDs = await BlockedUser.distinct('blockedUserID', { userID: id });
+        const userIDs = await getBlockedUsers(id);
         const dbQuery = { _id: { $in: userIDs } };
         const [documents, totalDocument] = await Promise.all([
             getUserProfile(dbQuery, pageNumber, documentLimit),
             User.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'Tagged fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended(documents, 'Blocked list fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

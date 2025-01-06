@@ -1,5 +1,5 @@
 
-import { Request, Response, NextFunction, response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpOkExtended, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
@@ -11,7 +11,7 @@ import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import UserConnection from "../database/models/userConnection.model";
-import { AccountType } from "../database/models/user.model";
+import { AccountType, getBlockedUsers } from "../database/models/user.model";
 import { ConnectionStatus } from "../database/models/userConnection.model";
 import { Type } from "../validation/rules/api-validation";
 import WebsiteRedirection from "../database/models/websiteRedirection.model";
@@ -19,7 +19,7 @@ import Story, { addMediaInStory } from "../database/models/story.model";
 import { ObjectId } from "mongodb";
 import BusinessQuestionSeeder from "../database/seeders/BusinessQuestionSeeder";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
-import BusinessTypeSeeder, { BusinessTypes } from "../database/seeders/BusinessTypeSeeder";
+import BusinessTypeSeeder from "../database/seeders/BusinessTypeSeeder";
 import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
 import ReviewQuestionSeeder from "../database/seeders/ReviewQuestionSeeder";
@@ -29,7 +29,6 @@ import EventJoin from "../database/models/eventJoin.model";
 import { AppConfig } from "../config/constants";
 import moment from "moment";
 import AccountReach from "../database/models/accountReach.model";
-import User from "../database/models/user.model";
 import Comment from "../database/models/comment.model";
 import SharedContent from "../database/models/sharedContent.model";
 import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTypeSeeder";
@@ -49,11 +48,13 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents, blockedUsers] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
             SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
+            getBlockedUsers(id)
         ]);
+        Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
