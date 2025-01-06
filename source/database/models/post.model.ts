@@ -262,7 +262,26 @@ export function addReviewedBusinessProfileInPost() {
                 addBusinessSubTypeInBusinessProfile().lookup,
                 addBusinessSubTypeInBusinessProfile().unwindLookup,
                 {
+                    '$lookup': {
+                        'from': 'users',
+                        'let': { 'businessProfileID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$businessProfileID', '$$businessProfileID'] } } },
+                        ],
+                        'as': 'usersRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$usersRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
+                {
                     '$project': {
+                        "userID": {
+                            '$ifNull': [{ '$ifNull': ['$usersRef._id', ''] }, '']
+                        },
                         "profilePic": 1,
                         "address": 1,
                         "name": 1,
