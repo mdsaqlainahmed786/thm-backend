@@ -453,7 +453,7 @@ const transactions = async (request: Request, response: Response, next: NextFunc
 const createThumbnail = async (request: Request, response: Response, next: NextFunction) => {
     try {
         let { letter, color, size }: any = request.query;
-        let width = 240, height = 240, font = 150;
+        let width = 240, height = 240, font = 180;
         if (size && size === "large") {
             height = 1000;
             width = 1000;
@@ -464,10 +464,15 @@ const createThumbnail = async (request: Request, response: Response, next: NextF
             height = 620;
             font = 500
         }
-        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100%" height="100%" fill="${color ? '#' + color : randomColor()}" />
-            <text x="50%" y="50%" font-size="${font}" font-weight="500" text-anchor="middle" fill="white" dy=".3em">${letter?.substring(0, 1)?.toUpperCase() ?? "A"}</text>
-        </svg>`;
+        // const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        //     <rect width="100%" height="100%" fill="${color ? '#' + color : randomColor()}" />
+        //     <text x="50%" y="50%" font-size="${font}" font-weight="700" text-anchor="middle" fill="white" dy=".3em">${letter?.substring(0, 1)?.toUpperCase() ?? "A"}</text>
+        // </svg>`;
+        const svg = `<svg width="${width}" height="${height}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="${width}" height="${height}" fill="${color ? '#' + color : randomColor()}" />
+<path d="M12 13C14.7614 13 17 10.7614 17 8C17 5.23858 14.7614 3 12 3C9.23858 3 7 5.23858 7 8C7 10.7614 9.23858 13 12 13Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M20 21C20 18.8783 19.1571 16.8434 17.6569 15.3431C16.1566 13.8429 14.1217 13 12 13C9.87827 13 7.84344 13.8429 6.34315 15.3431C4.84285 16.8434 4 18.8783 4 21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`
         const svgBuffer = Buffer.from(svg);
         const pngBuffer = await sharp(svgBuffer).png().toBuffer();
         response.writeHead(200, {

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { httpNotFoundOr404, httpCreated, httpInternalServerError, httpNoContent, httpOkExtended } from "../utils/response";
-import Report, { addPostInReport, addReportedByInReport, addUserInReport } from "../database/models/reportedUser.model";
+import Report, { addCommentInReport, addPostInReport, addReportedByInReport, addUserInReport } from "../database/models/reportedUser.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import { ContentType, Role } from "../common";
 import Post from "../database/models/post.model";
@@ -34,6 +34,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 addReportedByInReport().unwindLookup,
                 addUserInReport().lookup,
                 addUserInReport().unwindLookup,
+                addCommentInReport().lookup,
+                addCommentInReport().unwindLookup,
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },

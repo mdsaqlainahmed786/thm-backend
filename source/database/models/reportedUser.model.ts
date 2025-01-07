@@ -111,6 +111,67 @@ export function addPostInReport() {
     return { lookup, unwindLookup }
 }
 
+export function addCommentInReport() {
+    const lookup = {
+        '$lookup': {
+            'from': 'comments',
+            'let': { 'commentID': '$contentID', 'contentType': '$contentType' },
+            'pipeline': [
+                {
+                    '$match': {
+                        '$expr': {
+                            '$and': [
+                                { '$eq': ['$_id', '$$commentID'] },
+                                { '$eq': ['$$contentType', ContentType.COMMENT] }
+                            ]
+                        }
+                    }
+                },
+                {
+                    '$lookup': {
+                        'from': 'posts',
+                        'let': { 'postID': '$postID', },
+                        'pipeline': [
+                            {
+                                '$match': {
+                                    '$expr': { '$eq': ['$_id', '$$postID'] },
+                                }
+                            },
+                        ],
+                        'as': 'postsRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$postsRef',
+                        'preserveNullAndEmptyArrays': true
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        postType: {
+                            '$ifNull': [{ '$ifNull': ['$postsRef.postType', ''] }, '']
+                        },
+                        postID: 1,
+                        message: 1,
+                        userID: 1,
+                        posts: 1,
+                    }
+                }
+            ],
+            'as': 'commentsRef'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$commentsRef',
+            'preserveNullAndEmptyArrays': true
+        }
+    };
+    return { lookup, unwindLookup }
+}
+
 
 export function addUserInReport() {
     const lookup = {

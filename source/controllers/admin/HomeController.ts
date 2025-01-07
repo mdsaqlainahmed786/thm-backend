@@ -6,7 +6,7 @@ import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalS
 import { ErrorMessage } from '../../utils/response-message/error';
 import User from '../../database/models/user.model';
 import Post from '../../database/models/post.model';
-import Report, { addPostInReport, addReportedByInReport, addUserInReport } from '../../database/models/reportedUser.model';
+import Report, { addCommentInReport, addPostInReport, addReportedByInReport, addUserInReport } from '../../database/models/reportedUser.model';
 const contentTypes = Object.values(ContentType)
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -167,12 +167,15 @@ const topReportedContent = async (request: Request, response: Response, next: Ne
                 addPostInReport().unwindLookup,
                 addUserInReport().lookup,
                 addUserInReport().unwindLookup,
+                addCommentInReport().lookup,
+                addCommentInReport().unwindLookup,
                 {
                     $group: {
                         _id: "$contentID",            // Group by content ID
                         contentType: { '$first': "$contentType" },
                         usersRef: { '$first': "$usersRef" },
                         postsRef: { '$first': "$postsRef" },
+                        commentsRef: { '$first': "$commentsRef" },
                         createdAt: { '$last': '$createdAt' },
                         totalReports: { $sum: 1 }  // Sum report counts for each content
                     }
