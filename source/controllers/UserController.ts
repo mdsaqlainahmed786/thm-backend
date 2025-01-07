@@ -502,10 +502,12 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
             userID: MongoID;
             businessProfileID?: MongoID;
             mediaID: MongoID;
-        }[] = []
+        }[] = [];
+        let coverImage = "";
         if (images && images.length !== 0) {
             const imageList = await storeMedia(images, id, null, MediaType.IMAGE, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
+                coverImage = imageList[0].sourceUrl;
                 imageList.map((image) => newPropertyPictures.push({
                     userID: id,
                     mediaID: image.id,
@@ -513,8 +515,10 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
                 }));
             }
         }
-        console.log(newPropertyPictures);
-        const propertyPictures = await PropertyPictures.create(newPropertyPictures);
+        const [propertyPictures] = await Promise.all([
+            PropertyPictures.create(newPropertyPictures),
+            BusinessProfile.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage })
+        ]);
         return response.send(httpCreated(propertyPictures, 'Property pictures uploaded successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

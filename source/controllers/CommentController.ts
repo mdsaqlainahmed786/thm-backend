@@ -13,7 +13,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const { id } = request.user;
         const postID = request.params.id;
         let { pageNumber, documentLimit }: any = request.query;
-        const dbQuery = { postID: new ObjectId(postID), isParent: true };
+        const dbQuery = { postID: new ObjectId(postID), isParent: true, isPublished: true };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         if (!id) {
@@ -31,7 +31,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                             from: 'comments',
                             let: { parentID: '$_id' },
                             pipeline: [
-                                { $match: { $expr: { $eq: ['$parentID', '$$parentID'] } } },
+                                { $match: { $expr: { $eq: ['$parentID', '$$parentID'] }, isPublished: true } },
                                 addCommentedByInPost().lookup,
                                 addCommentedByInPost().unwindLookup,
                                 addLikesInComment().lookup,

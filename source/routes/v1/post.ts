@@ -22,6 +22,7 @@ PostEndpoints.post('/saved-posts/:id', savedPostApiValidator, validateRequest, S
  */
 PostEndpoints.post('/comments', createCommentApiValidator, validateRequest, CommentController.store);
 PostEndpoints.get('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.index);
+PostEndpoints.post('/comments/reports/:id', [paramIDValidationRule], validateRequest, ReportController.reportComment);
 PostEndpoints.post('/comments/likes/:id', [paramIDValidationRule], validateRequest, LikeController.store);
 PostEndpoints.post('/reports/:id', [paramIDValidationRule], validateRequest, ReportController.reportContent);
 PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);

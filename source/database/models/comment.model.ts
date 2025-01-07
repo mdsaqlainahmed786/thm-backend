@@ -8,6 +8,7 @@ interface IComment extends Document {
     message: string,
     isParent: boolean,
     parentID: MongoID,
+    isPublished: boolean;
 }
 const CommentSchema: Schema = new Schema<IComment>(
     {
@@ -17,6 +18,7 @@ const CommentSchema: Schema = new Schema<IComment>(
         message: { type: String, required: true },
         isParent: { type: Boolean, default: true },
         parentID: { type: Schema.Types.ObjectId, ref: "Comment", },
+        isPublished: { type: Boolean, default: true },
     },
     {
         timestamps: true
@@ -38,8 +40,7 @@ export function addCommentsInPost() {
             from: 'comments',
             let: { postID: '$_id' },
             pipeline: [
-                { $match: { $expr: { $eq: ['$postID', '$$postID'] } } },
-
+                { $match: { $expr: { $eq: ['$postID', '$$postID'] }, isPublished: true } },
             ],
             as: 'commentsRef'
         }

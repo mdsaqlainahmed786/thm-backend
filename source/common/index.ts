@@ -55,7 +55,8 @@ export enum ContentType {
     POST = "post",
     STORY = 'story',
     ANONYMOUS = "anonymous",
-    USER = "user"
+    USER = "user",
+    COMMENT = "comment"
 }
 export interface BillingAddress {
     name: string;

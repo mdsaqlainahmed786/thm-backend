@@ -6,6 +6,7 @@ import { ContentType, Role } from "../common";
 import Post from "../database/models/post.model";
 import User from "../database/models/user.model";
 import { parseQueryParam } from "../utils/helper/basic";
+import Comment from "../database/models/comment.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -86,6 +87,8 @@ const reportContent = async (request: Request, response: Response, next: NextFun
             const report = await newReport.save();
             return response.send(httpCreated(report, "Content reported successfully"));
         }
+        isReportedBefore.reason = reason ?? isReportedBefore.reason;
+        await isReportedBefore.save();
         return response.send(httpNoContent(isReportedBefore, 'Content already reported'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -122,7 +125,52 @@ const reportUser = async (request: Request, response: Response, next: NextFuncti
             const report = await newReport.save();
             return response.send(httpCreated(report, "User reported successfully"));
         }
+        isReportedBefore.reason = reason ?? isReportedBefore.reason;
+        await isReportedBefore.save();
         return response.send(httpNoContent(isReportedBefore, 'User already reported'));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const reportComment = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID, role } = request.user;
+        let contentID = request.params.id;
+        const { reason } = request.body;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [totalReports, isReportedBefore,] = await Promise.all([
+            Report.find({ contentID: contentID, contentType: ContentType.COMMENT }),
+            Report.findOne({ contentID: contentID, contentType: ContentType.COMMENT, reportedBy: id }),
+        ])
+        const comment = await Comment.findOne({ _id: contentID });
+        if (!comment) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Content not found"), "Content not found"))
+        }
+        if (totalReports && totalReports.length >= 5 || role && role === Role.MODERATOR) {//If some user is reported more then 5 time then deactivate their account
+            comment.isPublished = false;
+            //Unpublish the reply as well
+            const queries: any[] = [
+                comment.save()
+            ]
+            if (comment.isParent) {
+                queries.push(Comment.updateMany({ parentID: comment._id }, { isPublished: false }))
+            }
+            await Promise.all(queries);
+        }
+        if (!isReportedBefore) {
+            const newReport = new Report();
+            newReport.reason = reason ?? '';
+            newReport.reportedBy = id;
+            newReport.contentID = contentID;
+            newReport.contentType = ContentType.COMMENT;
+            const report = await newReport.save();
+            return response.send(httpCreated(report, "Comment reported successfully"));
+        }
+        isReportedBefore.reason = reason ?? isReportedBefore.reason;
+        await isReportedBefore.save();
+        return response.send(httpNoContent(isReportedBefore, 'Comment already reported'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -141,4 +189,4 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index, destroy, reportContent, reportUser };
+export default { index, destroy, reportContent, reportUser, reportComment };
