@@ -144,4 +144,5 @@ export abstract class CronSchedule {
     static readonly EVERY_TWO_MINUTE: string = "*/2 * * * *";
     static readonly EVERY_TWO_HOURS: string = "0 */2 * * *";
     static readonly EVERY_DAY_AT_00 = "0 0 * * *";
+    static readonly ONLY_ON_MONDAY_AND_THURSDAY = "0 15 * * 1,4";
 }

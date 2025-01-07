@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import User from "../database/models/user.model";
+import User, { AccountType } from "../database/models/user.model";
 import { MongoID } from "../common";
 import { NotificationType } from "../database/models/notification.model";
 import { AppConfig } from "../config/constants";
@@ -16,6 +16,7 @@ import { addBusinessProfileInUser } from "../database/models/user.model";
 import { v4 } from 'uuid';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import ChatMessage from '../database/models/message.model';
+import BusinessProfile from '../database/models/businessProfile.model';
 
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -149,69 +150,63 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             User.findOne({ _id: targetUserID })
         ]);
         if (userData && targetUserData) {
-            console.log(userData.name, targetUserData.name, type);
-            const name = userData.name;
-
-            const targetUserName = targetUserData.name;
-
+            let name = userData.name;
             let profileImage = "";
             let image = "";
             let title: string = AppConfig.APP_NAME;
             let description: string = 'Welcome to The Hotel Media';
             let postType = "post";
+            profileImage = userData?.profilePic?.small ?? profileImage;
+            if (userData.accountType === AccountType.BUSINESS && userData.businessProfileID) {
+                const businessData = await BusinessProfile.findOne({ _id: userData.businessProfileID })
+                if (businessData) {
+                    name = businessData.name
+                    profileImage = businessData?.profilePic?.small ?? profileImage;
+                }
+            }
             switch (type) {
                 case NotificationType.LIKE_A_STORY:
                     title = AppConfig.APP_NAME;
                     description = `${name} liked your story.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.LIKE_POST:
                     title = AppConfig.APP_NAME;
                     postType = metadata.postType ?? "post";
                     description = `${name} liked your ${postType}.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.LIKE_COMMENT:
                     title = AppConfig.APP_NAME;
                     description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.FOLLOW_REQUEST:
                     title = AppConfig.APP_NAME;
                     description = `${name} requested to follow you.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.FOLLOWING:
                     title = AppConfig.APP_NAME;
                     description = `${name} started following you.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.ACCEPT_FOLLOW_REQUEST:
                     title = AppConfig.APP_NAME;
                     description = `${name} accepted your follow request.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.COMMENT:
                     title = AppConfig.APP_NAME
                     postType = metadata.postType ?? "post";
                     description = `${name} commented on your ${postType}: '${truncate(metadata?.message)}'.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.REPLY:
                     title = AppConfig.APP_NAME
                     description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.TAGGED:
                     title = AppConfig.APP_NAME
                     description = `${name} tagged you in a post.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
                 case NotificationType.EVENT_JOIN:
                     title = AppConfig.APP_NAME
                     const eventName = metadata.name ?? '';
                     description = `${name} has joined the event \n${eventName}.`;
-                    profileImage = userData.profilePic.small ?? "";
                     break;
             }
             const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
