@@ -90,11 +90,11 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             const now = new Date();
             if (subscription && subscription.expirationDate < now) {
                 hasSubscription = false;
-                return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
+                return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }, `Your subscription expired.`));
             }
         }
         if (!user.isApproved) {
-            return response.status(200).send(httpForbidden(null, "Your account is currently under review. We will notify you once it has been verified."))
+            return response.status(200).send(httpForbidden({ ...user.hideSensitiveData() }, "Your account is currently under review. We will notify you once it has been verified."))
         }
         const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = await generateAccessToken(authenticateUser);
