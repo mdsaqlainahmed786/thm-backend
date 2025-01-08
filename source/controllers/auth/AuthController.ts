@@ -115,12 +115,21 @@ const login = async (request: Request, response: Response, next: NextFunction) =
 
 const socialLogin = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken, name } = request.body;
+        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken, name, lat, lng } = request.body;
 
         let isDocumentUploaded = true;
         let hasAmenities = true;
         let hasSubscription = true;
         let businessProfileRef = null;
+        const accountType = AccountType.INDIVIDUAL;
+        const password = v4();
+        const isActivated = true;
+        const isVerified = true;
+        const hasProfilePicture = true;
+        let geoCoordinate = { type: "Point", coordinates: [78.9629, 20.5937] };
+        if (lat && lng) {
+            geoCoordinate = { type: "Point", coordinates: [lng, lat] }
+        }
         if (socialType === SocialAccount.GOOGLE) {
             try {
                 const { email, name, sub, picture } = await SocialProviders.verifyGoogleToken(token);
@@ -132,28 +141,18 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     User.findOne({ email: email }),
                 ]);
                 if (!user) {
-
-                    const newUser = new User();
-                    newUser.profilePic = {
+                    const profilePic = {
                         small: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'small'),
                         large: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'large'),
                         medium: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'medium')
-                    };
-                    newUser.username = username;
-                    newUser.email = email;
-                    newUser.name = name;
-                    newUser.accountType = AccountType.INDIVIDUAL;
-                    newUser.dialCode = dialCode;
-                    newUser.phoneNumber = phoneNumber;
-                    newUser.password = v4();
-                    newUser.isActivated = true;
-                    newUser.isVerified = true;
-                    newUser.hasProfilePicture = true;
-                    newUser.socialIDs = [{
+                    }
+                    const socialIDs = [{
                         socialUId: sub,
                         socialType: socialType
-                    }];
-                    const savedUser = await newUser.save();
+                    }]
+                    const savedUser = await createUserAccount({
+                        profilePic, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate
+                    }, false);
                     const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, businessProfileID: savedUser.businessProfileID, role: savedUser.role };
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = await generateAccessToken(authenticateUser);
@@ -169,8 +168,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     user.socialIDs.push({
                         socialUId: sub,
                         socialType: socialType
-                    })
-                    await user.save();
+                    });
                 }
                 if (!user.isActivated) {
                     return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT))
@@ -178,7 +176,11 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 if (user.isDeleted) {
                     return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
                 }
-                await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+                user.geoCoordinate = geoCoordinate;
+                await Promise.all([
+                    addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType),
+                    user.save()
+                ]);
                 if (deviceID) {
                     response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
                 }
@@ -239,27 +241,18 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     User.findOne({ "socialIDs.socialUId": sub, email: email }),
                 ]);
                 if (!user) {
-                    const newUser = new User();
-                    newUser.profilePic = {
+                    const profilePic = {
                         small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
                         large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
                         medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
-                    };
-                    newUser.username = username;
-                    newUser.email = email;
-                    newUser.name = name ?? username;
-                    newUser.accountType = AccountType.INDIVIDUAL;
-                    newUser.dialCode = dialCode;
-                    newUser.phoneNumber = phoneNumber;
-                    newUser.password = v4();
-                    newUser.isActivated = true;
-                    newUser.isVerified = true;
-                    // newUser.hasProfilePicture = true;
-                    newUser.socialIDs = [{
+                    }
+                    const socialIDs = [{
                         socialUId: sub,
                         socialType: socialType
-                    }];
-                    const savedUser = await newUser.save();
+                    }]
+                    const savedUser = await createUserAccount({
+                        profilePic, username, email, name: name ?? username, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate
+                    }, false);
                     const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, businessProfileID: savedUser.businessProfileID, role: savedUser.role };
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = await generateAccessToken(authenticateUser);
@@ -275,7 +268,6 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         socialUId: sub,
                         socialType: socialType
                     })
-                    await user.save();
                 }
                 if (!user.isActivated) {
                     return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT))
@@ -283,7 +275,11 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 if (user.isDeleted) {
                     return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
                 }
-                await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+                user.geoCoordinate = geoCoordinate;
+                await Promise.all([
+                    addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType),
+                    user.save()
+                ])
                 if (deviceID) {
                     response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
                 }
@@ -331,9 +327,6 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
             } catch (error: any) {
                 next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
             }
-
-
-
             // return response.send(httpOk({ 'data': payload }))
         }
     } catch (error: any) {

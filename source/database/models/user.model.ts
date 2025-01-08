@@ -559,7 +559,7 @@ export const activeUserQuery = { isVerified: true, isApproved: true, isActivated
  * Return new user account 
  */
 export async function createUserAccount(data: any, sendOTP: boolean) {
-    const { name, password, profession, username, email, accountType, dialCode, phoneNumber, profilePic, isActivated, businessProfileID, isApproved, privateAccount, geoCoordinate } = data;
+    const { name, password, profession, username, email, accountType, dialCode, phoneNumber, profilePic, isActivated, businessProfileID, isApproved, privateAccount, geoCoordinate, isVerified, hasProfilePicture, socialIDs } = data;
     const newUser = new User();
     newUser.profilePic = profilePic;
     newUser.profession = profession;
@@ -577,11 +577,20 @@ export async function createUserAccount(data: any, sendOTP: boolean) {
     if (businessProfileID) {
         newUser.businessProfileID = businessProfileID;
     }
+    if (isVerified && isVerified === true) {
+        newUser.isVerified = isVerified;
+    }
+    if (hasProfilePicture && hasProfilePicture === true) {
+        newUser.hasProfilePicture = hasProfilePicture;
+    }
     if (isApproved && isApproved === false) {
         newUser.isApproved = isApproved;//The business account needs to be approved by the admin; the default value of 'isApproved' is true.
     }
     if (privateAccount && privateAccount === false) {
         newUser.privateAccount = privateAccount;// All business account is public account 
+    }
+    if (socialIDs && isArray(socialIDs)) {
+        newUser.socialIDs = socialIDs;
     }
     const otp = generateOTP();
     if (sendOTP) {
