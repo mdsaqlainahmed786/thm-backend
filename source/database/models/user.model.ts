@@ -505,6 +505,9 @@ export function profileProject() {
 export async function getBlockedUsers(userID: MongoID) {
     return await BlockedUser.distinct('blockedUserID', { userID: userID });
 }
+export async function getBlockedByUsers(userID: MongoID) {
+    return await BlockedUser.distinct('userID', { blockedUserID: userID });
+}
 
 export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
     return await Promise.all([

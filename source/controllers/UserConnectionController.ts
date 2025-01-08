@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpAcceptedOrUpdated, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { addBusinessProfileInUser, getBlockedUsers, getUserProfile } from "../database/models/user.model";
+import { addBusinessProfileInUser, getBlockedByUsers, getBlockedUsers, getUserProfile } from "../database/models/user.model";
 import User from '../database/models/user.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
@@ -176,7 +176,7 @@ const follower = async (request: Request, response: Response, next: NextFunction
         documentLimit = parseQueryParam(documentLimit, 30);
         const [user, blockedUsers] = await Promise.all([
             User.findOne({ _id: userID }),
-            getBlockedUsers(id),
+            getBlockedByUsers(id),
         ])
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -226,7 +226,7 @@ const following = async (request: Request, response: Response, next: NextFunctio
         documentLimit = parseQueryParam(documentLimit, 30);
         const [user, blockedUsers] = await Promise.all([
             User.findOne({ _id: userID }),
-            getBlockedUsers(id),
+            getBlockedByUsers(id),
         ])
         if (!id || !user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));

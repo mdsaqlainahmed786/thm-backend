@@ -7,7 +7,7 @@ import Post, { fetchPosts, PostType } from "../database/models/post.model";
 import Like, { addUserInLike } from '../database/models/like.model';
 import Comment from '../database/models/comment.model';
 import Story from "../database/models/story.model";
-import User, { getBlockedUsers } from "../database/models/user.model";
+import User, { getBlockedByUsers, getBlockedUsers } from "../database/models/user.model";
 import { MongoID } from "../common";
 import { NotificationType } from "../database/models/notification.model";
 import { AppConfig } from "../config/constants";
@@ -201,12 +201,10 @@ const searchUsers = async (request: Request,) => {
     const dbQuery = {};
     //Remove blocked user from search
     let [blockedUsers, businessProfileIDs] = await Promise.all([
-        getBlockedUsers(id),
+        getBlockedByUsers(id),
         fetchBusinessIDs(query, businessTypeID)
     ]);
-
     Object.assign(dbQuery, { ...activeUserQuery, _id: { $nin: blockedUsers } });
-
     if (businessTypeID && businessTypeID !== '') {
         Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
     }
