@@ -4,15 +4,16 @@ import { genSalt, hash, compare } from 'bcrypt';
 import { getAllKeysFromSchema } from "../../utils/helper/basic";
 import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
-import { IProfilePic, ProfileSchema } from "./common.model";
+import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
 import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
 import { ObjectId } from "mongodb";
-
-
+import { generateOTP } from "../../utils/helper/basic";
+import EmailNotificationService from "../../services/EmailNotificationService";
+const emailNotificationService = new EmailNotificationService();
 export enum SocialAccount {
     FACEBOOK = "facebook",
     GOOGLE = "google",
@@ -56,6 +57,7 @@ export interface Individual {
     lastSeen: Date;
     socialIDs: ISocialID[];
     profession: string;
+    geoCoordinate: GeoCoordinate;
 }
 
 export interface Business {
@@ -129,12 +131,22 @@ const UserSchema: Schema = new Schema<IUser>(
         profession: {
             type: String,
             default: ""
+        },
+        geoCoordinate: {
+            type: {
+                type: String,
+                enum: ['Point'],  // Specify the type as "Point" for geo spatial indexing
+            },
+            coordinates: {
+                type: [Number],
+            }
         }
     },
     {
         timestamps: true
     }
 );
+UserSchema.index({ 'geoCoordinate': '2dsphere' });
 UserSchema.set('toObject', { virtuals: true });
 UserSchema.set('toJSON', { virtuals: true });
 
@@ -537,3 +549,70 @@ export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
 }
 
 export const activeUserQuery = { isVerified: true, isApproved: true, isActivated: true, isDeleted: false, };
+
+
+/**
+ * 
+ * @param data 
+ * @param sendOTP 
+ * @returns 
+ * Return new user account 
+ */
+export async function createUserAccount(data: any, sendOTP: boolean) {
+    const { name, password, profession, username, email, accountType, dialCode, phoneNumber, profilePic, isActivated, businessProfileID, isApproved, privateAccount, geoCoordinate } = data;
+    const newUser = new User();
+    newUser.profilePic = profilePic;
+    newUser.profession = profession;
+    newUser.username = username;
+    newUser.email = email;
+    newUser.name = name;
+    newUser.accountType = accountType;
+    newUser.dialCode = dialCode;
+    newUser.phoneNumber = phoneNumber;
+    newUser.password = password;
+    newUser.isActivated = isActivated;
+    if (geoCoordinate) {
+        newUser.geoCoordinate = geoCoordinate;
+    }
+    if (businessProfileID) {
+        newUser.businessProfileID = businessProfileID;
+    }
+    if (isApproved && isApproved === false) {
+        newUser.isApproved = isApproved;//The business account needs to be approved by the admin; the default value of 'isApproved' is true.
+    }
+    if (privateAccount && privateAccount === false) {
+        newUser.privateAccount = privateAccount;// All business account is public account 
+    }
+    const otp = generateOTP();
+    if (sendOTP) {
+        emailNotificationService.sendEmailOTP(otp, newUser.email, 'verify-email');
+    }
+    newUser.otp = otp;
+    return await newUser.save();
+}
+
+/**
+ * 
+ * @param data 
+ * @returns 
+ * Return new business profile
+ */
+export async function createBusinessProfile(data: any) {
+    const { profilePic, username, businessTypeID, businessSubTypeID, name, bio, email, phoneNumber, dialCode, website, gstn, address, placeID, privateAccount } = data;
+    const newBusinessProfile = new BusinessProfile();
+    newBusinessProfile.profilePic = profilePic;
+    newBusinessProfile.username = username;
+    newBusinessProfile.businessTypeID = businessTypeID;
+    newBusinessProfile.businessSubTypeID = businessSubTypeID;
+    newBusinessProfile.name = name;
+    newBusinessProfile.bio = bio;
+    newBusinessProfile.address = address;
+    newBusinessProfile.email = email;
+    newBusinessProfile.phoneNumber = phoneNumber;
+    newBusinessProfile.dialCode = dialCode;
+    newBusinessProfile.website = website;
+    newBusinessProfile.gstn = gstn;
+    newBusinessProfile.placeID = placeID;
+    newBusinessProfile.privateAccount = privateAccount;
+    return await newBusinessProfile.save();
+}

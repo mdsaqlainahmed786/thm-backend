@@ -1,4 +1,4 @@
-import { Business, SocialAccount, } from './../../database/models/user.model';
+import { Business, createBusinessProfile, createUserAccount, SocialAccount, } from './../../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpInternalServerError, httpNotFoundOr404, httpUnauthorized, httpOk, httpConflict, httpForbidden, httpBadRequest } from "../../utils/response";
 import { ErrorMessage } from "../../utils/response-message/error";
@@ -27,7 +27,7 @@ import { v4 } from 'uuid';
 const emailNotificationService = new EmailNotificationService();
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, password, deviceID, notificationToken, devicePlatform } = request.body;
+        const { email, password, deviceID, notificationToken, devicePlatform, lat, lng } = request.body;
         const user = await User.findOne({ email: email });
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -35,6 +35,9 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
+        }
+        if (lat && lng) {
+            user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
         }
         if (!user.isVerified) {
             const otp = generateOTP();
@@ -53,7 +56,10 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         if (['/api/v1/admin/auth'].includes(request.baseUrl) && user.role !== Role.ADMINISTRATOR) {
             return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.UNAUTHORIZED_ACCESS_ERROR), ErrorMessage.UNAUTHORIZED_ACCESS_ERROR));
         }
-        await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+        await Promise.all([
+            addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType),
+            user.save()
+        ]);
         if (deviceID) {
             response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
         }
@@ -94,7 +100,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             }
         }
         if (!user.isApproved) {
-            return response.status(200).send(httpForbidden({ ...user.hideSensitiveData() }, "Your account is currently under review. We will notify you once it has been verified."))
+            return response.status(200).send(httpForbidden({ isApproved: user.isApproved, email: user.email }, "Your account is currently under review. We will notify you once it has been verified."))
         }
         const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = await generateAccessToken(authenticateUser);
@@ -345,6 +351,10 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         if (isUserExist) {
             return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.EMAIL_IN_USE), ErrorMessage.EMAIL_IN_USE));
         }
+        let geoCoordinate = { type: "Point", coordinates: [78.9629, 20.5937] };
+        if (lat && lng) {
+            geoCoordinate = { type: "Point", coordinates: [lng, lat] }
+        }
         if (accountType === AccountType.BUSINESS) {
             const isBusinessTypeExist = await BusinessType.findOne({ _id: businessType });
             if (!isBusinessTypeExist) {
@@ -354,67 +364,42 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             if (!isBusinessSubTypeExist) {
                 return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Business subtype not found"), "Business subtype not found"))
             }
-
             /** Create business profile */
-            const newBusinessProfile = new BusinessProfile();
-            newBusinessProfile.profilePic = {
+            const isActivated = true;
+            const isApproved = false;
+            const privateAccount = false;
+            const profilePic = {
                 small: getDefaultProfilePic(request, businessName.substring(0, 1), 'small'),
                 large: getDefaultProfilePic(request, businessName.substring(0, 1), 'large'),
                 medium: getDefaultProfilePic(request, businessName.substring(0, 1), 'medium')
-            };
-            newBusinessProfile.username = username;
-            newBusinessProfile.businessTypeID = isBusinessTypeExist.id;
-            newBusinessProfile.businessSubTypeID = isBusinessSubTypeExist.id;
-            newBusinessProfile.name = businessName;
-            newBusinessProfile.bio = bio;
-            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-            newBusinessProfile.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
-            newBusinessProfile.email = businessEmail;
-            newBusinessProfile.phoneNumber = businessPhoneNumber;
-            newBusinessProfile.dialCode = businessDialCode;
-            newBusinessProfile.website = businessWebsite;
-            newBusinessProfile.gstn = gstn;
-            newBusinessProfile.placeID = placeID;
-            newBusinessProfile.privateAccount = false;
-            const savedBusinessProfile = await newBusinessProfile.save();
+            }
+            const businessTypeID = isBusinessTypeExist.id;
+            const businessSubTypeID = isBusinessSubTypeExist.id
 
-            const newUser = new User();
-            newUser.email = email;
-            newUser.username = username;
-            newUser.name = name;
-            newUser.accountType = accountType;
-            newUser.dialCode = dialCode;
-            newUser.phoneNumber = phoneNumber;
-            newUser.password = password;
-            newUser.isActivated = true;
-            newUser.isApproved = false;
-            newUser.privateAccount = false;//Business profile is public profile
-            newUser.businessProfileID = savedBusinessProfile.id;
-            const otp = generateOTP();
-            emailNotificationService.sendEmailOTP(otp, newUser.email, 'verify-email');
-            newUser.otp = otp;
-            const savedUser = await newUser.save();
+            const address = { city, state, street, zipCode, country, geoCoordinate, lat, lng }
+            const savedBusinessProfile = await createBusinessProfile({
+                profilePic, username, businessTypeID, businessSubTypeID, bio, address, gstn, placeID, privateAccount,
+                name: businessName,
+                email: businessEmail,
+                phoneNumber: businessPhoneNumber,
+                dialCode: businessDialCode,
+                website: businessWebsite
+            });
+            const businessProfileID = savedBusinessProfile._id;
+            const savedUser = await createUserAccount({
+                email, username, name, accountType, dialCode, phoneNumber, password, isActivated, isApproved, privateAccount, businessProfileID
+            }, true);
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
-        const newUser = new User();
-        newUser.profilePic = {
+        const profilePic = {
             small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
             large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
             medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
-        };
-        newUser.profession = profession;
-        newUser.username = username;
-        newUser.email = email;
-        newUser.name = name;
-        newUser.accountType = accountType;
-        newUser.dialCode = dialCode;
-        newUser.phoneNumber = phoneNumber;
-        newUser.password = password;
-        newUser.isActivated = true;
-        const otp = generateOTP();
-        emailNotificationService.sendEmailOTP(otp, newUser.email, 'verify-email');
-        newUser.otp = otp;
-        const savedUser = await newUser.save();
+        }
+        const isActivated = true;
+        const savedUser = await createUserAccount({
+            profilePic, profession, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, geoCoordinate
+        }, true);
         return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
