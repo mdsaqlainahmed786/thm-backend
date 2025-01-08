@@ -428,6 +428,7 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
                         mediaType: 1,
                         mimeType: 1,
                         sourceUrl: 1,
+                        thumbnailUrl: 1,
                         views: 1,
                     }
                 }
