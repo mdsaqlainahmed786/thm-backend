@@ -1,5 +1,6 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
 import { MongoID } from '../../common';
+import User, { activeUserQuery } from './user.model';
 
 export enum ConnectionStatus {
     PENDING = "pending",
@@ -40,4 +41,13 @@ export async function fetchUserFollowing(userID: MongoID) {
 }
 export async function fetchUserFollower(userID: MongoID) {
     return await UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED })
+}
+
+export async function fetchFollowingCount(userID: MongoID) {
+    const followerIDs = await fetchUserFollowing(userID);
+    return await User.find({ _id: { $in: followerIDs }, ...activeUserQuery }).countDocuments();
+}
+export async function fetchFollowerCount(userID: MongoID) {
+    const followingIDs = await fetchUserFollower(userID);
+    return await User.find({ _id: { $in: followingIDs }, ...activeUserQuery }).countDocuments();
 }

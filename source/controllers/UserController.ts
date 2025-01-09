@@ -13,7 +13,7 @@ import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
 import Post, { fetchPosts, PostType, getPostsCount, getSavedPost, getPostQuery } from '../database/models/post.model';
-import UserConnection, { ConnectionStatus, fetchUserFollowing } from '../database/models/userConnection.model';
+import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount, fetchUserFollowing } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
 import SavedPost from '../database/models/savedPost.model';
@@ -118,8 +118,8 @@ const profile = async (request: Request, response: Response, next: NextFunction)
             ),
             calculateProfileCompletion(id),
             getPostsCount(id),
-            UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
-            UserConnection.find({ follower: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+            fetchFollowerCount(id),
+            fetchFollowingCount(id),
             UserAddress.findOne({ userID: id })
         ]);
         if (user.length === 0) {

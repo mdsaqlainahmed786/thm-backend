@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpAcceptedOrUpdated, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { addBusinessProfileInUser, getBlockedByUsers, getBlockedUsers, getUserProfile } from "../database/models/user.model";
+import { activeUserQuery, addBusinessProfileInUser, getBlockedByUsers, getBlockedUsers, getUserProfile } from "../database/models/user.model";
 import User from '../database/models/user.model';
 import UserConnection, { ConnectionStatus } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
@@ -188,7 +188,7 @@ const follower = async (request: Request, response: Response, next: NextFunction
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their following."), "This account is Private. Follow this account to see their following."))
         }
-        const dbQuery = { _id: { $in: followersIDs } };
+        const dbQuery = { _id: { $in: followersIDs }, ...activeUserQuery };
         if (query !== undefined && query !== "") {
             //Search business profile
             const businessProfileIDs = await BusinessProfile.distinct('_id', {
@@ -238,7 +238,7 @@ const following = async (request: Request, response: Response, next: NextFunctio
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their following."), "This account is Private. Follow this account to see their following."))
         }
-        const dbQuery = { _id: { $in: followingIDs } };
+        const dbQuery = { _id: { $in: followingIDs }, ...activeUserQuery };
         if (query !== undefined && query !== "") {
             //Search business profile
             const businessProfileIDs = await BusinessProfile.distinct('_id', {
@@ -294,6 +294,7 @@ const createDefaultProfile = async () => {
         newUser.isActivated = true;
         newUser.isVerified = true;
         newUser.hasProfilePicture = true;
+        newUser.privateAccount = false;
         newUser.role = Role.OFFICIAL;
         return await newUser.save();
     }

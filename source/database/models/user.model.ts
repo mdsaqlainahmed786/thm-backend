@@ -8,7 +8,7 @@ import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
 import Post, { getPostsCount } from "./post.model";
-import UserConnection, { ConnectionStatus } from "./userConnection.model";
+import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
 import { ObjectId } from "mongodb";
 import { generateOTP } from "../../utils/helper/basic";
@@ -544,8 +544,8 @@ export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
             }
         ]),
         getPostsCount(userID),
-        UserConnection.find({ following: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
-        UserConnection.find({ follower: userID, status: ConnectionStatus.ACCEPTED }).countDocuments(),
+        fetchFollowerCount(userID),
+        fetchFollowingCount(userID),
         UserConnection.findOne({ following: userID, follower: id, }),
         BlockedUser.findOne({ blockedUserID: userID, userID: id })
     ]);
