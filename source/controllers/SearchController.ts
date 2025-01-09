@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import Post, { fetchPosts, PostType } from "../database/models/post.model";
+import Post, { fetchPosts, getPostQuery, PostType } from "../database/models/post.model";
 import Like, { addUserInLike } from '../database/models/like.model';
 import Comment from '../database/models/comment.model';
 import Story from "../database/models/story.model";
@@ -42,7 +42,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "posts") {
             //FIXME need to add geolocation or mach more
-            Object.assign(dbQuery, { postType: PostType.POST, isPublished: true, isDeleted: false });
+            Object.assign(dbQuery, { postType: PostType.POST, ...getPostQuery });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             if (businessTypeID && businessTypeID !== '') {
@@ -62,9 +62,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { userID: { $in: userIDs }, ...getPostQuery }
                         ]
                     }
                 )
@@ -78,7 +78,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "events") {
-            Object.assign(dbQuery, { postType: PostType.EVENT, isPublished: true, isDeleted: false });
+            Object.assign(dbQuery, { postType: PostType.EVENT, ...getPostQuery });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             //FIXME need to add geolocation or mach more
@@ -99,11 +99,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { userID: { $in: userIDs }, ...getPostQuery }
                         ]
                     }
                 )
@@ -117,7 +117,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "reviews") {
-            Object.assign(dbQuery, { postType: PostType.REVIEW, isPublished: true, isDeleted: false });
+            Object.assign(dbQuery, { postType: PostType.REVIEW, ...getPostQuery });
             const userQuery = { ...activeUserQuery, privateAccount: false };
             businessProfileIDs = await fetchBusinessIDs(query, businessTypeID);
             //FIXME need to add geolocation or mach more
@@ -138,9 +138,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery,
                     {
                         $or: [
-                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true, isDeleted: false },
-                            { userID: { $in: userIDs }, isPublished: true, isDeleted: false }
+                            { content: { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { "location.placeName": { $regex: new RegExp(query.toLowerCase(), "i") }, ...getPostQuery },
+                            { userID: { $in: userIDs }, ...getPostQuery }
                         ]
                     }
                 )

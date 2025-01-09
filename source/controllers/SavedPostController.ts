@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import Post from "../database/models/post.model";
+import Post, { getSavedPost } from "../database/models/post.model";
 import SavedPost from '../database/models/savedPost.model';
 import { parseQueryParam } from "../utils/helper/basic";
 import Like from "../database/models/like.model";
-import { fetchPosts } from "../database/models/post.model";
+import { fetchPosts, getPostQuery } from "../database/models/post.model";
 import EventJoin from "../database/models/eventJoin.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -16,7 +16,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const [likedByMe, savedByMe, joiningEvents] = await Promise.all(
             [
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                getSavedPost(id),
                 EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
@@ -24,7 +24,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const dbQuery = { isPublished: true, isDeleted: false, _id: { $in: savedByMe } };
+        const dbQuery = { ...getPostQuery, _id: { $in: savedByMe } };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()

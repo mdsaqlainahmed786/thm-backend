@@ -1,10 +1,10 @@
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
-import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk, httpAcceptedOrUpdated } from "../utils/response";
+import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk, httpAcceptedOrUpdated, httpForbidden } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import User, { AccountType, addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile } from "../database/models/user.model";
 import Subscription from "../database/models/subscription.model";
-import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
+import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, getSavedPost, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
@@ -326,7 +326,7 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
         }
         if (post.userID.toString() !== id) {
-            return response.send(httpBadRequest(httpBadRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+            return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
         }
         const mediaIDs = post.media;
         if (mediaIDs.length !== 0) {
@@ -381,7 +381,7 @@ const deletePost = async (request: Request, response: Response, next: NextFuncti
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
         }
         if (post.userID.toString() !== id) {
-            return response.send(httpBadRequest(httpBadRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+            return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
         }
         post.isDeleted = true;
         await post.save();
@@ -401,7 +401,7 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
         }
         const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+            getSavedPost(id),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
         ]);
         const post = await Post.aggregate(

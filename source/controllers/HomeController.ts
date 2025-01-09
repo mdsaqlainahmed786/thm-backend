@@ -6,7 +6,7 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam, randomColor } from "../utils/helper/basic";
-import Post, { fetchPosts, } from "../database/models/post.model";
+import Post, { fetchPosts, getPostQuery, getSavedPost, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile from "../database/models/businessProfile.model";
@@ -40,7 +40,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         //Only shows public profile post here and follower posts
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true, isDeleted: false };
+        const dbQuery = { ...getPostQuery };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         if (query !== undefined && query !== "") {
@@ -50,7 +50,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         }
         const [likedByMe, savedByMe, joiningEvents, blockedUsers] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+            getSavedPost(id),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             getBlockedUsers(id)
         ]);
@@ -315,7 +315,7 @@ const insights = async (request: Request, response: Response, next: NextFunction
                     $limit: 10
                 }
             ]).exec(),
-            fetchPosts({ userID: new ObjectId(id), }, [], [], [], 1, 10)
+            fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10)
         ]);
         const eng = await fetchEngagedData(businessProfileID);
         const responseData = {

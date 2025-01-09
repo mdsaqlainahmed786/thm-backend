@@ -3,6 +3,7 @@ import { ILocation, LocationSchema } from "./common.model";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
+import SavedPost from "./savedPost.model";
 export enum PostType {
     POST = "post",
     REVIEW = "review",
@@ -462,7 +463,12 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
         ]
     ).exec();
 }
-
+export const getPostQuery = { isPublished: true, isDeleted: false };
 export async function getPostsCount(userID: MongoID) {
-    return Post.find({ userID: userID, isPublished: true, isDeleted: false }).countDocuments()
+    return Post.find({ userID: userID, ...getPostQuery }).countDocuments()
 }
+
+export async function getSavedPost(userID: MongoID) {
+    return SavedPost.distinct('postID', { userID: userID, postID: { $ne: null } });
+}
+

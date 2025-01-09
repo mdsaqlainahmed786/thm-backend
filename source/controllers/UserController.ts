@@ -12,7 +12,7 @@ import { isArray } from '../utils/helper/basic';
 import BusinessType from '../database/models/businessType.model';
 import BusinessSubType from '../database/models/businessSubType.model';
 import BusinessAnswer from '../database/models/businessAnswer.model';
-import Post, { fetchPosts, PostType, getPostsCount } from '../database/models/post.model';
+import Post, { fetchPosts, PostType, getPostsCount, getSavedPost, getPostQuery } from '../database/models/post.model';
 import UserConnection, { ConnectionStatus, fetchUserFollowing } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
@@ -333,7 +333,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
         const userID = request.params.id;
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { isPublished: true, userID: new ObjectId(userID) };
+        const dbQuery = { ...getPostQuery, userID: new ObjectId(userID) };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
         const [user, inMyFollowing, likedByMe, savedByMe, joiningEvents] = await Promise.all(
@@ -341,7 +341,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                getSavedPost(id),
                 EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
@@ -374,7 +374,7 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
             [
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
-                Post.distinct('media', { isPublished: true, userID: new ObjectId(userID) }),
+                Post.distinct('media', { ...getPostQuery, userID: new ObjectId(userID) }),
                 PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) })
             ]
         );
@@ -455,7 +455,7 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
                 Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                SavedPost.distinct('postID', { userID: id, postID: { $ne: null } }),
+                getSavedPost(id),
                 EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             ]
         );
@@ -468,7 +468,7 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         if (!user.businessProfileID) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
-        const dbQuery = { isPublished: true, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
+        const dbQuery = { ...getPostQuery, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()
