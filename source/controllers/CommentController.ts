@@ -117,7 +117,9 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
         }
         const savedComment = await newComment.save();
-        AppNotificationController.store(id, post.userID, NotificationType.COMMENT, { postID: post.id, userID: post.userID, message: message, postType: post.postType }).catch((error) => console.error(error));
+        if (savedComment.isParent) {
+            AppNotificationController.store(id, post.userID, NotificationType.COMMENT, { postID: post.id, userID: post.userID, message: message, postType: post.postType }).catch((error) => console.error(error));
+        }
         return response.send(httpNoContent(savedComment, 'Comment posted successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
