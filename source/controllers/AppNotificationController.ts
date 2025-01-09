@@ -149,100 +149,105 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             User.findOne({ _id: userID }),
             User.findOne({ _id: targetUserID })
         ]);
-        if (userData && targetUserData) {
-            let name = userData.name;
-            let profileImage = "";
-            let image = "";
-            let title: string = AppConfig.APP_NAME;
-            let description: string = 'Welcome to The Hotel Media';
-            let postType = "post";
-            profileImage = userData?.profilePic?.small ?? profileImage;
-            if (userData.accountType === AccountType.BUSINESS && userData.businessProfileID) {
-                const businessData = await BusinessProfile.findOne({ _id: userData.businessProfileID })
-                if (businessData) {
-                    name = businessData.name
-                    profileImage = businessData?.profilePic?.small ?? profileImage;
-                }
-            }
-            switch (type) {
-                case NotificationType.LIKE_A_STORY:
-                    title = AppConfig.APP_NAME;
-                    description = `${name} liked your story.`;
-                    break;
-                case NotificationType.LIKE_POST:
-                    title = AppConfig.APP_NAME;
-                    postType = metadata.postType ?? "post";
-                    description = `${name} liked your ${postType}.`;
-                    break;
-                case NotificationType.LIKE_COMMENT:
-                    title = AppConfig.APP_NAME;
-                    description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
-                    break;
-                case NotificationType.FOLLOW_REQUEST:
-                    title = AppConfig.APP_NAME;
-                    description = `${name} requested to follow you.`;
-                    break;
-                case NotificationType.FOLLOWING:
-                    title = AppConfig.APP_NAME;
-                    description = `${name} started following you.`;
-                    break;
-                case NotificationType.ACCEPT_FOLLOW_REQUEST:
-                    title = AppConfig.APP_NAME;
-                    description = `${name} accepted your follow request.`;
-                    break;
-                case NotificationType.COMMENT:
-                    title = AppConfig.APP_NAME
-                    postType = metadata.postType ?? "post";
-                    description = `${name} commented on your ${postType}: '${truncate(metadata?.message)}'.`;
-                    break;
-                case NotificationType.REPLY:
-                    title = AppConfig.APP_NAME
-                    description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
-                    break;
-                case NotificationType.TAGGED:
-                    title = AppConfig.APP_NAME
-                    description = `${name} tagged you in a post.`;
-                    break;
-                case NotificationType.EVENT_JOIN:
-                    title = AppConfig.APP_NAME
-                    const eventName = metadata.name ?? '';
-                    description = `${name} has joined the event \n${eventName}.`;
-                    break;
-            }
-            const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
-            const newNotification = new Notification();
-            newNotification.userID = userID;
-            newNotification.targetUserID = targetUserID;
-            newNotification.title = title;
-            newNotification.description = description;
-            newNotification.type = type;
-            newNotification.metadata = metadata;
-            try {
-                if (userID.toString() !== targetUserID.toString()) {
-                    console.log("No Same user no need to perform further action");
-                    await Promise.all(devicesConfigs.map(async (devicesConfig) => {
-                        if (devicesConfig && devicesConfig.notificationToken) {
-                            const notificationID = newNotification.id ? newNotification.id : v4();
-                            const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description,
-                                {
-                                    notificationID: notificationID,
-                                    devicePlatform: devicesConfig.devicePlatform,
-                                    type: type,
-                                    image: image,
-                                    profileImage: profileImage
-                                });
-                            await sendNotification(message);
-                        }
-                        return devicesConfig;
-                    }));
-                }
-            } catch (error) {
-                console.error("Error sending one or more notifications:", error);
-            }
-            return await newNotification.save();
-        } else {
+        if (!userData || !targetUserData) {
+            console.error(`User or target user not found. userID: ${userID}, targetUserID: ${targetUserID}`);
             return null;
         }
+        let name = userData.name;
+        let profileImage = userData?.profilePic?.small || '';
+        let postType = "post";
+        let description = 'Welcome to The Hotel Media';
+        let image = "";
+        let title = AppConfig.APP_NAME;
+
+        if (userData.accountType === AccountType.BUSINESS && userData.businessProfileID) {
+            const businessData = await BusinessProfile.findOne({ _id: userData.businessProfileID })
+            if (businessData) {
+                name = businessData.name
+                profileImage = businessData?.profilePic?.small ?? profileImage;
+            }
+        }
+        switch (type) {
+            case NotificationType.LIKE_A_STORY:
+                description = `${name} liked your story.`;
+                break;
+            case NotificationType.LIKE_POST:
+                postType = metadata.postType ?? "post";
+                description = `${name} liked your ${postType}.`;
+                break;
+            case NotificationType.LIKE_COMMENT:
+                description = `${name} liked your comment: '${truncate(metadata?.message)}'.`;
+                break;
+            case NotificationType.FOLLOW_REQUEST:
+                description = `${name} requested to follow you.`;
+                break;
+            case NotificationType.FOLLOWING:
+                description = `${name} started following you.`;
+                break;
+            case NotificationType.ACCEPT_FOLLOW_REQUEST:
+                description = `${name} accepted your follow request.`;
+                break;
+            case NotificationType.COMMENT:
+                postType = metadata.postType ?? "post";
+                description = `${name} commented on your ${postType}: '${truncate(metadata?.message)}'.`;
+                break;
+            case NotificationType.REPLY:
+                description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
+                break;
+            case NotificationType.TAGGED:
+                description = `${name} tagged you in a post.`;
+                break;
+            case NotificationType.EVENT_JOIN:
+                const eventName = metadata.name ?? '';
+                description = `${name} has joined the event \n${eventName}.`;
+                break;
+            default:
+                description = `Unknown notification type: ${type}`;
+        }
+
+        // Create notification object
+        const newNotification = new Notification({
+            userID,
+            targetUserID,
+            title,
+            description,
+            type,
+            metadata
+        });
+
+        const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
+
+        try {
+            console.log(`Send notification NotificationType::${type} \nTitle:${title} \nDescription:${description}`);
+            if (userID.toString() !== targetUserID.toString()) {
+                await Promise.all(devicesConfigs.map(async (devicesConfig) => {
+                    if (devicesConfig && devicesConfig.notificationToken) {
+                        const notificationID = newNotification.id || v4();
+                        const devicePlatform = devicesConfig.devicePlatform;
+                        const message: Message = createMessagePayload(devicesConfig.notificationToken, title, description,
+                            {
+                                notificationID,
+                                devicePlatform,
+                                type,
+                                image,
+                                profileImage
+                            });
+                        await sendNotification(message);
+                    }
+                    return devicesConfig;
+                }));
+            }
+        } catch (error) {
+            console.error("Error sending one or more notifications:", error);
+        }
+        //LIKE_A_STORY  FOLLOW_REQUEST, FOLLOWING ACCEPT_FOLLOW_REQUEST TAGGED EVENT_JOIN
+        if (userID.toString() === targetUserID.toString() && [NotificationType.LIKE_POST, NotificationType.COMMENT, NotificationType.LIKE_COMMENT, NotificationType.REPLY].includes(type)) {
+            console.log("Not save")
+            return null;
+            // return await newNotification.save();
+        }
+        console.log("Save")
+        return await newNotification.save();
     } catch (error: any) {
         throw error;
     }
