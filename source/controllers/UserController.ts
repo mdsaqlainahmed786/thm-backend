@@ -1,4 +1,4 @@
-import { activeUserQuery, addBusinessProfileInUser, calculateProfileCompletion, getBlockedUsers, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
+import { activeUserQuery, addBusinessProfileInUser, calculateProfileCompletion, getBlockedByUsers, getBlockedUsers, getUserProfile, getUserPublicProfile } from './../database/models/user.model';
 import { Request, Response, NextFunction } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
@@ -533,9 +533,10 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [inMyFollower] = await Promise.all(
+        const [inMyFollower, blockedUsers] = await Promise.all(
             [
                 fetchUserFollowing(id),
+                getBlockedByUsers(id),
             ]
         );
         if (!id) {
@@ -551,13 +552,13 @@ const tagPeople = async (request: Request, response: Response, next: NextFunctio
             });
             dbQuery.push({
                 $or: [
-                    { _id: { $in: inMyFollower }, name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
-                    { _id: { $in: inMyFollower }, username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
-                    { _id: { $in: inMyFollower }, businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery }
+                    { _id: { $in: inMyFollower, $nin: blockedUsers }, name: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
+                    { _id: { $in: inMyFollower, $nin: blockedUsers }, username: { $regex: new RegExp(query.toLowerCase(), "i") }, ...activeUserQuery },
+                    { _id: { $in: inMyFollower, $nin: blockedUsers }, businessProfileID: { $in: businessProfileIDs }, ...activeUserQuery }
                 ]
             })
         } else {
-            dbQuery.push({ _id: { $in: inMyFollower }, ...activeUserQuery })
+            dbQuery.push({ _id: { $in: inMyFollower, $nin: blockedUsers }, ...activeUserQuery })
         }
         const [documents, totalDocument] = await Promise.all([
             getUserProfile({
