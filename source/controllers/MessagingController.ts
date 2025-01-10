@@ -14,6 +14,9 @@ import { v4 } from 'uuid';
 import moment from 'moment';
 import BusinessProfile from '../database/models/businessProfile.model';
 import { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
+import { AwsS3AccessEndpoints } from '../config/constants';
+import { MediaType } from '../database/models/media.model';
+import { storeMedia } from './MediaController';
 /**
  * 
  * @param query 
@@ -225,6 +228,7 @@ function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumbe
 
 const sendMediaMessage = async (request: Request, response: Response, next: NextFunction) => {
     try {
+        const { id, accountType, businessProfileID } = request.user;
         const { messageType, username, message } = request.body;
         const requestedUserID = request.user?.id;
         const sendedBy = await User.findOne({ _id: requestedUserID });
@@ -235,63 +239,26 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         if (!sendTo) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const singleFile = files.media;
+        const type = messageType as MediaType;
+        const [uploadedFiles] = await Promise.all([
+            storeMedia(singleFile, id, businessProfileID, type, AwsS3AccessEndpoints.MESSAGING, 'POST'),
+        ])
+        if (uploadedFiles && uploadedFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))
+        }
         const messageObject: PrivateIncomingMessagePayload = {
             to: username,
             message: {
-                type: MessageType.IMAGE,
+                type: messageType,
                 message: message ?? '',
-                mediaUrl: ''
+                mediaUrl: uploadedFiles[0].sourceUrl,
+                mediaThumbnailUrl: uploadedFiles[0].thumbnailUrl,
+                mediaID: uploadedFiles[0].id,
             }
         };
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const singleFile = files.media?.[0] as Express.Multer.S3File;
-        switch (messageType) {
-            case MessageType.IMAGE:
-                if (files && singleFile) {
-                    Object.assign(messageObject, {
-                        message: {
-                            type: MessageType.IMAGE,
-                            message: message ?? '',
-                            mediaUrl: singleFile.location,
-                        }
-                    });
-                    //   SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
-                    return response.send(httpOk(messageObject, "Media sent"));
-                } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Image is required"), "Image is required"))
-                }
-                break;
-            case MessageType.VIDEO:
-                if (files && singleFile) {
-                    Object.assign(messageObject, {
-                        message: {
-                            type: MessageType.VIDEO,
-                            message: message ?? '',
-                            mediaUrl: singleFile.location,
-                        }
-                    });
-                    //SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
-                    return response.send(httpOk(messageObject, "Media sent"));
-                } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Video is required"), "Video is required"))
-                }
-                break;
-            case MessageType.PDF:
-                if (files && singleFile) {
-                    Object.assign(messageObject, {
-                        message: {
-                            type: MessageType.PDF,
-                            message: message ?? '',
-                            mediaUrl: singleFile.location,
-                        }
-                    });
-                    // SocketServer.to(username).to(sendedBy.username).emit(SocketChannel.PRIVATE_MESSAGE, messageObject);
-                    return response.send(httpOk(messageObject, "Media sent"));
-                } else {
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Document is required"), "Document is required"))
-                }
-                break;
-        }
+        return response.send(httpOk(messageObject, "Media uploaded"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

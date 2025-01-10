@@ -506,7 +506,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
         }[] = [];
         let coverImage = "";
         if (images && images.length !== 0) {
-            const imageList = await storeMedia(images, id, null, MediaType.IMAGE, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
+            const imageList = await storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
                 coverImage = imageList[0].sourceUrl;
                 imageList.map((image) => newPropertyPictures.push({
