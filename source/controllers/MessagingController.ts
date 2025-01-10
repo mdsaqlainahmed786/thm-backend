@@ -69,9 +69,25 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
             $addFields: {
                 mediaUrl: {
                     $cond: {
-                        if: { $eq: ['$isStoryAvailable', true] },
+                        if: {
+                            $and: [
+                                { $eq: ['$isStoryAvailable', true] },
+                                { $eq: ['$type', MessageType.STORY_COMMENT] }
+                            ]
+                        },
                         then: '$mediaUrl',
-                        else: 'Story unavailable' //
+                        else: {
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $eq: ['$isStoryAvailable', false] },
+                                        { $eq: ['$type', MessageType.STORY_COMMENT] }
+                                    ]
+                                },
+                                then: 'Story unavailable',
+                                else: '$mediaUrl'
+                            }
+                        }
                     }
                 },
             }
