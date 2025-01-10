@@ -42,6 +42,8 @@ export interface Message {
     type: MessageType;
     message: string;
     mediaUrl?: string;
+    storyID?: string;
+    mediaID?: string;
 }
 
 export interface Messages {

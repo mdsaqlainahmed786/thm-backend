@@ -40,6 +40,9 @@ const Story = model<IStory, IStoryModel>('Story', LikeSchema);
 export default Story;
 
 
+export const storyTimeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+
 export function addMediaInStory() {
     const lookup = {
         '$lookup': {

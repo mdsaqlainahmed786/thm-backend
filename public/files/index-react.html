@@ -257,6 +257,7 @@
 
                 //Done
                 function onFetchConversations(data) {
+                    console.log(data);
                     // Toastify({
                     //     text: "MessageScreen:: onFetchConversations",
                     //     className: "info",
@@ -403,7 +404,47 @@
                 }, 1500);
                 setTypingTimeout(newTimeout); // Save the timeout ID to clear it later
             };
-
+            const handleStoryComment = () => {
+                const messageData = {
+                    'createdAt': new Date().toISOString(),
+                    'fullName': '',
+                    'gender': '',
+                    'isOnline': false,
+                    'isSeen': false,
+                    'message': message,
+                    'profilePicture': '',
+                    'sentByMe': true,
+                    'targetUserID': '',
+                    'type': 'story-comment',
+                    'unseenCount': 0,
+                    'userID': '',
+                    'username': '',
+                    '_id': '',
+                    'link': '',
+                    'contact': '',
+                    'mediaUrl': '',
+                    'gift': '',
+                    'location': {
+                        lat: 0,
+                        lng: 0,
+                        placeName: ''
+                    }
+                }
+                setMessages({
+                    ...messages, messages: [...messages.messages, messageData]
+                })
+                socket.emit("private message", {
+                    message: {
+                        type: messageData.type,
+                        message: messageData.message,
+                        mediaID: "677f72c0f0675714367d7adc",
+                        storyID: "677f72c0f0675714367d7ade",
+                        mediaUrl: "https://the-hotel-media-bucket.s3.ap-south-1.amazonaws.com/story/df9d0528-e4f0-471e-8a39-806d72fef90f-1736405695991-1080x1980.jpg"
+                    },
+                    to: chatScreen.username
+                });
+                setMessage('');
+            }
             return (
                 <div className="flex justify-center">
                     <div className="w-[375px] h-[812px] bg-white overflow-y">
@@ -547,33 +588,11 @@
                                             }
                                         </div>
                                         <form className="bg-black/20 rounded-[50px] my-3  fixed bottom-0" onSubmit={handelSendMessage}>
-                                            {/* <button type="button" className="btn" id="leaveChat">
-                                                <i className="fa fa-times"></i>
-                                            </button>
-                                            <select id="sendGift" className="form-select form-select-sm">
-                                                <option value="">select sticker</option>
-                                                <option value="2NYTWDXC">sticker 2NYTWDXC</option>
-                                                <option value="KVU189H7">sticker KVU189H7</option>
-                                                <option value="DV8K99Z8">sticker DV8K99Z8</option>
-                                                <option value="KKGD9G3X">sticker KKGD9G3X</option>
-                                            </select>
-                                            <button type="button" className="btn btn-sm btn-light" id="sendImage">
-                                                <i className="fa fa-image"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" id="sendVideo">
-                                                <i className="fa fa-video-camera"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light " id="sendLocation">
-                                                <i className="fa fa-map-marker"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light " id="sendLink">
-                                                <i className="fa fa-link"></i>
-                                            </button>
-                                            <button type="button" className="btn btn-sm btn-light" id="sendContact">
-                                                <i className="fa fa-phone"></i>
-                                            </button> */}
                                             <div className="flex justify-between items-center px-2 w-full">
                                                 <input type="text" value={message} className="bg-transparent text-sm outline-0  py-2.5 px-1 w-full" onChange={handleChange} />
+                                                {/*  <button type="button" onClick={handleStoryComment}>
+                                                    comment story
+                                                </button>*/}
                                                 <div>
                                                     <button type="submit" className="w-7 h-7 bg-black/30 hover:bg-[#3797EF] flex justify-center items-center rounded-full" disabled={message.length === 0}>
                                                         <i className="fa fa-paper-plane text-sm"></i>

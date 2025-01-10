@@ -13,6 +13,7 @@ import fs from "fs";
 import { v4 } from 'uuid';
 import moment from 'moment';
 import BusinessProfile from '../database/models/businessProfile.model';
+import { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
 /**
  * 
  * @param query 
@@ -30,6 +31,44 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
             }
         },
         {
+            '$lookup': {
+                'from': 'stories',
+                'let': { 'storyID': '$storyID' },
+                'pipeline': [
+                    { '$match': { '$expr': { '$eq': ['$_id', '$$storyID'] }, timeStamp: { $gte: storyTimeStamp } } },
+                    addMediaInStory().lookup,
+                    addMediaInStory().unwindLookup,
+                    addMediaInStory().replaceRootAndMergeObjects,
+                    addMediaInStory().project,
+                ],
+                'as': 'storiesRef'
+            }
+        },
+        {
+            '$unwind': {
+                'path': '$storiesRef',
+                'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+            }
+        },
+        {
+            $addFields: {
+                isStoryAvailable: {
+                    $cond: {
+                        if: { $ne: [{ $ifNull: ['$storiesRef', ''] }, ''] },
+                        then: true,
+                        else: false
+                    }
+                },
+                mediaUrl: {
+                    $cond: {
+                        if: { $eq: ['$isStoryAvailable', true] },
+                        then: '$mediaUrl',
+                        else: 'Story unavailable' //
+                    }
+                },
+            }
+        },
+        {
             $sort: { createdAt: -1, id: 1 }
         },
         {
@@ -44,6 +83,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 targetUserID: 0,
                 userID: 0,
                 deletedByID: 0,
+                storiesRef: 0
             }
         }
     ])

@@ -128,6 +128,17 @@ export default function createSocketServer(httpServer: https.Server) {
                             newMessage.type = MessageType.PDF;
                             newMessage.mediaUrl = data.message.mediaUrl;
                             break;
+
+                        //TODO Also add in chat export 
+                        case MessageType.STORY_COMMENT:
+                            newMessage.message = data.message.message;
+                            newMessage.type = MessageType.STORY_COMMENT;
+                            newMessage.mediaUrl = data.message.mediaUrl;
+                            if (data.message.mediaID && data.message.storyID) {
+                                newMessage.mediaID = data.message.mediaID;
+                                newMessage.storyID = data.message.storyID;
+                            }
+                            break;
                     }
                     const savedMessage = await newMessage.save();
 
@@ -141,6 +152,9 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                         case MessageType.PDF:
                             message = "📝 pdf";
+                            break;
+                        case MessageType.STORY_COMMENT:
+                            message = "replied to your story";
                             break;
                     }
                     if (isOnline) {

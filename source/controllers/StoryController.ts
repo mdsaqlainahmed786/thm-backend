@@ -7,7 +7,7 @@ import { AccountType, addBusinessProfileInUser, addStoriesInUser } from "../data
 import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
-import Story, { addMediaInStory } from '../database/models/story.model';
+import Story, { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
 import Like, { addUserInLike } from '../database/models/like.model';
@@ -25,14 +25,13 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const timeStamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
         //Fetch following stories 
         const myFollowingIDs = await fetchUserFollowing(id);
         const [myStories, likedByMe, userIDs, viewedStories] = await Promise.all(
             [
                 Story.aggregate([
                     {
-                        $match: { userID: new ObjectId(id), timeStamp: { $gte: timeStamp } }
+                        $match: { userID: new ObjectId(id), timeStamp: { $gte: storyTimeStamp } }
                     },
                     addMediaInStory().lookup,
                     addMediaInStory().unwindLookup,
@@ -88,8 +87,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Like.distinct('storyID', { userID: id, }),
                 Story.distinct('userID', {
                     $and: [
-                        { timeStamp: { $gte: timeStamp }, userID: { $in: myFollowingIDs }, },
-                        { timeStamp: { $gte: timeStamp }, userID: { $nin: [new ObjectId(id)] }, }
+                        { timeStamp: { $gte: storyTimeStamp }, userID: { $in: myFollowingIDs }, },
+                        { timeStamp: { $gte: storyTimeStamp }, userID: { $nin: [new ObjectId(id)] }, }
                     ]
                 }),
                 View.distinct('storyID', { userID: id, createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } })

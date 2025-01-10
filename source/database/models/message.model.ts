@@ -1,10 +1,12 @@
 import { Schema, Model, model, Types, Document, SchemaType } from 'mongoose';
+import { MongoID } from '../../common';
 
 export enum MessageType {
     TEXT = "text",
     IMAGE = "image",
     VIDEO = "video",
     PDF = "pdf",
+    STORY_COMMENT = "story-comment"
 }
 
 export interface ILocation {
@@ -25,8 +27,8 @@ const LocationSchema = new Schema<ILocation>(
 )
 
 export interface IMessage extends Document {
-    userID: string | Types.ObjectId;//sender
-    targetUserID: string | Types.ObjectId; //receiver
+    userID: MongoID;//sender
+    targetUserID: MongoID;//receiver
     message: string;
     isSeen: boolean;
     type: MessageType;
@@ -34,9 +36,11 @@ export interface IMessage extends Document {
     link?: string;
     mediaUrl?: string;
     gift?: string;
-    giftID?: string | Types.ObjectId;
+    giftID?: MongoID;
     location?: ILocation;
-    deletedByID: (string | Types.ObjectId)[];
+    deletedByID: MongoID[];
+    storyID: MongoID;
+    mediaID: MongoID;
 }
 const MessageSchema: Schema = new Schema<IMessage>(
     {
@@ -54,8 +58,8 @@ const MessageSchema: Schema = new Schema<IMessage>(
         contact: { type: String },
         link: { type: String },
         mediaUrl: { type: String },
-        gift: { type: String },
-        giftID: { type: Schema.Types.ObjectId, ref: "Gift" },
+        mediaID: { type: Schema.Types.ObjectId, ref: "Media" },
+        storyID: { type: Schema.Types.ObjectId, ref: "Story" },
         location: LocationSchema
     },
     {
