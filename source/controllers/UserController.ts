@@ -525,7 +525,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-
+//FIXME add blocked users 
 const tagPeople = async (request: Request, response: Response, next: NextFunction) => {
     try {
 

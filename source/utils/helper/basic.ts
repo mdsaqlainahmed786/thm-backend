@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { AppConfig } from "../../config/constants";
 import { MongoID } from "../../common";
 import { Request } from "express";
+import { BusinessType } from "../../database/seeders/BusinessTypeSeeder";
 declare global {
     interface String {
         capitalize(): string;
@@ -184,4 +185,70 @@ export function randomColor() {
 
 export function getDefaultProfilePic(request: Request, letter: string, size: string) {
     return request.protocol + "://" + request.get("host") + `/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${letter}&size=${size}`;
+}
+
+
+export function predictCategory(types: string[], name: string) {
+    const Restaurant = ['cafe', 'bakery', 'food', 'restaurant', 'meal_delivery', 'meal_takeaway'];
+    const Hotel = ['lodging'];
+    const BarClubs = ['bar', 'night_club'];
+    const HomeStays = ['lodging'];
+    const MarriageBanquets = ['point_of_interest', 'establishment'];
+
+    const isHotel = ['hotel'].some((word: string) => name.toLowerCase().includes(word));
+    const isRestaurant = ['cafe', 'coffee', 'tea', 'restaurant', 'kitchen'].some((word: string) => name.toLowerCase().includes(word));
+    const isBar = ['bar'].some((word: string) => name.toLowerCase().includes(word));
+    const isMarriageBanquets = ['palace', 'resort', 'wedding', 'weddings', 'matrimonial'].some((word: string) => name.toLowerCase().includes(word));
+    const isHomeStays = ['home stay', 'home', 'stay'].some((word: string) => name.toLowerCase().includes(word));
+    console.log("isHotel", isHotel);
+    console.log("isRestaurant", isRestaurant);
+    console.log("isBar", isBar);
+    console.log("isMarriageBanquets", isMarriageBanquets);
+    console.log("isHomeStays", isHomeStays);
+    console.log("types", types)
+
+    //Bars / Clubs
+    if (types.find((element: any) => BarClubs.includes(element)) && isBar) {
+        console.log('isBar 1', name, types)
+        return BusinessType.BARS_CLUBS;
+    } else if (types.find((element: any) => BarClubs.includes(element)) || isBar) {
+        console.log('isBar 2', name, types)
+        return BusinessType.BARS_CLUBS;
+    }
+    //Hotel
+    if (types.find((element: any) => Hotel.includes(element)) && isHotel) {
+        console.log('isHotel 1', name, types)
+        return BusinessType.HOTEL;
+    } else if (types.find((element: any) => Hotel.includes(element)) || isHotel) {
+        console.log('isHotel 2', name, types)
+        return BusinessType.HOTEL;
+    }
+    //Restaurant
+    if (types.filter((element: any) => Restaurant.includes(element)).length > 0 && isRestaurant) {
+        console.log('isRestaurant 1', name, types)
+        return BusinessType.RESTAURANT;
+    } else if (types.filter((element: any) => Restaurant.includes(element)).length > 0 || isRestaurant) {
+        console.log('isRestaurant 2', name, types)
+        return BusinessType.RESTAURANT;
+    }
+    //
+
+
+    //Home Stays
+    if (types.filter((element: any) => HomeStays.includes(element)).length > 0 && isHomeStays) {
+        console.log('isHomeStays 1', name, types)
+        return BusinessType.HOME_STAYS;
+    } else if (types.filter((element: any) => HomeStays.includes(element)).length > 0 || isHomeStays) {
+        console.log('isHomeStays 2', name, types)
+        return BusinessType.HOME_STAYS;
+    }
+
+    //Marriage Banquets
+    if (types.filter((element: any) => MarriageBanquets.includes(element)).length > 0 && isMarriageBanquets) {
+        console.log('isMarriageBanquets 1', name, types)
+        return BusinessType.MARRIAGE_BANQUETS;
+    } else if (types.filter((element: any) => MarriageBanquets.includes(element)).length > 0 || isMarriageBanquets) {
+        console.log('isMarriageBanquets 2', name, types)
+        return BusinessType.MARRIAGE_BANQUETS;
+    }
 }

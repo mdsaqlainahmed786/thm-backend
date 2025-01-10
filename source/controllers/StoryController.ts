@@ -15,6 +15,7 @@ import View from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
 const s3Service = new S3Service();
+//FIXME Remove likes and view views
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -257,6 +258,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+//FIXME Story delete remove all related notification..
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;

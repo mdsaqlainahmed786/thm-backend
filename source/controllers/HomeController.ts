@@ -5,7 +5,7 @@ import { ErrorMessage } from "../utils/response-message/error";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
-import { parseQueryParam, randomColor } from "../utils/helper/basic";
+import { parseQueryParam, predictCategory, randomColor } from "../utils/helper/basic";
 import Post, { fetchPosts, getPostQuery, getSavedPost, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
@@ -159,32 +159,14 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                 let reviewQuestions: any[] = [];
                 const types = data?.types ?? [];
 
-                //Bars / Clubs
-                if (types.some((element: any) => ['bar', 'night_club'].includes(element))) {
-                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.BARS_CLUBS });
+                const predictedCategoryName = predictCategory(types, name);
+                if (predictedCategoryName) {
+                    const businessTypeID = await BusinessType.findOne({ name: predictedCategoryName });
                     if (businessTypeID) {
                         reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
                     }
-
                 }
-                //Hotel
-                if (types.some((element: any) => ['lodging'].includes(element))
-                    && ['hotel'].some((word: string) => name.toLowerCase().includes(word))) {
-                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.HOTEL });
-                    if (businessTypeID) {
-                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
-                    }
-
-                }
-                //Restaurant
-                if (types.some((element: any) => ['cafe', 'restaurant', 'meal_delivery', 'meal_takeaway'].includes(element))
-                    && ['cafe', 'restaurant', 'kitchen'].some((word: string) => name.toLowerCase().includes(word))) {
-                    const businessTypeID = await BusinessType.findOne({ name: BusinessTypeEnum.RESTAURANT });
-                    if (businessTypeID) {
-                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
-                    }
-
-                }
+                console.log("predictedCategory", predictedCategoryName)
 
                 const photoReference = data?.photos && data?.photos?.length !== 0 ? data?.photos?.[0]?.photo_reference : null;
                 let street = "";
