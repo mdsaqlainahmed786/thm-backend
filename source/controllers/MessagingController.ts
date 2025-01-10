@@ -59,6 +59,11 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                         else: false
                     }
                 },
+
+            }
+        },
+        {
+            $addFields: {
                 mediaUrl: {
                     $cond: {
                         if: { $eq: ['$isStoryAvailable', true] },
