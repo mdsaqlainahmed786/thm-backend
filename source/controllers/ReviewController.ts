@@ -94,7 +94,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
         }
         let validateReviewJSON: Review[] = [];
-        await Promise.all(JSON.parse(reviews).map(async (review: Review) => {
+        await Promise.all(reviews.map(async (review: Review) => {
             if (review.questionID !== "not-indexed") {
                 const question = await BusinessReviewQuestion.findOne({ _id: review?.questionID })
                 if (question && review?.questionID !== undefined && review?.rating !== undefined) {
