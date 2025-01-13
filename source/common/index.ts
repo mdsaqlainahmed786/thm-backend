@@ -42,7 +42,7 @@ export interface Message {
     type: MessageType;
     message: string;
     mediaUrl?: string;
-    mediaThumbnailUrl?: string;
+    thumbnailUrl?: string;
     storyID?: string;
     mediaID?: string;
 }

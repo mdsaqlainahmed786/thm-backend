@@ -297,7 +297,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
                 type: messageType,
                 message: message ?? '',
                 mediaUrl: uploadedFiles[0].sourceUrl,
-                mediaThumbnailUrl: uploadedFiles[0].thumbnailUrl,
+                thumbnailUrl: uploadedFiles[0].thumbnailUrl,
                 mediaID: uploadedFiles[0].id,
             }
         };
