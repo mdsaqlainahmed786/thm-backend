@@ -7,7 +7,12 @@ import { ErrorMessage } from '../../utils/response-message/error';
 import User from '../../database/models/user.model';
 import Post from '../../database/models/post.model';
 import Report, { addCommentInReport, addPostInReport, addReportedByInReport, addUserInReport } from '../../database/models/reportedUser.model';
-const contentTypes = Object.values(ContentType)
+import BusinessProfile from '../../database/models/businessProfile.model';
+import EncryptionService from '../../services/EncryptionService';
+import QRCode from 'qrcode';
+import fs from "fs";
+const encryptionService = new EncryptionService();
+const contentTypes = Object.values(ContentType);
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const currentMonth = new Date();
@@ -194,4 +199,26 @@ const topReportedContent = async (request: Request, response: Response, next: Ne
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index, topReportedContent }
+
+const generateReviewQRCode = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request?.params?.id;
+        const businessProfile = await BusinessProfile.findOne({ _id: ID });
+        if (!businessProfile) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const businessID = encryptionService.encrypt(businessProfile.id);
+        const reviewLink = `https://thehotelmedia.com/review?id=${businessID}&placeID=${businessProfile.placeID}`;
+        const svg = await QRCode.toString(reviewLink, { type: "svg" });
+        response.writeHead(200, {
+            'Content-Type': 'image/svg',
+            'Content-Length': Buffer.byteLength(svg),
+        });
+        response.write(svg);
+        return response.end();
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, topReportedContent, generateReviewQRCode }
