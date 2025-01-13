@@ -465,10 +465,16 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
         }
-        if (!user.businessProfileID) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        // if (!user.businessProfileID) {
+        //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        // }
+        // const dbQuery = { ...getPostQuery, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
+        const dbQuery = { ...getPostQuery, postType: PostType.REVIEW };
+        if (user.accountType === AccountType.BUSINESS) {
+            Object.assign(dbQuery, { reviewedBusinessProfileID: user.businessProfileID });
+        } else {
+            Object.assign(dbQuery, { userID: user._id });
         }
-        const dbQuery = { ...getPostQuery, reviewedBusinessProfileID: user.businessProfileID, postType: PostType.REVIEW };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments()

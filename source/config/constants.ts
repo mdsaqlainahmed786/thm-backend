@@ -108,6 +108,7 @@ export abstract class AwsS3AccessEndpoints {
     static readonly USERS: string = AwsS3AccessEndpoints.getEndpoint("users/");
     static readonly BUSINESS_DOCUMENTS: string = AwsS3AccessEndpoints.getEndpoint("business-documents/");
     static readonly POST: string = AwsS3AccessEndpoints.getEndpoint("posts/");
+    static readonly REVIEW: string = AwsS3AccessEndpoints.getEndpoint("reviews/");
     static readonly STORY: string = AwsS3AccessEndpoints.getEndpoint("story/");
     static readonly BUSINESS_PROPERTY: string = AwsS3AccessEndpoints.getEndpoint("business-property/");
     static readonly MESSAGING: string = AwsS3AccessEndpoints.getEndpoint("messaging/");

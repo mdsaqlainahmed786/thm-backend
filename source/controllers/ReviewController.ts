@@ -16,6 +16,9 @@ import { v4 } from "uuid";
 import { Message } from "firebase-admin/lib/messaging/messaging-api";
 import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
 import { NotificationType } from "../database/models/notification.model";
+import { storeMedia } from "./MediaController";
+import { MediaType } from "../database/models/media.model";
+import { AwsS3AccessEndpoints } from "../config/constants";
 const encryptionService = new EncryptionService();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -114,6 +117,25 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             validateReviewJSON = [];
         }
 
+        /**
+        * Handle review media
+        */
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const images = files && files.images as Express.Multer.S3File[];
+        const videos = files && files.videos as Express.Multer.S3File[];
+        let mediaIDs: MongoID[] = []
+        if (videos && videos.length !== 0 || images && images.length !== 0) {
+            const [videoList, imageList] = await Promise.all([
+                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.REVIEW, 'POST'),
+                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.REVIEW, 'POST'),
+            ])
+            if (imageList && imageList.length !== 0) {
+                imageList.map((image) => mediaIDs.push(image.id));
+            }
+            if (videoList && videoList.length !== 0) {
+                videoList.map((video) => mediaIDs.push(video.id));
+            }
+        }
         //IF business profile id is 
         let postID = null;
         const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
@@ -126,7 +148,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newPost.isPublished = true;
             newPost.location = null;
             newPost.tagged = [];
-            newPost.media = [];
+            newPost.media = mediaIDs;
             newPost.placeID = placeID ?? "";
             newPost.reviews = validateReviewJSON;
             newPost.rating = finalRating;
@@ -149,7 +171,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newReview.businessName = name;
             newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
         }
-        newReview.media = [];
+        newReview.media = mediaIDs;
         newReview.placeID = placeID ?? "";
         newReview.reviews = validateReviewJSON;
         newReview.rating = finalRating;
