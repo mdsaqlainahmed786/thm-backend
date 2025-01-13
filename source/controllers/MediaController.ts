@@ -124,6 +124,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                     await fileSystem.unlink(generatedThumbnailUrl);
                 }
             }
+
             const fileBody = fs.createReadStream(file.path);
             const s3Path = s3BasePath + file.filename;
             //Upload video and images
@@ -151,6 +152,11 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                         });
                     }
                 }
+            }
+            if (file && file.mimetype === 'application/pdf') {
+                Object.assign(fileObject, {
+                    thumbnailUrl: 'https://png.pngtree.com/png-vector/20220606/ourmid/pngtree-pdf-file-icon-png-png-image_4899509.png',
+                });
             }
             if (file && file.mimetype.startsWith('video/')) {
                 await FileQueue.create({

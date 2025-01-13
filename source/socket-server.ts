@@ -100,6 +100,8 @@ export default function createSocketServer(httpServer: https.Server) {
                 isSeen: isSeen ?? false
             }
             socket.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
+            // console.log(data)
+            // return false
             try {
                 const sendedBy = await User.findOne({ username: (socket as AppSocketUser).username });
                 const sendTo = await User.findOne({ username: data.to });
@@ -116,24 +118,30 @@ export default function createSocketServer(httpServer: https.Server) {
                         case MessageType.IMAGE:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.IMAGE;
-                            newMessage.mediaUrl = data.message.mediaUrl;
+                            if (data.message.mediaID) {
+                                newMessage.mediaID = data.message.mediaID;
+                            }
                             break;
                         case MessageType.VIDEO:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.VIDEO;
-                            newMessage.mediaUrl = data.message.mediaUrl;
+                            if (data.message.mediaID) {
+                                newMessage.mediaID = data.message.mediaID;
+                            }
                             break;
                         case MessageType.PDF:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.PDF;
-                            newMessage.mediaUrl = data.message.mediaUrl;
+                            if (data.message.mediaID) {
+                                newMessage.mediaID = data.message.mediaID;
+                            }
                             break;
 
                         //TODO Also add in chat export 
                         case MessageType.STORY_COMMENT:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.STORY_COMMENT;
-                            newMessage.mediaUrl = data.message.mediaUrl;
+                            // newMessage.mediaUrl = data.message.mediaUrl;
                             if (data.message.mediaID && data.message.storyID) {
                                 newMessage.mediaID = data.message.mediaID;
                                 newMessage.storyID = data.message.storyID;

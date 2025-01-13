@@ -415,7 +415,7 @@
                     'profilePicture': '',
                     'sentByMe': true,
                     'targetUserID': '',
-                    'type': 'story-comment',
+                    'type': 'pdf',
                     'unseenCount': 0,
                     'userID': '',
                     'username': '',
@@ -437,9 +437,9 @@
                     message: {
                         type: messageData.type,
                         message: messageData.message,
-                        mediaID: "677f72c0f0675714367d7adc",
-                        storyID: "677f72c0f0675714367d7ade",
-                        mediaUrl: "https://the-hotel-media-bucket.s3.ap-south-1.amazonaws.com/story/df9d0528-e4f0-471e-8a39-806d72fef90f-1736405695991-1080x1980.jpg"
+                        mediaID: "6784afafc72bbb80bd19202b",
+                        // storyID: "677f72c0f0675714367d7ade",
+                        // mediaUrl: "https://the-hotel-media-bucket.s3.ap-south-1.amazonaws.com/story/df9d0528-e4f0-471e-8a39-806d72fef90f-1736405695991-1080x1980.jpg"
                     },
                     to: chatScreen.username
                 });
@@ -590,9 +590,9 @@
                                         <form className="bg-black/20 rounded-[50px] my-3  fixed bottom-0" onSubmit={handelSendMessage}>
                                             <div className="flex justify-between items-center px-2 w-full">
                                                 <input type="text" value={message} className="bg-transparent text-sm outline-0  py-2.5 px-1 w-full" onChange={handleChange} />
-                                                {/*  <button type="button" onClick={handleStoryComment}>
+                                                <button type="button" onClick={handleStoryComment}>
                                                     comment story
-                                                </button>*/}
+                                                </button>
                                                 <div>
                                                     <button type="submit" className="w-7 h-7 bg-black/30 hover:bg-[#3797EF] flex justify-center items-center rounded-full" disabled={message.length === 0}>
                                                         <i className="fa fa-paper-plane text-sm"></i>

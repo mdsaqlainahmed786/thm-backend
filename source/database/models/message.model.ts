@@ -34,7 +34,7 @@ export interface IMessage extends Document {
     type: MessageType;
     contact?: string;
     link?: string;
-    mediaUrl?: string;
+    // mediaUrl?: string;
     gift?: string;
     giftID?: MongoID;
     location?: ILocation;
@@ -57,7 +57,7 @@ const MessageSchema: Schema = new Schema<IMessage>(
         ],
         contact: { type: String },
         link: { type: String },
-        mediaUrl: { type: String },
+        // mediaUrl: { type: String },
         mediaID: { type: Schema.Types.ObjectId, ref: "Media" },
         storyID: { type: Schema.Types.ObjectId, ref: "Story" },
         location: LocationSchema

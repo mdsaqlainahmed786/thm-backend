@@ -39,10 +39,6 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 'let': { 'storyID': '$storyID' },
                 'pipeline': [
                     { '$match': { '$expr': { '$eq': ['$_id', '$$storyID'] }, timeStamp: { $gte: storyTimeStamp } } },
-                    addMediaInStory().lookup,
-                    addMediaInStory().unwindLookup,
-                    addMediaInStory().replaceRootAndMergeObjects,
-                    addMediaInStory().project,
                 ],
                 'as': 'storiesRef'
             }
@@ -54,6 +50,37 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
             }
         },
         {
+            '$lookup': {
+                'from': 'media',
+                'let': { 'mediaID': '$mediaID' },
+                'pipeline': [
+                    { '$match': { '$expr': { '$eq': ['$_id', '$$mediaID'] } } },
+                    {
+                        '$project': {
+                            '_id': 0,
+                            'mediaUrl': "$sourceUrl",
+                            'thumbnailUrl': 1,
+                            'mimeType': 1,
+                        }
+                    }
+                ],
+                'as': 'mediaRef'
+            }
+        },
+        {
+            '$unwind': {
+                'path': '$mediaRef',
+                'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+            }
+        },
+        {
+            '$replaceRoot': {
+                'newRoot': {
+                    '$mergeObjects': ["$$ROOT", "$mediaRef"] // Merge businessProfileRef with the user object
+                }
+            }
+        },
+        {
             $addFields: {
                 isStoryAvailable: {
                     $cond: {
@@ -62,7 +89,6 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                         else: false
                     }
                 },
-
             }
         },
         {
@@ -103,6 +129,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
         },
         {
             $project: {
+                mediaRef: 0,
                 updatedAt: 0,
                 targetUserID: 0,
                 userID: 0,

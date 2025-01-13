@@ -2,7 +2,8 @@ import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
 export enum MediaType {
     IMAGE = 'image',
-    VIDEO = 'video'
+    VIDEO = 'video',
+    PDF = 'pdf'
 }
 export enum Size {
     THUMBNAIL = "thumbnail",
