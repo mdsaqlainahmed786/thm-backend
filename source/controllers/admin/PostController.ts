@@ -4,7 +4,7 @@ import { parseQueryParam } from '../../utils/helper/basic';
 import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError } from '../../utils/response';
 import { ErrorMessage } from '../../utils/response-message/error';
 import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
-import { addBusinessProfileInUser } from '../../database/models/user.model';
+import { addBusinessProfileInUser, profileBasicProject } from '../../database/models/user.model';
 import { ContentType } from '../../common';
 import Review from '../../database/models/reviews.model';
 const postTypes = Object.values(PostType)
@@ -70,21 +70,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         'let': { 'userID': '$userID' },
                         'pipeline': [
                             { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
-
                             addBusinessProfileInUser().lookup,
                             addBusinessProfileInUser().mergeObject,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "username": 1,
-                                    "accountType": 1,
-                                    'profilePic': 1,
-                                    'businessProfileRef._id': 1,
-                                    'businessProfileRef.profilePic': 1,
-                                    'businessProfileRef.username': 1,
-                                    'businessProfileRef.name': 1,
-                                }
-                            }
+                            profileBasicProject(),
                         ],
                         'as': 'postedBy'
                     }

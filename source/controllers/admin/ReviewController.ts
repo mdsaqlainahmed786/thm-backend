@@ -3,7 +3,7 @@ import { httpInternalServerError, httpNotFoundOr404, httpOkExtended, httpNoConte
 import { ErrorMessage } from "../../utils/response-message/error";
 import { parseQueryParam } from "../../utils/helper/basic";
 import Review from "../../database/models/reviews.model";
-import { addBusinessProfileInUser } from "../../database/models/user.model";
+import { addBusinessProfileInUser, profileBasicProject } from "../../database/models/user.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -67,18 +67,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
                             addBusinessProfileInUser().lookup,
                             addBusinessProfileInUser().mergeObject,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "username": 1,
-                                    "accountType": 1,
-                                    'profilePic': 1,
-                                    'businessProfileRef._id': 1,
-                                    'businessProfileRef.profilePic': 1,
-                                    'businessProfileRef.username': 1,
-                                    'businessProfileRef.name': 1,
-                                }
-                            }
+                            profileBasicProject(),
                         ],
                         'as': 'postedBy'
                     }

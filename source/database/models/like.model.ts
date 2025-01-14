@@ -1,6 +1,6 @@
 import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
-import { addBusinessProfileInUser } from "./user.model";
+import { addBusinessProfileInUser, profileBasicProject } from "./user.model";
 
 interface ILike extends Document {
     userID: MongoID;
@@ -59,18 +59,7 @@ export function addUserInLike() {
                 { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
-                {
-                    '$project': {
-                        "name": 1,
-                        "username": 1,
-                        "accountType": 1,
-                        'profilePic': 1,
-                        'businessProfileRef._id': 1,
-                        'businessProfileRef.profilePic': 1,
-                        'businessProfileRef.username': 1,
-                        'businessProfileRef.name': 1,
-                    }
-                }
+                profileBasicProject()
             ],
             'as': 'likedByRef'
         }

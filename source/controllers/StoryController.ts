@@ -11,7 +11,7 @@ import Story, { addMediaInStory, storyTimeStamp } from '../database/models/story
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
 import Like, { addUserInLike } from '../database/models/like.model';
-import View from '../database/models/view.model.';
+import View, { addUserInView } from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import Notification, { NotificationType } from '../database/models/notification.model';
@@ -68,6 +68,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                             let: { storyID: '$_id' },
                             pipeline: [
                                 { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                                addUserInView().lookup,
+                                addUserInView().unwindLookup,
+                                addUserInView().replaceRoot,
                             ],
                             as: 'viewsRef'
                         }
@@ -78,12 +81,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         }
                     },
                     {
-                        $sort: { createdAt: -1, id: 1 }
+                        $addFields: {
+                            viewsRef: { $slice: ["$viewsRef", 4] },
+                        }
                     },
                     {
-                        $project: {
-                            viewsRef: 0,
-                        }
+                        $sort: { createdAt: -1, id: 1 }
                     }
                 ]).exec(),
                 Like.distinct('storyID', { userID: id, }),
@@ -107,25 +110,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         addBusinessProfileInUser().lookup,
                         addBusinessProfileInUser().unwindLookup,
                         addStoriesInUser(likedByMe, viewedStories).lookup,
-                        // {
-                        //     $addFields: {
-                        //         seenByMe: {
-                        //             $cond: {
-                        //                 if: {
-                        //                     $allElementsTrue: {
-                        //                         $map: {
-                        //                             input: "$storiesRef",
-                        //                             as: "story",
-                        //                             in: "$$story.seenByMe"
-                        //                         }
-                        //                     }
-                        //                 },
-                        //                  then: false,
-                        //                 else: true
-                        //             }
-                        //         }
-                        //     }
-                        // },
                         {
                             $addFields: {
                                 seenByMe: {
@@ -259,7 +243,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-//FIXME Story delete remove all related notification..
+
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;

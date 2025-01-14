@@ -5,7 +5,7 @@ import { httpNotFoundOr404, httpBadRequest, httpInternalServerError, httpOkExten
 import Subscription from "../../database/models/subscription.model";
 import { ObjectId } from "mongodb";
 import { ErrorMessage } from "../../utils/response-message/error";
-import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile } from "../../database/models/user.model";
+import { addBusinessProfileInUser, addBusinessTypeInBusinessProfile, profileBasicProject } from "../../database/models/user.model";
 import Order from "../../database/models/order.model";
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -97,18 +97,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                             { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
                             addBusinessProfileInUser().lookup,
                             addBusinessProfileInUser().mergeObject,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "username": 1,
-                                    "accountType": 1,
-                                    'profilePic': 1,
-                                    'businessProfileRef._id': 1,
-                                    'businessProfileRef.profilePic': 1,
-                                    'businessProfileRef.username': 1,
-                                    'businessProfileRef.name': 1,
-                                }
-                            }
+                            profileBasicProject()
                         ],
                         'as': 'usersRef'
                     }

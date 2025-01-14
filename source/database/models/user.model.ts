@@ -501,6 +501,20 @@ export function profileProject() {
         }
     }
 }
+export function profileBasicProject() {
+    return {
+        "$project": {
+            "name": 1,
+            "username": 1,
+            "accountType": 1,
+            'profilePic': 1,
+            'businessProfileRef._id': 1,
+            'businessProfileRef.profilePic': 1,
+            'businessProfileRef.username': 1,
+            'businessProfileRef.name': 1,
+        }
+    }
+}
 
 export async function getBlockedUsers(userID: MongoID) {
     return await BlockedUser.distinct('blockedUserID', { userID: userID });
