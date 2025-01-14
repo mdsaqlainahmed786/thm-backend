@@ -241,7 +241,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
             console.error("Error sending one or more notifications:", error);
         }
         //LIKE_A_STORY  FOLLOW_REQUEST, FOLLOWING ACCEPT_FOLLOW_REQUEST TAGGED EVENT_JOIN
-        if (userID.toString() === targetUserID.toString() && [NotificationType.LIKE_POST, NotificationType.COMMENT, NotificationType.LIKE_COMMENT, NotificationType.REPLY].includes(type)) {
+        if (userID.toString() === targetUserID.toString() && [NotificationType.LIKE_POST, NotificationType.COMMENT, NotificationType.LIKE_COMMENT, NotificationType.REPLY, NotificationType.LIKE_A_STORY].includes(type)) {
             console.log("Not save")
             return null;
             // return await newNotification.save();

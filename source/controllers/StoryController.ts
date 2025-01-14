@@ -14,6 +14,7 @@ import Like, { addUserInLike } from '../database/models/like.model';
 import View from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
+import Notification, { NotificationType } from '../database/models/notification.model';
 const s3Service = new S3Service();
 //FIXME Remove likes and view views
 const index = async (request: Request, response: Response, next: NextFunction) => {
@@ -269,8 +270,14 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         }
         const media = await Media.findOne({ _id: story.mediaID });
         if (media && media.s3Key) {
-            await s3Service.deleteS3Object(media.s3Key);
-            await media.deleteOne();
+            await Promise.all([
+                s3Service.deleteS3Object(media.s3Key),
+                s3Service.deleteS3Asset(media.thumbnailUrl),
+                media.deleteOne(),
+                Like.deleteMany({ storyID: ID }),
+                View.deleteMany({ storyID: ID }),
+                Notification.deleteMany({ type: NotificationType.LIKE_A_STORY, "metadata.storyID": ID })
+            ]);
         }
         await story.deleteOne();
         return response.send(httpNoContent(null, 'Story removed.'));

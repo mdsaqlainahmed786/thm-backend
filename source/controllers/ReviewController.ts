@@ -93,20 +93,21 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         } else {
             return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
         }
-        let validateReviewJSON: Review[] = [{ "questionID": "not-indexed", "rating": 4 }];
-        // await Promise.all(reviews.map(async (review: Review) => {
-        //     if (review.questionID !== "not-indexed") {
-        //         const question = await BusinessReviewQuestion.findOne({ _id: review?.questionID })
-        //         if (question && review?.questionID !== undefined && review?.rating !== undefined) {
-        //             validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
-        //         }
-        //     } else {
-        //         if (review?.questionID !== undefined && review?.rating !== undefined) {
-        //             validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
-        //         }
-        //     }
-        //     return review;
-        // }));
+        let validateReviewJSON: Review[] = [];
+        await Promise.all(reviews.map(async (reviewString: string) => {
+            const review: Review = JSON.parse(reviewString);
+            if (review.questionID !== "not-indexed") {
+                const question = await BusinessReviewQuestion.findOne({ _id: review.questionID });
+                if (question && review?.questionID !== undefined && review?.rating !== undefined) {
+                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+                }
+            } else {
+                if (review?.questionID !== undefined && review?.rating !== undefined) {
+                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+                }
+            }
+            return review;
+        }));
 
 
         const totalRating = validateReviewJSON.reduce((total, item) => total + item.rating, 0);

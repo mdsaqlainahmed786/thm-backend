@@ -92,10 +92,10 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.storyID = storyID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
-                AppNotificationController.store(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story.id, userID: story.userID }).catch((error) => console.error(error));
+                AppNotificationController.store(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story._id, userID: story.userID }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Story liked successfully"));
             }
-            AppNotificationController.destroy(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story.id, userID: story.userID }).catch((error) => console.error(error));
+            AppNotificationController.destroy(id, story.userID, NotificationType.LIKE_A_STORY, { storyID: story._id, userID: story.userID }).catch((error) => console.error(error));
             await isLiked.deleteOne();
             return response.send(httpNoContent(null, 'Story disliked successfully'));
         }
