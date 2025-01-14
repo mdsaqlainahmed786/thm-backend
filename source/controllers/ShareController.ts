@@ -18,7 +18,7 @@ const encryptionService = new EncryptionService();
 const posts = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const id = request.user?.id;
-        const { postID, userID } = request.query;
+        const { postID, userID, metadata } = request.query;
         if (!postID || !userID) {
             return response.send(httpNotFoundOr404({}));
         }
@@ -39,6 +39,9 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
         }
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (metadata) {
+            return response.send(httpOk(post[0], 'Content shared successfully'));
         }
         if (isSharedBefore) {
             return response.send(httpOk(post[0], 'Content shared successfully'));
