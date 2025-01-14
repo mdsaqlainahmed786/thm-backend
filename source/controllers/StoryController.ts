@@ -274,9 +274,9 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
                 s3Service.deleteS3Object(media.s3Key),
                 s3Service.deleteS3Asset(media.thumbnailUrl),
                 media.deleteOne(),
-                Like.deleteMany({ storyID: ID }),
-                View.deleteMany({ storyID: ID }),
-                Notification.deleteMany({ type: NotificationType.LIKE_A_STORY, "metadata.storyID": ID })
+                Like.deleteMany({ storyID: story._id }),
+                View.deleteMany({ storyID: story._id }),
+                Notification.deleteMany({ type: NotificationType.LIKE_A_STORY, "metadata.storyID": story._id })
             ]);
         }
         await story.deleteOne();
