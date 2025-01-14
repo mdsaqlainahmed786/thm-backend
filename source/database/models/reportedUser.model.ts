@@ -1,6 +1,6 @@
 import { Schema, Model, model, Types, Document } from 'mongoose';
 import { MongoID, ContentType } from '../../common';
-import { addBusinessProfileInUser } from './user.model';
+import { addBusinessProfileInUser, profileBasicProject } from './user.model';
 interface IReport extends Document {
     reportedBy: MongoID;
     contentID: MongoID;
@@ -46,7 +46,7 @@ export function addReportedByInReport() {
                 },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
-                projectBasicUserData(),
+                profileBasicProject(),
             ],
             'as': 'reportedByRef'
         }
@@ -59,22 +59,6 @@ export function addReportedByInReport() {
     };
     return { lookup, unwindLookup }
 }
-
-export function projectBasicUserData() {
-    return {
-        $project: {
-            "name": 1,
-            "profilePic": 1,
-            "accountType": 1,
-            "businessProfileID": 1,
-            "businessProfileRef._id": 1,
-            "businessProfileRef.name": 1,
-            "businessProfileRef.profilePic": 1,
-        }
-    }
-}
-
-
 export function addPostInReport() {
     const lookup = {
         '$lookup': {
@@ -191,7 +175,7 @@ export function addUserInReport() {
                 },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
-                projectBasicUserData(),
+                profileBasicProject(),
             ],
             'as': 'usersRef'
         }
