@@ -40,7 +40,9 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        if (!isSharedBefore) {
+        if (isSharedBefore) {
+            return response.send(httpOk(post[0], 'Content shared successfully'));
+        } else {
             const newSharedContent = new SharedContent();
             newSharedContent.contentID = decryptedPostID;
             newSharedContent.contentType = ContentType.POST;
@@ -49,7 +51,6 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
             await newSharedContent.save();
             return response.send(httpOk(post[0], "Content shared successfully"));
         }
-        return response.send(httpOk(post[0], 'Content shared successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
