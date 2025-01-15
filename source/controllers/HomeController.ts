@@ -11,7 +11,7 @@ import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import UserConnection from "../database/models/userConnection.model";
-import { AccountType, getBlockedUsers } from "../database/models/user.model";
+import User, { AccountType, activeUserQuery, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, getBlockedUsers } from "../database/models/user.model";
 import { ConnectionStatus } from "../database/models/userConnection.model";
 import { Type } from "../validation/rules/api-validation";
 import WebsiteRedirection from "../database/models/websiteRedirection.model";
@@ -35,6 +35,8 @@ import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTy
 import EncryptionService from "../services/EncryptionService";
 import sharp from 'sharp';
 const encryptionService = new EncryptionService();
+
+//FIXME suggestion based on location
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
@@ -48,19 +50,54 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
             getSavedPost(id),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
-            getBlockedUsers(id)
+            getBlockedUsers(id),
+            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } })
         ]);
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
-        const [documents, totalDocument] = await Promise.all([
+        const [documents, totalDocument, suggestions] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
-            Post.find(dbQuery).countDocuments()
+            Post.find(dbQuery).countDocuments(),
+            BusinessProfile.aggregate([
+                {
+                    $match: {
+                        _id: { $in: verifiedBusinessIDs }
+                    }
+                },
+                addBusinessTypeInBusinessProfile().lookup,
+                addBusinessTypeInBusinessProfile().unwindLookup,
+                addBusinessSubTypeInBusinessProfile().lookup,
+                addBusinessSubTypeInBusinessProfile().unwindLookup,
+                {
+                    $project: {
+                        _id: 1,
+                        profilePic: 1,
+                        name: 1,
+                        address: 1,
+                        rating: 1,
+                        businessTypeRef: 1,
+                        businessSubtypeRef: 1,
+                    }
+                },
+                {
+                    $skip: pageNumber > 0 ? ((pageNumber - 1) * 7) : 0
+                },
+                {
+                    $limit: 7
+                },
+            ])
         ]);
+
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended([
+            {
+                _id: new ObjectId(),
+                postType: "suggestion",
+                data: suggestions
+            }, ...documents], 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
