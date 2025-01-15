@@ -37,11 +37,12 @@ import sharp from 'sharp';
 const encryptionService = new EncryptionService();
 
 //FIXME suggestion based on location
+//FIXME remove suggestion key from request.query
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
         const { id } = request.user;
-        let { pageNumber, documentLimit, query }: any = request.query;
+        let { pageNumber, documentLimit, query, suggestion }: any = request.query;
         const dbQuery = { ...getPostQuery };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
@@ -90,14 +91,16 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 },
             ])
         ]);
-
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended([
-            {
+        const data = documents
+        if (suggestion) {
+            data.push({
                 _id: new ObjectId(),
                 postType: "suggestion",
                 data: suggestions
-            }, ...documents], 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
+            })
+        }
+        return response.send(httpOkExtended(data, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
