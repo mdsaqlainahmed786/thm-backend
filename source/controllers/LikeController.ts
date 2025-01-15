@@ -30,7 +30,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 Like.findOne({ postID: postID, userID: id }),
             ])
             if (!post) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
             }
             if (!isLiked) {
                 const newLike = new Like();

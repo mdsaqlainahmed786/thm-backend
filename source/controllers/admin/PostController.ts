@@ -135,7 +135,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         const { isPublished, content, name, venue, streamingLink, startDate, startTime, endDate, endTime, type, feelings, rating } = request.body;
         const post = await Post.findOne({ _id: ID });
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         post.isPublished = isPublished ?? post.isPublished;
         post.content = content ?? post.content;

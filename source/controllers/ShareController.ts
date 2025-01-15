@@ -35,7 +35,7 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
             SharedContent.findOne({ contentID: decryptedPostID, userID: decryptedUserID, contentType: ContentType.POST }),
         ])
         if (!post || post?.length === 0) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));

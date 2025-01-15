@@ -16,7 +16,6 @@ import Post, { fetchPosts, PostType, getPostsCount, getSavedPost, getPostQuery }
 import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount, fetchUserFollowing } from '../database/models/userConnection.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
-import SavedPost from '../database/models/savedPost.model';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
 import { storeMedia } from './MediaController';

@@ -171,7 +171,7 @@ const joinEvent = async (request: Request, response: Response, next: NextFunctio
             EventJoin.findOne({ postID: postID, userID: id }),
         ])
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         if (!joinedAllReady) {
             const eventJoin = new EventJoin();

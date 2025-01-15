@@ -101,7 +101,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
         const post = await Post.findOne({ _id: postID });
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         const newComment = new Comment();
         newComment.userID = id;

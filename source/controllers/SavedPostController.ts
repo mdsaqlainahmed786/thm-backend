@@ -48,7 +48,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             SavedPost.findOne({ postID: postID, userID: id }),
         ])
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         if (!isSaved) {
             const newSavedPost = new SavedPost();

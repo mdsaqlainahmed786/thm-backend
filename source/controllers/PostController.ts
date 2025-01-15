@@ -240,7 +240,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         }
         const post = await Post.findOne({ _id: ID });
         if (!post) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest('Post not found.'), 'Post not found.'))
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND))
         }
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             post.businessProfileID = businessProfileID;
@@ -323,7 +323,7 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
         const ID = request?.params?.id;
         const post = await Post.findOne({ _id: ID });
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         if (post.userID.toString() !== id) {
             return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
@@ -378,7 +378,7 @@ const deletePost = async (request: Request, response: Response, next: NextFuncti
         const ID = request?.params?.id;
         const post = await Post.findOne({ _id: ID });
         if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         if (post.userID.toString() !== id) {
             return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
@@ -487,7 +487,7 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
             ]
         ).exec()
         if (post.length === 0) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post not found"), "Post not found"));
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
         }
         return response.send(httpOk(post[0], "Post Fetched"));
     } catch (error: any) {
