@@ -77,12 +77,28 @@ const BusinessProfile = model<IBusinessProfile>('BusinessProfile', BusinessProfi
 export default BusinessProfile;
 
 
-export async function fetchBusinessIDs(query?: string | undefined, businessTypeID?: string | undefined) {
-    const dbQuery = {}
+export async function fetchBusinessIDs(query?: string | undefined, businessTypeID?: string | undefined, lat?: number, lng?: number, radius?: number) {
+    const dbQuery = {};
+    const distance = radius || 20;
+    console.log(lat, lng, radius, businessTypeID, query);
+    if (lat && lng) {
+        Object.assign(dbQuery, {
+            "address.geoCoordinate": {
+                $nearSphere: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [lng, lat]  // [longitude, latitude]
+                    },
+                    $maxDistance: (distance * 1000),  // Optional: max distance in meters (5km) = 5000
+                    $minDistance: 0
+                }
+            },
+        });
+    }
     if (query && query !== '') {
         Object.assign(dbQuery, {
             $or: [
-                { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
                 { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
             ]
         })
@@ -92,5 +108,6 @@ export async function fetchBusinessIDs(query?: string | undefined, businessTypeI
             businessTypeID: businessTypeID
         })
     }
+    console.log("Business Search :::", dbQuery);
     return await BusinessProfile.distinct('_id', dbQuery) as MongoID[];
 }

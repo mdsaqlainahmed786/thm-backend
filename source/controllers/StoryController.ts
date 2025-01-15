@@ -283,9 +283,12 @@ const storeViews = async (request: Request, response: Response, next: NextFuncti
         const [story, isViewed] = await Promise.all([
             Story.findOne({ _id: ID, }),
             View.findOne({ storyID: ID, userID: id }),
-        ])
+        ]);
         if (!story) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found."), "Story not found."));
+        }
+        if (story.userID?.toString() === id.toString()) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("You are not allowed to increase views on your own story."), "You are not allowed to increase views on your own story."))
         }
         if (!isViewed) {
             const newView = new View();

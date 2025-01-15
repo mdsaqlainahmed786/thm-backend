@@ -19,10 +19,10 @@ async function followTHM() {
         let following = await fetchUserFollower(defaultAccount.id);
         // Get users who are not already following
         const users = await User.distinct('_id', { _id: { $nin: following } }) as MongoID[];
-        console.log(users.length, "users not following the profile.");
+        // console.log(users.length, "users not following the profile.");
 
         if (users.length === 0) {
-            console.log("No users need to follow the profile.");
+            // console.log("No users need to follow the profile.");
             return;
         }
         // Batch query to get all existing connections between users and defaultAccount
@@ -49,9 +49,9 @@ async function followTHM() {
                 return newUserConnection;
             });
             await UserConnection.insertMany(newUserConnections);
-            console.log(`${newUserConnections.length} new connections created.`);
+            // console.log(`${newUserConnections.length} new connections created.`);
         } else {
-            console.log("No new connections were created.");
+            // console.log("No new connections were created.");
         }
     } catch (error) {
         console.error("Error during Follow THM process:", error);

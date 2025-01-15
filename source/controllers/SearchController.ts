@@ -7,7 +7,7 @@ import Post, { fetchPosts, getPostQuery, PostType } from "../database/models/pos
 import Like, { addUserInLike } from '../database/models/like.model';
 import Comment from '../database/models/comment.model';
 import Story from "../database/models/story.model";
-import User, { getBlockedByUsers, getBlockedUsers } from "../database/models/user.model";
+import User, { AccountType, getBlockedByUsers, getBlockedUsers } from "../database/models/user.model";
 import { MongoID } from "../common";
 import { NotificationType } from "../database/models/notification.model";
 import { AppConfig } from "../config/constants";
@@ -37,8 +37,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         let totalDocument = 0;
         let totalPagesCount = 0;
         let businessProfileIDs = [];
-        if (type === "profile") {
+        if (type === "users") {
             const { documents, totalDocument, totalPagesCount } = await searchUsers(request);
+            return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
+        } else if (type === "business") {
+            const { documents, totalDocument, totalPagesCount } = await searchBusinessUsers(request);
             return response.send(httpOkExtended(documents, 'Profile fetched.', pageNumber, totalPagesCount, totalDocument));
         } else if (type === "posts") {
             //FIXME need to add geolocation or mach more
@@ -154,7 +157,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
         } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be profile | posts | events | reviews"), "Invalid type. Type must be profile | posts | events | reviews"))
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid type. Type must be business | users | posts | events | reviews"), "Invalid type. Type must be business | users | posts | events | reviews"))
 
         }
 
@@ -192,30 +195,44 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
     }
 }
 
-
-const searchUsers = async (request: Request,) => {
+//FIXME radius based
+const searchBusinessUsers = async (request: Request,) => {
     const { id, accountType, businessProfileID } = request.user;
-    let { pageNumber, documentLimit, query, businessTypeID }: any = request.query;
+    let { pageNumber, documentLimit, query, businessTypeID, lat, lng, radius }: any = request.query;
     pageNumber = parseQueryParam(pageNumber, 1);
     documentLimit = parseQueryParam(documentLimit, 20);
     const dbQuery = {};
     //Remove blocked user from search
     let [blockedUsers, businessProfileIDs] = await Promise.all([
         getBlockedByUsers(id),
-        fetchBusinessIDs(query, businessTypeID)
+        fetchBusinessIDs(query, businessTypeID, lat, lng, radius)
     ]);
-    Object.assign(dbQuery, { ...activeUserQuery, _id: { $nin: blockedUsers } });
-    if (businessTypeID && businessTypeID !== '') {
-        Object.assign(dbQuery, { businessProfileID: { $in: businessProfileIDs } })
-    }
+    Object.assign(dbQuery, {
+        ...activeUserQuery, _id: { $nin: blockedUsers },
+        businessProfileID: { $in: businessProfileIDs },
+        accountType: AccountType.BUSINESS,
+    });
+    const [documents, totalDocument] = await Promise.all([
+        getUserProfile(dbQuery, pageNumber, documentLimit),
+        User.find(dbQuery).countDocuments()
+    ])
+    let totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+    return { documents, totalDocument, totalPagesCount }
+}
+
+const searchUsers = async (request: Request,) => {
+    const { id, accountType, businessProfileID } = request.user;
+    let { pageNumber, documentLimit, query }: any = request.query;
+    pageNumber = parseQueryParam(pageNumber, 1);
+    documentLimit = parseQueryParam(documentLimit, 20);
+    const blockedUsers = await getBlockedByUsers(id);
+    const dbQuery = { ...activeUserQuery, _id: { $nin: blockedUsers }, accountType: AccountType.INDIVIDUAL };
     if (query !== undefined && query !== "") {
-        //Search business profile
         Object.assign(dbQuery,
             {
                 $or: [
                     { name: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                    { username: { $regex: new RegExp(query.toLowerCase(), "i") }, },
-                    { businessProfileID: { $in: businessProfileIDs } }
+                    { username: { $regex: new RegExp(query.toLowerCase(), "i") }, }
                 ]
             }
         )
@@ -226,7 +243,6 @@ const searchUsers = async (request: Request,) => {
     ])
     let totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
     return { documents, totalDocument, totalPagesCount }
-
 }
 
 
