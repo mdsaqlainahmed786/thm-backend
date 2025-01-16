@@ -2,6 +2,7 @@ import { Schema, Document, model, Types } from "mongoose";
 import { IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID } from "../../common";
 import { Address, AddressSchema, IAddress } from "./common.model";
+import { isArray, isString } from "../../utils/helper/basic";
 
 export interface IBusinessProfile extends Document {
     bio: string;
@@ -77,6 +78,27 @@ const BusinessProfile = model<IBusinessProfile>('BusinessProfile', BusinessProfi
 export default BusinessProfile;
 
 
+export function addUserInBusinessProfile() {
+    const lookup = {
+        '$lookup': {
+            'from': 'users',
+            'let': { 'businessProfileID': '$_id' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$businessProfileID', '$$businessProfileID'] } } },
+            ],
+            'as': 'usersRef'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$usersRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    };
+    return { lookup, unwindLookup }
+}
+
+
 export async function fetchBusinessIDs(query?: string | undefined, businessTypeID?: string | undefined, lat?: number, lng?: number, radius?: number) {
     const dbQuery = {};
     const distance = radius || 20;
@@ -103,10 +125,14 @@ export async function fetchBusinessIDs(query?: string | undefined, businessTypeI
             ]
         })
     }
-    if (businessTypeID && businessTypeID !== '') {
+    if (businessTypeID && isString(businessTypeID)) {
         Object.assign(dbQuery, {
             businessTypeID: businessTypeID
-        })
+        });
+    } else if (businessTypeID && isArray(businessTypeID)) {
+        Object.assign(dbQuery, {
+            businessTypeID: { $in: businessTypeID }
+        });
     }
     console.log("Business Search :::", dbQuery);
     return await BusinessProfile.distinct('_id', dbQuery) as MongoID[];

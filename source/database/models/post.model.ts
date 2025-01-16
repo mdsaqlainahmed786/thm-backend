@@ -137,6 +137,7 @@ const Post = model<IPostModel>('Post', PostSchema);
 export default Post;
 
 import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile } from "./user.model";
+import { addUserInBusinessProfile } from "./businessProfile.model";
 
 /**
  *
@@ -262,22 +263,8 @@ export function addReviewedBusinessProfileInPost() {
                 addBusinessTypeInBusinessProfile().unwindLookup,
                 addBusinessSubTypeInBusinessProfile().lookup,
                 addBusinessSubTypeInBusinessProfile().unwindLookup,
-                {
-                    '$lookup': {
-                        'from': 'users',
-                        'let': { 'businessProfileID': '$_id' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$eq': ['$businessProfileID', '$$businessProfileID'] } } },
-                        ],
-                        'as': 'usersRef'
-                    }
-                },
-                {
-                    '$unwind': {
-                        'path': '$usersRef',
-                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                    }
-                },
+                addUserInBusinessProfile().lookup,
+                addUserInBusinessProfile().unwindLookup,
                 {
                     '$project': {
                         "userID": {

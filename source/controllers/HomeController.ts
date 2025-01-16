@@ -9,7 +9,7 @@ import { parseQueryParam, predictCategory, randomColor } from "../utils/helper/b
 import Post, { fetchPosts, getPostQuery, getSavedPost, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
-import BusinessProfile from "../database/models/businessProfile.model";
+import BusinessProfile, { addUserInBusinessProfile } from "../database/models/businessProfile.model";
 import UserConnection from "../database/models/userConnection.model";
 import User, { AccountType, activeUserQuery, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, getBlockedUsers } from "../database/models/user.model";
 import { ConnectionStatus } from "../database/models/userConnection.model";
@@ -72,6 +72,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 addBusinessTypeInBusinessProfile().unwindLookup,
                 addBusinessSubTypeInBusinessProfile().lookup,
                 addBusinessSubTypeInBusinessProfile().unwindLookup,
+                addUserInBusinessProfile().lookup,
+                addUserInBusinessProfile().unwindLookup,
                 {
                     $project: {
                         _id: 1,
@@ -81,6 +83,9 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                         rating: 1,
                         businessTypeRef: 1,
                         businessSubtypeRef: 1,
+                        userID: {
+                            '$ifNull': [{ '$ifNull': ['$usersRef._id', ''] }, '']
+                        },
                     }
                 },
                 {
