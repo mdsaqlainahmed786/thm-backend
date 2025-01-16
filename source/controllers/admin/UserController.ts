@@ -8,7 +8,7 @@ import Post, { getPostsCount } from '../../database/models/post.model';
 import { ConnectionStatus } from './../../database/models/userConnection.model';
 import UserConnection from '../../database/models/userConnection.model';
 import BusinessProfile from '../../database/models/businessProfile.model';
-import { Role } from '../../common';
+import { ContentType, Role } from '../../common';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -174,12 +174,31 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                     }
                 },
                 {
+                    '$lookup': {
+                        'from': 'reports',
+                        'let': { 'contentID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$contentID', '$$contentID'] }, contentType: ContentType.USER } },
+                        ],
+                        'as': 'reportsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        reportCount: { $size: "$reportsRef" }
+                    }
+                },
+                {
                     $sort: { _id: -1 }
                 },
-
                 {
                     $limit: 1
                 },
+                {
+                    $project: {
+                        reportsRef: 0
+                    }
+                }
             ]),
             getPostsCount(id),
             UserConnection.find({ following: id, status: ConnectionStatus.ACCEPTED }).countDocuments(),

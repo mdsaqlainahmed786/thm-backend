@@ -9,7 +9,7 @@ import { parseQueryParam, predictCategory, randomColor } from "../utils/helper/b
 import Post, { fetchPosts, getPostQuery, getSavedPost, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
-import BusinessProfile, { addUserInBusinessProfile } from "../database/models/businessProfile.model";
+import BusinessProfile, { addUserInBusinessProfile, fetchBusinessProfiles } from "../database/models/businessProfile.model";
 import UserConnection from "../database/models/userConnection.model";
 import User, { AccountType, activeUserQuery, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, getBlockedUsers } from "../database/models/user.model";
 import { ConnectionStatus } from "../database/models/userConnection.model";
@@ -62,39 +62,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         const [documents, totalDocument, suggestions] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments(),
-            BusinessProfile.aggregate([
-                {
-                    $match: {
-                        _id: { $in: verifiedBusinessIDs }
-                    }
-                },
-                addBusinessTypeInBusinessProfile().lookup,
-                addBusinessTypeInBusinessProfile().unwindLookup,
-                addBusinessSubTypeInBusinessProfile().lookup,
-                addBusinessSubTypeInBusinessProfile().unwindLookup,
-                addUserInBusinessProfile().lookup,
-                addUserInBusinessProfile().unwindLookup,
-                {
-                    $project: {
-                        _id: 1,
-                        profilePic: 1,
-                        name: 1,
-                        address: 1,
-                        rating: 1,
-                        businessTypeRef: 1,
-                        businessSubtypeRef: 1,
-                        userID: {
-                            '$ifNull': [{ '$ifNull': ['$usersRef._id', ''] }, '']
-                        },
-                    }
-                },
-                {
-                    $skip: pageNumber > 0 ? ((pageNumber - 1) * 7) : 0
-                },
-                {
-                    $limit: 7
-                },
-            ])
+            fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7)
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         const data = documents
@@ -106,6 +74,33 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
             })
         }
         return response.send(httpOkExtended(data, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+const suggestion = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+
+        const { id } = request.user;
+        let { pageNumber, documentLimit, query, suggestion }: any = request.query;
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        const [blockedUsers, verifiedBusinessIDs] = await Promise.all([
+            getBlockedUsers(id),
+            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } })
+        ]);
+        const dbQuery = {
+            _id: { $in: verifiedBusinessIDs, $nin: blockedUsers }
+        };
+        const [documents, totalDocument] = await Promise.all([
+            fetchBusinessProfiles(dbQuery, pageNumber, documentLimit),
+            BusinessProfile.find(dbQuery).countDocuments(),
+        ]);
+        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        return response.send(httpOkExtended(documents, 'Suggestion fetched', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -526,7 +521,7 @@ const professions = async (request: Request, response: Response, next: NextFunct
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions, createThumbnail, professions };
+export default { feed, businessTypes, businessSubTypes, businessQuestions, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, insights, collectData, transactions, createThumbnail, professions, suggestion };
 
 
 function createChartLabels(filter: string) {

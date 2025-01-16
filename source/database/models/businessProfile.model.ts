@@ -1,8 +1,9 @@
 import { Schema, Document, model, Types } from "mongoose";
 import { IProfilePic, ProfileSchema } from "./common.model";
 import { MongoID } from "../../common";
-import { Address, AddressSchema, IAddress } from "./common.model";
+import { AddressSchema, IAddress } from "./common.model";
 import { isArray, isString } from "../../utils/helper/basic";
+import { addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile } from "./user.model";
 
 export interface IBusinessProfile extends Document {
     bio: string;
@@ -98,18 +99,53 @@ export function addUserInBusinessProfile() {
     return { lookup, unwindLookup }
 }
 
+export async function fetchBusinessProfiles(match: { [key: string]: any; }, pageNumber: number, documentLimit: number) {
+    return BusinessProfile.aggregate([
+        {
+            $match: match
+        },
+        addBusinessTypeInBusinessProfile().lookup,
+        addBusinessTypeInBusinessProfile().unwindLookup,
+        addBusinessSubTypeInBusinessProfile().lookup,
+        addBusinessSubTypeInBusinessProfile().unwindLookup,
+        addUserInBusinessProfile().lookup,
+        addUserInBusinessProfile().unwindLookup,
+        {
+            $project: {
+                _id: 1,
+                profilePic: 1,
+                name: 1,
+                address: 1,
+                rating: 1,
+                businessTypeRef: 1,
+                businessSubtypeRef: 1,
+                userID: {
+                    '$ifNull': [{ '$ifNull': ['$usersRef._id', ''] }, '']
+                },
+            }
+        },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * 7) : 0
+        },
+        {
+            $limit: documentLimit
+        },
+    ])
+
+}
 
 export async function fetchBusinessIDs(query?: string | undefined, businessTypeID?: string | undefined, lat?: number, lng?: number, radius?: number) {
     const dbQuery = {};
     const distance = radius || 20;
-    console.log(lat, lng, radius, businessTypeID, query);
-    if (lat && lng) {
+    let latData = lat ? parseFloat(`${lat}`) : 0;
+    let lngData = lng ? parseFloat(`${lng}`) : 0;
+    if ((latData != null && latData !== 0 && !isNaN(latData)) && (lngData != null && lngData !== 0 && !isNaN(lngData))) {
         Object.assign(dbQuery, {
             "address.geoCoordinate": {
                 $nearSphere: {
                     $geometry: {
                         type: "Point",
-                        coordinates: [lng, lat]  // [longitude, latitude]
+                        coordinates: [lngData, latData]  // [longitude, latitude]
                     },
                     $maxDistance: (distance * 1000),  // Optional: max distance in meters (5km) = 5000
                     $minDistance: 0
@@ -134,6 +170,7 @@ export async function fetchBusinessIDs(query?: string | undefined, businessTypeI
             businessTypeID: { $in: businessTypeID }
         });
     }
+    console.log(lat, lng, radius, businessTypeID, query);
     console.log("Business Search :::", dbQuery);
     return await BusinessProfile.distinct('_id', dbQuery) as MongoID[];
 }

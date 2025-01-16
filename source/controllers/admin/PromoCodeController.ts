@@ -39,7 +39,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $match: dbQuery
                 },
-
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
@@ -48,11 +47,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     $limit: documentLimit
-                },
-                {
-                    $project: {
-                        reports: 0
-                    }
                 }
             ]),
             PromoCode.find(dbQuery).countDocuments()

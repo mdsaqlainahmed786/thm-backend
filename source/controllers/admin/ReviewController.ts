@@ -78,21 +78,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
                     }
                 },
-                // {
-                //     '$lookup': {
-                //         'from': 'reports',
-                //         'let': { 'contentID': '$_id' },
-                //         'pipeline': [
-                //             { '$match': { '$expr': { '$eq': ['$contentID', '$$contentID'] }, contentType: ContentType.POST } },
-                //         ],
-                //         'as': 'reports'
-                //     }
-                // },
-                // {
-                //     $addFields: {
-                //         reportCount: { $size: "$reports" }
-                //     }
-                // },
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
@@ -102,11 +87,6 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $limit: documentLimit
                 },
-                {
-                    $project: {
-                        reports: 0
-                    }
-                }
             ]),
             Review.find(dbQuery).countDocuments()
         ]);
