@@ -594,16 +594,16 @@ export async function createUserAccount(data: any, sendOTP: boolean) {
     if (businessProfileID) {
         newUser.businessProfileID = businessProfileID;
     }
-    if (isVerified && isVerified === true) {
+    if (isVerified !== undefined && isVerified !== null && isVerified === true) {
         newUser.isVerified = isVerified;
     }
-    if (hasProfilePicture && hasProfilePicture === true) {
+    if (hasProfilePicture !== undefined && hasProfilePicture !== null && hasProfilePicture === true) {
         newUser.hasProfilePicture = hasProfilePicture;
     }
-    if (isApproved && isApproved === false) {
+    if (isApproved !== undefined && isApproved !== null && isApproved === false) {
         newUser.isApproved = isApproved;//The business account needs to be approved by the admin; the default value of 'isApproved' is true.
     }
-    if (privateAccount && privateAccount === false) {
+    if (privateAccount !== undefined && privateAccount !== null && privateAccount === false) {
         newUser.privateAccount = privateAccount;// All business account is public account 
     }
     if (socialIDs && isArray(socialIDs)) {
