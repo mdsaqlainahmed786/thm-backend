@@ -246,7 +246,16 @@ export function addMediaInPost() {
             'as': 'mediaRef'
         }
     };
-    return { lookup }
+    const sort_media =
+    {
+        $addFields: {
+            mediaRef: {
+                $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+            },
+        }
+    };
+
+    return { lookup, sort_media }
 }
 
 /**
@@ -410,6 +419,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                 $match: match
             },
             addMediaInPost().lookup,
+            addMediaInPost().sort_media,
             addTaggedPeopleInPost().lookup,
             addPostedByInPost().lookup,
             addPostedByInPost().unwindLookup,
@@ -435,6 +445,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             {
                 $limit: documentLimit
             },
+
             {
                 $project: {
                     eventJoinsRef: 0,
