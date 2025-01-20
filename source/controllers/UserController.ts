@@ -373,7 +373,7 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
             [
                 User.findOne({ _id: userID }),
                 UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
-                Post.distinct('media', { ...getPostQuery, userID: new ObjectId(userID) }),
+                Post.distinct('media', { ...getPostQuery, userID: new ObjectId(userID), postType: { $in: [PostType.POST] } }),
                 PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) })
             ]
         );
