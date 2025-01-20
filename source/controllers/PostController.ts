@@ -42,12 +42,15 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const images = files && files.images as Express.Multer.S3File[];
-        const videos = files && files.videos as Express.Multer.S3File[];
+        // const images = files && files.images as Express.Multer.S3File[];
+        // const videos = files && files.videos as Express.Multer.S3File[];
+        const mediaFiles = files && files.media as Express.Multer.S3File[];
+        const images = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('image/'));
+        const videos = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('video/'));
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        if (!content && !images && !videos) {
+        if (!content && !mediaFiles) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'))
         }
         /**
@@ -128,16 +131,22 @@ const store = async (request: Request, response: Response, next: NextFunction) =
          * Handle post media
          */
         let mediaIDs: MongoID[] = []
-        if (videos && videos.length !== 0 || images && images.length !== 0) {
-            const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
-            ])
-            if (imageList && imageList.length !== 0) {
-                imageList.map((image) => mediaIDs.push(image.id));
-            }
-            if (videoList && videoList.length !== 0) {
-                videoList.map((video) => mediaIDs.push(video.id));
+        // if (videos && videos.length !== 0 || images && images.length !== 0) {
+        //     const [videoList, imageList] = await Promise.all([
+        //         storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
+        //         storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
+        //     ])
+        //     if (imageList && imageList.length !== 0) {
+        //         imageList.map((image) => mediaIDs.push(image.id));
+        //     }
+        //     if (videoList && videoList.length !== 0) {
+        //         videoList.map((video) => mediaIDs.push(video.id));
+        //     }
+        // }
+        if (mediaFiles && mediaFiles.length !== 0) {
+            const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
+            if (mediaList && mediaList.length !== 0) {
+                mediaList.map((media) => mediaIDs.push(media.id));
             }
         }
         newPost.media = mediaIDs;
@@ -180,8 +189,11 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings, deletedMedia } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const images = files && files.images as Express.Multer.S3File[];
-        const videos = files && files.videos as Express.Multer.S3File[];
+        // const images = files && files.images as Express.Multer.S3File[];
+        // const videos = files && files.videos as Express.Multer.S3File[];
+        const mediaFiles = files && files.media as Express.Multer.S3File[];
+        const images = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('image/'));
+        const videos = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('video/'));
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
@@ -260,18 +272,22 @@ const update = async (request: Request, response: Response, next: NextFunction) 
          * Handle post media
          */
         let mediaIDs: MongoID[] = post.media;
-        if (videos && videos.length !== 0 || images && images.length !== 0) {
-            const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
-            ])
-            if (imageList && imageList.length !== 0) {
-                imageList.map((image) => mediaIDs.push(image.id));
-
-            }
-            if (videoList && videoList.length !== 0) {
-                videoList.map((video) => mediaIDs.push(video.id));
-
+        // if (videos && videos.length !== 0 || images && images.length !== 0) {
+        //     const [videoList, imageList] = await Promise.all([
+        //         storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
+        //         storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
+        //     ])
+        //     if (imageList && imageList.length !== 0) {
+        //         imageList.map((image) => mediaIDs.push(image.id));
+        //     }
+        //     if (videoList && videoList.length !== 0) {
+        //         videoList.map((video) => mediaIDs.push(video.id));
+        //     }
+        // }
+        if (mediaFiles && mediaFiles.length !== 0) {
+            const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
+            if (mediaList && mediaList.length !== 0) {
+                mediaList.map((media) => mediaIDs.push(media.id));
             }
         }
         if (deletedMedia && deletedMedia.length && mediaIDs.length !== 0) {

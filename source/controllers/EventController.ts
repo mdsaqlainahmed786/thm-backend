@@ -60,7 +60,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         let mediaIDs: MongoID[] = []
         if (images && images.length !== 0) {
             const [imageList] = await Promise.all([
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
+                storeMedia(images, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));
@@ -117,7 +117,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         let mediaIDs: MongoID[] = []
         if (images && images.length !== 0) {
             const [imageList] = await Promise.all([
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
+                storeMedia(images, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));

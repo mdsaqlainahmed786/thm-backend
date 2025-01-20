@@ -286,7 +286,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         const singleFile = files.media;
         const type = messageType as MediaType;
         const [uploadedFiles] = await Promise.all([
-            storeMedia(singleFile, id, businessProfileID, type, AwsS3AccessEndpoints.MESSAGING, 'POST'),
+            storeMedia(singleFile, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
         ])
         if (uploadedFiles && uploadedFiles.length === 0) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))

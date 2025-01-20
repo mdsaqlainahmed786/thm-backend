@@ -15,7 +15,7 @@ import FileQueue, { QueueStatus } from "../database/models/file-processing.model
 import { ErrorMessage } from "../utils/response-message/error";
 import View from "../database/models/view.model.";
 import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404, httpCreated, httpNoContent } from "../utils/response";
-import Post from "../database/models/post.model";
+import Post, { PostType } from "../database/models/post.model";
 const s3Service = new S3Service();
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
     const s3Image = await s3Service.getS3Object(media.key);
@@ -67,7 +67,7 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
 }
 
 
-async function storeMedia(files: Express.Multer.File[], userID: MongoID, businessProfileID: MongoID | null, type: MediaType, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
+async function storeMedia(files: Express.Multer.File[], userID: MongoID, businessProfileID: MongoID | null, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
     let fileList: any[] = [];
     if (files) {
         await Promise.all(files && files.map(async (file) => {
@@ -76,7 +76,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                 userID: userID,
                 fileName: file.originalname,
                 fileSize: file.size,
-                mediaType: type,
+                mediaType: '',
                 mimeType: file.mimetype,
                 width: 0,
                 height: 0,
@@ -100,6 +100,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
             //Generate thumbnail
             let thumbnail: Buffer | null = null;
             if (file && file.mimetype.startsWith('image/')) {
+                Object.assign(fileObject, { mediaType: MediaType.IMAGE });
                 const sharpImage = await sharp(file.path);
                 //Read metadata of video
                 const metadata = await sharpImage.metadata();
@@ -109,6 +110,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                 thumbnail = await sharpImage.resize(cropSetting).toBuffer();
             }
             if (file && file.mimetype.startsWith('video/')) {
+                Object.assign(fileObject, { mediaType: MediaType.VIDEO });
                 //Read metadata of video
                 const metadata = await readVideoMetadata(file.path);
                 if (metadata) {
@@ -155,6 +157,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
             }
             if (file && file.mimetype === 'application/pdf') {
                 Object.assign(fileObject, {
+                    mediaType: MediaType.PDF,
                     thumbnailUrl: 'https://png.pngtree.com/png-vector/20220606/ourmid/pngtree-pdf-file-icon-png-png-image_4899509.png',
                 });
             }

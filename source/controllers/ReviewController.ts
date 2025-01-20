@@ -127,8 +127,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         let mediaIDs: MongoID[] = []
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, businessProfileID ? businessProfileID : null, MediaType.VIDEO, AwsS3AccessEndpoints.REVIEW, 'POST'),
-                storeMedia(images, id, businessProfileID ? businessProfileID : null, MediaType.IMAGE, AwsS3AccessEndpoints.REVIEW, 'POST'),
+                storeMedia(videos, id, businessProfileID ? businessProfileID : null, AwsS3AccessEndpoints.REVIEW, 'POST'),
+                storeMedia(images, id, businessProfileID ? businessProfileID : null, AwsS3AccessEndpoints.REVIEW, 'POST'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));

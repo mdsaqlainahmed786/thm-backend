@@ -208,8 +208,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         let duration: number = 10;
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
-                storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.STORY, 'STORY'),
-                storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.STORY, 'STORY'),
+                storeMedia(videos, id, businessProfileID, AwsS3AccessEndpoints.STORY, 'STORY'),
+                storeMedia(images, id, businessProfileID, AwsS3AccessEndpoints.STORY, 'STORY'),
             ])
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => {
