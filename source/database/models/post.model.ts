@@ -61,6 +61,7 @@ interface IPost extends IReview, IEvent, Document {
     feelings: string;
     createdAt: Date;
     updatedAt: Date;
+    views: number;
 }
 
 
@@ -122,6 +123,7 @@ const PostSchema: Schema = new Schema<IPost>(
         type: { type: String, },
         streamingLink: { type: String, },
         venue: { type: String, },
+        views: { type: Number }
     },
     {
         timestamps: true

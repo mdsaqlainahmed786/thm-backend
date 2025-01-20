@@ -36,5 +36,5 @@ PostEndpoints.put("/:id", diskUpload.fields([{ name: 'images', maxCount: 10, }, 
 
 //MediaViews
 PostEndpoints.post('/media/views', createMediaViewsApiValidator, validateRequest, MediaController.storeViews);
-
+PostEndpoints.post('/views', [], validateRequest, PostController.storeViews);
 export default PostEndpoints;

@@ -496,5 +496,25 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
 }
 
 
+const storeViews = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { postIDs } = request.body;
+        if (postIDs && isArray(postIDs)) {
+            await Promise.all(postIDs && postIDs.map(async (postID: string) => {
+                const post = await Post.findOne({ _id: postID });
+                if (post) {
+                    post.views = post.views ? post.views + 1 : 1;
+                    await post.save();
+                }
+                return postID;
+            }));
+            return response.send(httpOk(null, "Post views saved successfully."))
+        } else {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid post id array."), "Invalid post id array."))
+        }
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 
-export default { index, store, update, destroy, deletePost, show };
+export default { index, store, update, destroy, deletePost, show, storeViews };
