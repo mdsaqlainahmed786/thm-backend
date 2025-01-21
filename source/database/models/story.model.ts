@@ -54,6 +54,7 @@ export function addMediaInStory() {
                     '$project': {
                         '_id': 0,
                         'sourceUrl': 1,
+                        'thumbnailUrl': 1,
                         'mimeType': 1,
                         'duration': 1,
                     }

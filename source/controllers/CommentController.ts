@@ -8,6 +8,7 @@ import Comment, { addCommentedByInPost, addLikesInComment } from '../database/mo
 import { parseQueryParam } from '../utils/helper/basic';
 import AppNotificationController from './AppNotificationController';
 import { NotificationType } from '../database/models/notification.model';
+import { getBlockedByUsers, getBlockedUsers } from '../database/models/user.model';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -19,7 +20,11 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const likedByMe = await Like.distinct('commentID', { userID: id, commentID: { $ne: null } });
+        const [likedByMe, blockedUsers] = await Promise.all([
+            Like.distinct('commentID', { userID: id, commentID: { $ne: null } }),
+            getBlockedByUsers(id),
+        ]);
+        Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument] = await Promise.all([
             Comment.aggregate(
                 [
