@@ -86,6 +86,7 @@ export function addMediaInStory() {
             'likedByMe': 1,
             'duration': 1,
             'seenByMe': 1,
+            'thumbnailUrl': 1,
         }
     }
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project }
