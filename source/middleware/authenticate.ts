@@ -23,7 +23,7 @@ export default async function authenticateUser(request: Request, response: Respo
                 User.findOne({ _id: decoded.id }),
                 hasBusinessSubscription(decoded.businessProfileID)
             ])
-            if (auth_user) {
+            if (auth_user && auth_user.isActivated && !auth_user.isDeleted) {
                 const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture'];
                 const now = new Date();
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
