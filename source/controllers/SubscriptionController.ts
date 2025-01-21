@@ -3,7 +3,7 @@ import { Request, Response, NextFunction, response } from "express";
 import { httpOk, httpBadRequest, httpInternalServerError, httpNotFoundOr404, httpForbidden } from "../utils/response";
 import User, { AccountType } from "../database/models/user.model";
 import { ErrorMessage } from "../utils/response-message/error";
-import Subscription from '../database/models/subscription.model';
+import Subscription, { hasActiveSubscription } from '../database/models/subscription.model';
 import SubscriptionPlan, { SubscriptionDuration, SubscriptionLevel } from "../database/models/subscriptionPlan.model";
 import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
@@ -16,6 +16,7 @@ import { parseFloatToFixed } from "../utils/helper/basic";
 import { BillingAddress, Role } from '../common';
 import UserAddress from '../database/models/user-address.model';
 import EmailNotificationService from '../services/EmailNotificationService';
+import { MediaType } from '../database/models/media.model';
 const razorPayService = new RazorPayService();
 const emailNotificationService = new EmailNotificationService();
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
@@ -611,7 +612,26 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
 const subscriptionMeta = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        return response.send(httpOk(id));
+        console.log(id);
+        const hasSubscription = await hasActiveSubscription(id);
+        const pdf = hasSubscription ? 5 : 2; //mega bytes 
+        const video = hasSubscription ? 300 : 30;//seconds
+        const responseData = {
+            uploadLimit: [
+                {
+                    "fileType": MediaType.PDF,
+                    "unit": "mb",
+                    "size": pdf
+                },
+                {
+                    "fileType": MediaType.VIDEO,
+                    "unit": "second",
+                    "size": video
+                }
+            ],
+            hasSubscription: hasSubscription ? true : false
+        }
+        return response.send(httpOk(responseData, "Subscription meta fetched."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
