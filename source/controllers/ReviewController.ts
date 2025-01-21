@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
-import Subscription from "../database/models/subscription.model";
+import Subscription, { hasActiveSubscription } from "../database/models/subscription.model";
 import Post, { PostType, Review } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import BusinessReviewQuestion from '../database/models/businessReviewQuestion.model';
@@ -75,7 +75,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const startOfDay = new Date(today.setHours(0, 0, 0, 0));
         const endOfDay = new Date(today.setHours(23, 59, 59, 999));
         const [haveSubscription, dailyContentLimit] = await Promise.all([
-            Subscription.findOne({ userID: id, expirationDate: { $gte: new Date() }, isCancelled: false }),
+            hasActiveSubscription(id),
             DailyContentLimit.findOne({
                 userID: id, timeStamp: {
                     $gte: startOfDay,

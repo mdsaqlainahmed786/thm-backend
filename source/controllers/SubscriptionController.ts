@@ -608,4 +608,13 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
     }
 }
 
-export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout };
+const subscriptionMeta = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        return response.send(httpOk(id));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout, subscriptionMeta };

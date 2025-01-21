@@ -17,7 +17,7 @@ import BusinessSubType from "../../database/models/businessSubType.model";
 import BusinessProfile from "../../database/models/businessProfile.model";
 import { GeoCoordinate } from '../../database/models/common.model';
 import BusinessDocument from '../../database/models/businessDocument.model';
-import Subscription from '../../database/models/subscription.model';
+import Subscription, { hasBusinessSubscription } from '../../database/models/subscription.model';
 import { generateFromEmail } from "unique-username-generator";
 import EmailNotificationService from '../../services/EmailNotificationService';
 import { Types } from '../../validation/rules/api-validation';
@@ -72,7 +72,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 [
                     BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                     BusinessProfile.findOne({ _id: user.businessProfileID }),
-                    Subscription.findOne({ businessProfileID: user.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
+                    hasBusinessSubscription(user.businessProfileID)
                 ]
             )
             businessProfileRef = businessProfile;
@@ -190,7 +190,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         [
                             BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                             BusinessProfile.findOne({ _id: user.businessProfileID }),
-                            Subscription.findOne({ businessProfileID: user.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
+                            hasBusinessSubscription(user.businessProfileID)
                         ]
                     )
                     businessProfileRef = businessProfile;
@@ -288,7 +288,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         [
                             BusinessDocument.find({ businessProfileID: user.businessProfileID }),
                             BusinessProfile.findOne({ _id: user.businessProfileID }),
-                            Subscription.findOne({ businessProfileID: user.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
+                            hasBusinessSubscription(user.businessProfileID)
                         ]
                     )
                     businessProfileRef = businessProfile;

@@ -23,6 +23,8 @@ UserEndpoints.post('/address', createAddressApiValidator, validateRequest, UserC
 UserEndpoints.get('/business-profile/documents', UserController.businessDocument);
 UserEndpoints.post('/business-profile/documents', s3Upload(AwsS3AccessEndpoints.USERS).fields([{ name: 'businessRegistration', maxCount: 1 }, { name: 'addressProof', maxCount: 1 }]), UserController.businessDocumentUpload);
 
+
+UserEndpoints.get('/subscription/meta', SubscriptionController.subscriptionMeta);
 UserEndpoints.get('/subscription', SubscriptionController.subscription);
 UserEndpoints.post('/subscription', buySubscriptionApiValidator, validateRequest, SubscriptionController.buySubscription);
 UserEndpoints.get('/subscription/plans', SubscriptionController.getSubscriptionPlans);

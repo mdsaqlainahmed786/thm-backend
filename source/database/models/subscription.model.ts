@@ -50,3 +50,12 @@ export interface ISubscriptionModel extends ISubscription {
 
 const Subscription = model<ISubscription>('Subscription', SubscriptionSchema);
 export default Subscription;
+
+//Return Active Subscription based on user type
+export async function hasActiveSubscription(userID: MongoID) {
+    return Subscription.findOne({ userID: userID, expirationDate: { $gte: new Date() }, isCancelled: false })
+}
+
+export async function hasBusinessSubscription(businessProfileID: MongoID) {
+    return Subscription.findOne({ businessProfileID: businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 });
+}

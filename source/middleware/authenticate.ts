@@ -6,7 +6,7 @@ import { AppConfig } from "../config/constants";
 import User, { AccountType } from "../database/models/user.model";
 import { AuthenticateUser, Role } from "../common";
 import AuthToken from "../database/models/authToken.model";
-import Subscription from "../database/models/subscription.model";
+import Subscription, { hasBusinessSubscription } from "../database/models/subscription.model";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
     const cookies = request?.cookies;
     const authKey = AppConfig.USER_AUTH_TOKEN_KEY;
@@ -21,7 +21,7 @@ export default async function authenticateUser(request: Request, response: Respo
         if (decoded) {
             const [auth_user, subscription] = await Promise.all([
                 User.findOne({ _id: decoded.id }),
-                Subscription.findOne({ businessProfileID: decoded.businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 })
+                hasBusinessSubscription(decoded.businessProfileID)
             ])
             if (auth_user) {
                 const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/business-questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture'];
