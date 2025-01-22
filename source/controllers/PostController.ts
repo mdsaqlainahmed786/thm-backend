@@ -4,7 +4,7 @@ import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404
 import { ErrorMessage } from "../utils/response-message/error";
 import User, { AccountType, addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile } from "../database/models/user.model";
 import Subscription, { hasActiveSubscription } from "../database/models/subscription.model";
-import Post, { addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, getSavedPost, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
+import Post, { addGoogleReviewedBusinessProfileInPost, addInterestedPeopleInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, addTaggedPeopleInPost, fetchPosts, getSavedPost, imJoining, isLikedByMe, isSavedByMe, PostType } from "../database/models/post.model";
 import DailyContentLimit from "../database/models/dailyContentLimit.model";
 import { countWords, isArray } from "../utils/helper/basic";
 import { deleteUnwantedFiles, storeMedia } from './MediaController';
@@ -471,11 +471,24 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 addSharedCountInPost().addSharedCount,
                 addReviewedBusinessProfileInPost().lookup,
                 addReviewedBusinessProfileInPost().unwindLookup,
+                addGoogleReviewedBusinessProfileInPost().lookup,
+                addGoogleReviewedBusinessProfileInPost().unwindLookup,
                 isLikedByMe(likedByMe),
                 isSavedByMe(savedByMe),
                 imJoining(joiningEvents),
                 addInterestedPeopleInPost().lookup,
                 addInterestedPeopleInPost().addInterestedCount,
+                {
+                    $addFields: {
+                        reviewedBusinessProfileRef: {
+                            $cond: {
+                                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                            }
+                        }
+                    }
+                },
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
