@@ -34,6 +34,8 @@ import SharedContent from "../database/models/sharedContent.model";
 import { BusinessType as BusinessTypeEnum } from "../database/seeders/BusinessTypeSeeder";
 import EncryptionService from "../services/EncryptionService";
 import sharp from 'sharp';
+import AnonymousUser from "../database/models/anonymousUser.model";
+import { GeoCoordinate } from "../database/models/common.model";
 const encryptionService = new EncryptionService();
 
 //FIXME suggestion based on location
@@ -184,6 +186,7 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
         if (businessProfileID && businessProfileID !== '') {
             Object.assign(dbQuery, { _id: businessProfileID });
         }
+        let type = "business-profile";
         const businessProfileRef = await BusinessProfile.findOne(dbQuery, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
         if (!businessProfileRef) {
             const googlePlaceApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`;
@@ -191,6 +194,7 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
             if (apiResponse.status === "OK") {
                 const data = apiResponse.result;
                 const name = data?.name ?? "";
+                const rating = data?.rating ?? 0;
                 const lat = data?.geometry?.location?.lat ?? 0;
                 const lng = data?.geometry?.location?.lng ?? 0;
                 /***
@@ -198,12 +202,13 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                  */
                 let reviewQuestions: any[] = [];
                 const types = data?.types ?? [];
-
+                let businessTypeID: string | undefined = undefined;
                 const predictedCategoryName = predictCategory(types, name);
                 if (predictedCategoryName) {
-                    const businessTypeID = await BusinessType.findOne({ name: predictedCategoryName });
-                    if (businessTypeID) {
-                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessTypeID } }).limit(8);
+                    const businessType = await BusinessType.findOne({ name: predictedCategoryName });
+                    if (businessType) {
+                        businessTypeID = businessType.id;
+                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: [businessTypeID] } }).limit(8);
                     }
                 }
                 console.log("predictedCategory", predictedCategoryName)
@@ -234,46 +239,36 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                 if (photoReference) {
                     coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}`;
                 }
-                const businessProfileRef = {
-                    "profilePic": {
+
+                const anonymousBusinessExits = await AnonymousUser.findOne({ placeID: placeID, accountType: AccountType.BUSINESS });
+                type = "google-business-profile";
+                if (!anonymousBusinessExits) {
+                    const newAnonymousBusiness = new AnonymousUser();
+                    newAnonymousBusiness.accountType = AccountType.BUSINESS;
+                    newAnonymousBusiness.name = name;
+                    const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+                    newAnonymousBusiness.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
+                    newAnonymousBusiness.profilePic = {
                         "small": coverImage,
                         "medium": coverImage,
                         "large": coverImage
-                    },
-                    // "businessTypeID": "66f6859833d7970343e8ae21",
-                    // "businessSubTypeID": "66f6859933d7970343e8ae47",
-                    "name": name,
-                    "address": {
-                        "geoCoordinate": {
-                            "type": "Point",
-                            "coordinates": [
-                                lng,
-                                lat
-                            ]
-                        },
-                        "street": street,
-                        "city": city,
-                        "state": state,
-                        "zipCode": zipCode,
-                        "country": country,
-                        "lat": lat,
-                        "lng": lng
-                    },
-                    "coverImage": coverImage,
+                    };
+                    newAnonymousBusiness.coverImage = coverImage;
+                    newAnonymousBusiness.rating = rating;
+                    newAnonymousBusiness.placeID = placeID;
+                    if (businessTypeID) {
+                        newAnonymousBusiness.businessTypeID = businessTypeID;
+                    }
+                    const businessProfileRef = await newAnonymousBusiness.save();
+                    return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                } else {
+                    return response.send(httpOk({ businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
                 }
-
-                return response.send(httpOk({
-                    businessProfileRef,
-                    reviewQuestions
-                }, "Business profile fetched"));
             }
             return response.send(httpInternalServerError(null, ErrorMessage.INTERNAL_SERVER_ERROR));
         }
-        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
-        return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
-        }, "Business profile fetched"));
+        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
+        return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

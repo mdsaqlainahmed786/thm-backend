@@ -34,6 +34,7 @@ export const ReviewSchema = new Schema<Review>(
 
 interface IReview {
     reviewedBusinessProfileID: MongoID;//used as a review id
+    googleReviewedBusiness: MongoID;//used as a review id for google business review
     rating: number;
     placeID: string;//used to map google business account or rating purpose
     reviews: Review[];
@@ -76,6 +77,10 @@ const PostSchema: Schema = new Schema<IPost>(
             ref: "BusinessProfile"
         },
         reviewedBusinessProfileID: {
+            type: Schema.Types.ObjectId,
+            ref: "BusinessProfile"
+        },
+        googleReviewedBusiness: {
             type: Schema.Types.ObjectId,
             ref: "BusinessProfile"
         },
@@ -304,6 +309,43 @@ export function addReviewedBusinessProfileInPost() {
 }
 
 
+export function addGoogleReviewedBusinessProfileInPost() {
+    const lookup = {
+        '$lookup': {
+            'from': 'anonymoususers',
+            'let': { 'googleReviewedBusiness': '$googleReviewedBusiness' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$googleReviewedBusiness'] } } },
+                addBusinessTypeInBusinessProfile().lookup,
+                addBusinessTypeInBusinessProfile().unwindLookup,
+                addBusinessSubTypeInBusinessProfile().lookup,
+                addBusinessSubTypeInBusinessProfile().unwindLookup,
+                {
+                    '$project': {
+                        "userID": "",
+                        "profilePic": 1,
+                        "address": 1,
+                        "name": 1,
+                        "coverImage": 1,
+                        "rating": 1,
+                        "businessTypeRef": 1,
+                        "businessSubtypeRef": 1,
+                    }
+                }
+            ],
+            'as': 'googleReviewedBusinessRef'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$googleReviewedBusinessRef',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
+}
+
+
 /**
  * 
  * @returns 
@@ -431,11 +473,24 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             addSharedCountInPost().addSharedCount,
             addReviewedBusinessProfileInPost().lookup,
             addReviewedBusinessProfileInPost().unwindLookup,
+            addGoogleReviewedBusinessProfileInPost().lookup,
+            addGoogleReviewedBusinessProfileInPost().unwindLookup,
             addInterestedPeopleInPost().lookup,
             addInterestedPeopleInPost().addInterestedCount,
             isLikedByMe(likedByMe),
             isSavedByMe(savedByMe),
             imJoining(joiningEvents),
+            {
+                $addFields: {
+                    reviewedBusinessProfileRef: {
+                        $cond: {
+                            if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                            then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                            else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                        }
+                    }
+                }
+            },
             {
                 $sort: { createdAt: -1, id: 1 }
             },
@@ -448,6 +503,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
 
             {
                 $project: {
+                    googleReviewedBusinessRef: 0,
                     eventJoinsRef: 0,
                     reviews: 0,
                     isPublished: 0,

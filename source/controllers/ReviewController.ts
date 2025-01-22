@@ -31,7 +31,7 @@ const MAXIMUM_REVIEWS_PER_DAY = 3;
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
-        const { content, businessProfileID, placeID, reviews, city, state, zipCode, country, lat, lng, name, street } = request.body;
+        const { content, businessProfileID, placeID, reviews, anonymousUserID } = request.body;
         const userdata = await User.findOne({ _id: id });
         if (!userdata) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -46,26 +46,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("PlaceID is required field"), "PlaceID is required field"));
         }
         if (!businessProfileID) {
-            if (name === undefined || name === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Business Name is required field"), "Name is required field"));
-            }
-            if (city === undefined || city === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("City is required field"), "City is required field"));
-            }
-            if (state === undefined || state === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("State is required field"), "State is required field"));
-            }
-            if (zipCode === undefined || zipCode === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Zip code is required field"), "Zip code is required field"));
-            }
-            if (country === undefined || country === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Country is required field"), "Country is required field"));
-            }
-            if (lat === undefined || lat === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Lat is required field"), "Lat is required field"));
-            }
-            if (lng === undefined || lng === "") {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Lng is required field"), "Lng is required field"));
+            if (anonymousUserID === undefined || anonymousUserID === "") {
+                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Business profile id is required field"), "Business profile id is required field"));
             }
         }
         /**
@@ -138,45 +120,48 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
         }
         //IF business profile id is 
-        let postID = null;
+        // let postID = null;
         const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+
+        const newPost = new Post();
+        newPost.postType = PostType.REVIEW;
+        newPost.userID = id;
+        newPost.content = content;// Review for business
         if (businessProfileID !== undefined && businessProfileID !== "") {
-            const newPost = new Post();
-            newPost.postType = PostType.REVIEW;
-            newPost.userID = id;
-            newPost.content = content;// Review for business
             newPost.reviewedBusinessProfileID = businessProfileID;
-            newPost.isPublished = true;
-            newPost.location = null;
-            newPost.tagged = [];
-            newPost.media = mediaIDs;
-            newPost.placeID = placeID ?? "";
-            newPost.reviews = validateReviewJSON;
-            newPost.rating = finalRating;
-            const savedPost = await newPost.save();
-            postID = savedPost.id;
+        } else {
+            newPost.googleReviewedBusiness = anonymousUserID;
         }
+        newPost.isPublished = true;
+        newPost.location = null;
+        newPost.tagged = [];
+        newPost.media = mediaIDs;
+        newPost.placeID = placeID ?? "";
+        newPost.reviews = validateReviewJSON;
+        newPost.rating = finalRating;
+        const savedPost = await newPost.save();
+        // }
         /*** 
          * Only for individual account
          * 
          **/
-        const newReview = new ReviewModel();
-        newReview.postID = postID;
-        newReview.userID = id;
-        newReview.content = content;// Review for business
-        if (businessProfileID !== undefined && businessProfileID !== "") {
-            newReview.reviewedBusinessProfileID = businessProfileID;
-            newReview.isPublished = true;
-            sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
-        } else {
-            newReview.businessName = name;
-            newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
-        }
-        newReview.media = mediaIDs;
-        newReview.placeID = placeID ?? "";
-        newReview.reviews = validateReviewJSON;
-        newReview.rating = finalRating;
-        const savedReview = await newReview.save();
+        // const newReview = new ReviewModel();
+        // newReview.postID = postID;
+        // newReview.userID = id;
+        // newReview.content = content;// Review for business
+        // if (businessProfileID !== undefined && businessProfileID !== "") {
+        //     newReview.reviewedBusinessProfileID = businessProfileID;
+        //     newReview.isPublished = true;
+        //     sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
+        // } else {
+        //     newReview.businessName = name;
+        //     newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
+        // }
+        // newReview.media = mediaIDs;
+        // newReview.placeID = placeID ?? "";
+        // newReview.reviews = validateReviewJSON;
+        // newReview.rating = finalRating;
+        // const savedReview = await newReview.save();
         if (!haveSubscription && accountType === AccountType.INDIVIDUAL) {
             if (!dailyContentLimit) {
                 const today = new Date();
@@ -194,7 +179,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 await dailyContentLimit.save();
             }
         }
-        return response.send(httpCreated(savedReview, 'Your review is published successfully'));
+        return response.send(httpCreated(savedPost, 'Your review is published successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
