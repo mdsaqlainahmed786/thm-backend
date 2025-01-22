@@ -36,6 +36,7 @@ import EncryptionService from "../services/EncryptionService";
 import sharp from 'sharp';
 import AnonymousUser from "../database/models/anonymousUser.model";
 import { GeoCoordinate } from "../database/models/common.model";
+import axios from "axios";
 const encryptionService = new EncryptionService();
 
 //FIXME suggestion based on location
@@ -237,7 +238,9 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                 });
                 let coverImage = "";
                 if (photoReference) {
-                    coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}`;
+                    coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${AppConfig.GOOGLE.MAP_KEY}`;
+                    const res = await axios.get(coverImage);
+                    coverImage = res.request._redirectable._options.href;
                 }
 
                 const anonymousBusinessExits = await AnonymousUser.findOne({ placeID: placeID, accountType: AccountType.BUSINESS });
