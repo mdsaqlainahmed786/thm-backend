@@ -66,7 +66,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         const data = documents
-        if (suggestion) {
+        if (suggestion && suggestions.length !== 0) {
             data.push({
                 _id: new ObjectId(),
                 postType: "suggestion",
