@@ -367,18 +367,16 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
                 return mediaID;
             }));
         }
-        const [likes, comments, savedPosts, reviews, reportedContent, eventJoins] = await Promise.all([
+        const [likes, comments, savedPosts, reportedContent, eventJoins] = await Promise.all([
             Like.deleteMany({ postID: ID }),
             Comment.deleteMany({ postID: ID }),
             SavedPost.deleteMany({ postID: ID }),
-            Review.deleteMany({ postID: ID }),
             Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
             EventJoin.deleteMany({ postID: ID }),
         ]);
         console.log('likes', likes);
         console.log('comments', comments);
         console.log('savedPosts', savedPosts);
-        console.log('reviews', reviews);
         console.log('reportedContent', reportedContent)
         console.log('eventJoins', eventJoins);
         await post.deleteOne();

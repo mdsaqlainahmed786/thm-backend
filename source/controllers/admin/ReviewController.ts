@@ -180,7 +180,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
     }
 }
 
-
+//FIXME Change Review => Post
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const ID = request?.params?.id;

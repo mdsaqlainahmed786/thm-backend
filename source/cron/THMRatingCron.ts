@@ -1,17 +1,11 @@
 import cron from 'node-cron';
 import { CronSchedule } from '../config/constants';
-import { fetchUserFollower, fetchUserFollowing } from '../database/models/userConnection.model';
-import UserConnectionController from '../controllers/UserConnectionController';
-import User from '../database/models/user.model';
-import UserConnection from '../database/models/userConnection.model';
-import { MongoID } from '../common';
-import { ConnectionStatus } from './../database/models/userConnection.model';
-import Review from '../database/models/reviews.model';
 import BusinessProfile from '../database/models/businessProfile.model';
+import Post from '../database/models/post.model';
 async function rateTHMBusiness() {
     try {
         console.log("Rate THM Business")
-        const reviews = await Review.aggregate([
+        const reviews = await Post.aggregate([
             {
                 $match: {
                     reviewedBusinessProfileID: { $ne: null }

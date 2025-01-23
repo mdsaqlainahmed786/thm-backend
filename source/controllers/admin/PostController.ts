@@ -6,7 +6,6 @@ import { ErrorMessage } from '../../utils/response-message/error';
 import Post, { addGoogleReviewedBusinessProfileInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
 import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, profileBasicProject } from '../../database/models/user.model';
 import { ContentType } from '../../common';
-import Review from '../../database/models/reviews.model';
 import { addAnonymousUserInPost } from '../../database/models/anonymousUser.model';
 import { addUserInBusinessProfile } from '../../database/models/businessProfile.model';
 const postTypes = Object.values(PostType)

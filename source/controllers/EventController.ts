@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { httpAcceptedOrUpdated, httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNoContent, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/user.model";
-import Post, { PostType, Review } from "../database/models/post.model";
+import Post, { PostType } from "../database/models/post.model";
 import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';

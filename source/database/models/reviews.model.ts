@@ -4,6 +4,8 @@ import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
 import { Address } from "./common.model";
+
+///FIXME Remove me
 export enum PostType {
     POST = "post",
     REVIEW = "review",
