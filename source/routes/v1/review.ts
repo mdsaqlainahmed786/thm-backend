@@ -6,5 +6,5 @@ import authenticateUser from "../../middleware/authenticate";
 import { diskUpload } from "../../middleware/file-uploading";
 const ReviewEndpoints: Router = express.Router();
 ReviewEndpoints.post('/', authenticateUser, diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), ReviewController.store);
-ReviewEndpoints.post('/public', publicReviewApiValidator, validateRequest, ReviewController.publicReview);
+ReviewEndpoints.post('/public', diskUpload.fields([{ name: 'images', maxCount: 10, }, { name: 'videos', maxCount: 10, }]), publicReviewApiValidator, validateRequest, ReviewController.publicReview);
 export default ReviewEndpoints;

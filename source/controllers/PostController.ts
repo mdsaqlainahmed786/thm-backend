@@ -24,6 +24,7 @@ import S3Service from '../services/S3Service';
 import AppNotificationController from './AppNotificationController';
 import { NotificationType } from '../database/models/notification.model';
 import FileQueue, { QueueStatus } from '../database/models/file-processing.model';
+import { addAnonymousUserInPost } from '../database/models/anonymousUser.model';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -462,6 +463,8 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
                     }
                 },
+                addAnonymousUserInPost().lookup,
+                addAnonymousUserInPost().unwindLookup,
                 addPostedByInPost().unwindLookup,
                 addLikesInPost().lookup,
                 addLikesInPost().addLikeCount,
@@ -486,6 +489,13 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                                 then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
                                 else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
                             }
+                        },
+                        postedBy: {
+                            $cond: {
+                                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                                then: "$publicPostedBy", // Replace with publicPostedBy
+                                else: "$postedBy" // Keep the existing value if it exists
+                            }
                         }
                     }
                 },
@@ -502,6 +512,8 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 {
                     $project: {
+                        googleReviewedBusinessRef: 0,
+                        publicPostedBy: 0,
                         reviews: 0,
                         isPublished: 0,
                         sharedRef: 0,

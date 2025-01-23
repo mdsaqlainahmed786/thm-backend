@@ -3,10 +3,12 @@ import { Request, Response, NextFunction } from "express";
 import { parseQueryParam } from '../../utils/helper/basic';
 import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError } from '../../utils/response';
 import { ErrorMessage } from '../../utils/response-message/error';
-import Post, { addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
-import { addBusinessProfileInUser, profileBasicProject } from '../../database/models/user.model';
+import Post, { addGoogleReviewedBusinessProfileInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
+import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, profileBasicProject } from '../../database/models/user.model';
 import { ContentType } from '../../common';
 import Review from '../../database/models/reviews.model';
+import { addAnonymousUserInPost } from '../../database/models/anonymousUser.model';
+import { addUserInBusinessProfile } from '../../database/models/businessProfile.model';
 const postTypes = Object.values(PostType)
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -46,8 +48,16 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         'let': { 'reviewedBusinessProfileID': '$reviewedBusinessProfileID' },
                         'pipeline': [
                             { '$match': { '$expr': { '$eq': ['$_id', '$$reviewedBusinessProfileID'] } } },
+                            addUserInBusinessProfile().lookup,
+                            addUserInBusinessProfile().unwindLookup,
                             {
                                 '$project': {
+                                    "_id": {
+                                        '$ifNull': [{ '$ifNull': ['$usersRef._id', ''] }, '']
+                                    },
+                                    "accountType": {
+                                        '$ifNull': [{ '$ifNull': ['$usersRef.accountType', ''] }, '']
+                                    },
                                     "username": 1,
                                     "profilePic": 1,
                                     "name": 1,
@@ -83,6 +93,33 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
                     }
                 },
+                addAnonymousUserInPost().lookup,
+                addAnonymousUserInPost().unwindLookup,
+                {
+                    '$lookup': {
+                        'from': 'anonymoususers',
+                        'let': { 'googleReviewedBusiness': '$googleReviewedBusiness' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$_id', '$$googleReviewedBusiness'] } } },
+                            {
+                                '$project': {
+                                    "accountType": 1,
+                                    "username": 1,
+                                    "profilePic": 1,
+                                    "name": 1,
+                                    "coverImage": 1,
+                                }
+                            }
+                        ],
+                        'as': 'googleReviewedBusinessRef'
+                    }
+                },
+                {
+                    '$unwind': {
+                        'path': '$googleReviewedBusinessRef',
+                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+                    }
+                },
                 {
                     '$lookup': {
                         'from': 'reports',
@@ -91,6 +128,24 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                             { '$match': { '$expr': { '$eq': ['$contentID', '$$contentID'] }, contentType: ContentType.POST } },
                         ],
                         'as': 'reports'
+                    }
+                },
+                {
+                    $addFields: {
+                        reviewedBusinessProfileRef: {
+                            $cond: {
+                                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                            }
+                        },
+                        postedBy: {
+                            $cond: {
+                                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                                then: "$publicPostedBy", // Replace with publicPostedBy
+                                else: "$postedBy" // Keep the existing value if it exists
+                            }
+                        }
                     }
                 },
                 {
@@ -109,6 +164,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 {
                     $project: {
+                        googleReviewedBusinessRef: 0,
+                        publicPostedBy: 0,
                         reports: 0
                     }
                 }

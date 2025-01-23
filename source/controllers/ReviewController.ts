@@ -219,19 +219,7 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         let validateReviewJSON: Review[] = [];
-        await Promise.all(JSON.parse(reviews).map(async (review: Review) => {
-            if (review.questionID !== "not-indexed") {
-                const question = await BusinessReviewQuestion.findOne({ _id: review?.questionID })
-                if (question && review?.questionID !== undefined && review?.rating !== undefined) {
-                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
-                }
-            } else {
-                if (review?.questionID !== undefined && review?.rating !== undefined) {
-                    validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
-                }
-            }
-            return review;
-        }));
+        validateReviewJSON = await cleanAndValidateReview(reviews, validateReviewJSON)
         const totalRating = validateReviewJSON.reduce((total, item) => total + item.rating, 0);
         const rating = totalRating / validateReviewJSON.length;
         //remove reviews 
@@ -245,8 +233,11 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
         const newPost = new Post();
         newPost.postType = PostType.REVIEW;
+
+        let userID: string;
         if (user && user.accountType === AccountType.INDIVIDUAL) {
-            newPost.userID = user.id;
+            userID = user.id
+            newPost.userID = userID;
         } else {
             const isAnonymousUserExist = await AnonymousUser.findOne({ email: email, accountType: AccountType.INDIVIDUAL });
             if (!isAnonymousUserExist) {
@@ -261,9 +252,30 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
                     "large": getDefaultProfilePic(request, name.substring(0, 1), 'small')
                 };
                 const savedAnonymousUser = await newAnonymousUser.save();
+                userID = savedAnonymousUser.id;
                 newPost.publicUserID = savedAnonymousUser.id;
             } else {
+                userID = isAnonymousUserExist.id;
                 newPost.publicUserID = isAnonymousUserExist.id;
+            }
+        }
+        /**
+         * Handle review media
+         */
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const images = files && files.images as Express.Multer.S3File[];
+        const videos = files && files.videos as Express.Multer.S3File[];
+        let mediaIDs: MongoID[] = []
+        if (videos && videos.length !== 0 || images && images.length !== 0) {
+            const [videoList, imageList] = await Promise.all([
+                storeMedia(videos, userID, businessProfileID ? businessProfileID : null, AwsS3AccessEndpoints.REVIEW, 'POST'),
+                storeMedia(images, userID, businessProfileID ? businessProfileID : null, AwsS3AccessEndpoints.REVIEW, 'POST'),
+            ])
+            if (imageList && imageList.length !== 0) {
+                imageList.map((image) => mediaIDs.push(image.id));
+            }
+            if (videoList && videoList.length !== 0) {
+                videoList.map((video) => mediaIDs.push(video.id));
             }
         }
         newPost.content = content;// Review for business
@@ -271,7 +283,7 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         newPost.isPublished = true;
         newPost.location = null;
         newPost.tagged = [];
-        newPost.media = [];
+        newPost.media = mediaIDs;
         newPost.placeID = placeID ?? "";
         newPost.reviews = validateReviewJSON;
         newPost.rating = finalRating;
@@ -334,4 +346,22 @@ const sendReviewNotification = async (businessProfileID: MongoID, name: string, 
         console.error("Error sending one or more notifications:", error);
     }
 }
+
+async function cleanAndValidateReview(reviews: any, validateReviewJSON: Review[]) {
+    return await Promise.all(reviews.map(async (reviewString: string) => {
+        const review: Review = JSON.parse(reviewString);
+        if (review.questionID !== "not-indexed") {
+            const question = await BusinessReviewQuestion.findOne({ _id: review.questionID });
+            if (question && review?.questionID !== undefined && review?.rating !== undefined) {
+                validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+            }
+        } else {
+            if (review?.questionID !== undefined && review?.rating !== undefined) {
+                validateReviewJSON.push({ questionID: review.questionID, rating: review.rating });
+            }
+        }
+        return review;
+    }));
+}
+
 export default { index, store, update, destroy, publicReview };
