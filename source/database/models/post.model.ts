@@ -33,6 +33,7 @@ export const ReviewSchema = new Schema<Review>(
 )
 
 interface IReview {
+    publicUserID: MongoID;//open review
     reviewedBusinessProfileID: MongoID;//used as a review id
     googleReviewedBusiness: MongoID;//used as a review id for google business review
     rating: number;
@@ -82,7 +83,11 @@ const PostSchema: Schema = new Schema<IPost>(
         },
         googleReviewedBusiness: {
             type: Schema.Types.ObjectId,
-            ref: "BusinessProfile"
+            ref: "AnonymousUser"
+        },
+        publicUserID: {
+            type: Schema.Types.ObjectId,
+            ref: "AnonymousUser"
         },
         content: {
             type: String,
@@ -145,6 +150,7 @@ export default Post;
 
 import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile } from "./user.model";
 import { addUserInBusinessProfile } from "./businessProfile.model";
+import { addAnonymousUserInPost } from "./anonymousUser.model";
 
 /**
  *
@@ -465,6 +471,8 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             addTaggedPeopleInPost().lookup,
             addPostedByInPost().lookup,
             addPostedByInPost().unwindLookup,
+            addAnonymousUserInPost().lookup,
+            addAnonymousUserInPost().unwindLookup,
             addLikesInPost().lookup,
             addLikesInPost().addLikeCount,
             addCommentsInPost().lookup,
@@ -488,6 +496,13 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                             then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
                             else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
                         }
+                    },
+                    postedBy: {
+                        $cond: {
+                            if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                            then: "$publicPostedBy", // Replace with publicPostedBy
+                            else: "$postedBy" // Keep the existing value if it exists
+                        }
                     }
                 }
             },
@@ -503,6 +518,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
 
             {
                 $project: {
+                    publicPostedBy: 0,
                     googleReviewedBusinessRef: 0,
                     eventJoinsRef: 0,
                     reviews: 0,

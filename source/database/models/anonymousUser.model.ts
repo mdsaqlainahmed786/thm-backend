@@ -113,3 +113,43 @@ export default AnonymousUser;
 
 
 
+
+/**
+ *
+ * @returns 
+ * Return posted by public user lookup 
+ */
+export function addAnonymousUserInPost() {
+    const lookup = {
+        '$lookup': {
+            'from': 'anonymoususers',
+            'let': { 'publicUserID': '$publicUserID' },
+            'pipeline': [
+                { '$match': { '$expr': { '$eq': ['$_id', '$$publicUserID'] } } },
+                {
+                    '$project': {
+                        "name": 1,
+                        "profilePic": 1,
+                        "accountType": 1,
+                        "businessProfileID": 1,
+                        "businessProfileRef._id": 1,
+                        "businessProfileRef.name": 1,
+                        "businessProfileRef.profilePic": 1,
+                        "businessProfileRef.rating": 1,
+                        "businessProfileRef.businessTypeRef": 1,
+                        "businessProfileRef.businessSubtypeRef": 1,
+                        "businessProfileRef.address": 1,
+                    }
+                }
+            ],
+            'as': 'publicPostedBy'
+        }
+    };
+    const unwindLookup = {
+        '$unwind': {
+            'path': '$publicPostedBy',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+        }
+    }
+    return { lookup, unwindLookup }
+}

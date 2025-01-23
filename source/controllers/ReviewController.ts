@@ -19,6 +19,9 @@ import { NotificationType } from "../database/models/notification.model";
 import { storeMedia } from "./MediaController";
 import { MediaType } from "../database/models/media.model";
 import { AwsS3AccessEndpoints } from "../config/constants";
+import AnonymousUser from "../database/models/anonymousUser.model";
+import { generateUsername } from "./auth/AuthController";
+import { getDefaultProfilePic } from "../utils/helper/basic";
 const encryptionService = new EncryptionService();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -236,45 +239,64 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         if (hasNotIndexed) {
             validateReviewJSON = [];
         }
-        const newReview = new ReviewModel();
+        // const newReview = new ReviewModel();
 
         //IF user is register with us then create a post with review 
         const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
+        const newPost = new Post();
+        newPost.postType = PostType.REVIEW;
         if (user && user.accountType === AccountType.INDIVIDUAL) {
-            const newPost = new Post();
-            newPost.postType = PostType.REVIEW;
             newPost.userID = user.id;
-            newPost.content = content;// Review for business
-            newPost.reviewedBusinessProfileID = businessProfile.id;
-            newPost.isPublished = true;
-            newPost.location = null;
-            newPost.tagged = [];
-            newPost.media = [];
-            newPost.placeID = placeID ?? "";
-            newPost.reviews = validateReviewJSON;
-            newPost.rating = finalRating;
-            const savedPost = await newPost.save();
-            //Map post id in review collection
-            newReview.postID = savedPost.id;
+        } else {
+            const isAnonymousUserExist = await AnonymousUser.findOne({ email: email, accountType: AccountType.INDIVIDUAL });
+            if (!isAnonymousUserExist) {
+                const username = await generateUsername(email, AccountType.INDIVIDUAL);
+                const newAnonymousUser = new AnonymousUser();
+                newAnonymousUser.username = username;
+                newAnonymousUser.accountType = AccountType.INDIVIDUAL;
+                newAnonymousUser.name = name;
+                newAnonymousUser.profilePic = {
+                    "small": getDefaultProfilePic(request, name.substring(0, 1), 'small'),
+                    "medium": getDefaultProfilePic(request, name.substring(0, 1), 'small'),
+                    "large": getDefaultProfilePic(request, name.substring(0, 1), 'small')
+                };
+                const savedAnonymousUser = await newAnonymousUser.save();
+                newPost.publicUserID = savedAnonymousUser.id;
+            } else {
+                newPost.publicUserID = isAnonymousUserExist.id;
+            }
         }
+        newPost.content = content;// Review for business
+        newPost.reviewedBusinessProfileID = businessProfile.id;
+        newPost.isPublished = true;
+        newPost.location = null;
+        newPost.tagged = [];
+        newPost.media = [];
+        newPost.placeID = placeID ?? "";
+        newPost.reviews = validateReviewJSON;
+        newPost.rating = finalRating;
+        const savedPost = await newPost.save();
+        //Map post id in review collection
+        // newReview.postID = savedPost.id;
+        // }
         if (user) {
-            newReview.userID = user.id;
+            // newReview.userID = user.id;
             sendReviewNotification(businessProfileID, user.name, finalRating, content);
         } else {
-            newReview.email = email;
-            newReview.name = name;
+            // newReview.email = email;
+            // newReview.name = name;
             sendReviewNotification(businessProfileID, name, finalRating, content);
         }
-        newReview.content = content;// Review for business
-        newReview.reviewedBusinessProfileID = businessProfile.id;
-        if (newReview.postID) {
-            newReview.isPublished = true;
-        }
-        newReview.media = [];
-        newReview.placeID = placeID ?? "";
-        newReview.reviews = validateReviewJSON;
-        newReview.rating = finalRating;
-        const savedReview = await newReview.save();
+        // newReview.content = content;// Review for business
+        // newReview.reviewedBusinessProfileID = businessProfile.id;
+        // if (newReview.postID) {
+        //     newReview.isPublished = true;
+        // }
+        // newReview.media = [];
+        // newReview.placeID = placeID ?? "";
+        // newReview.reviews = validateReviewJSON;
+        // newReview.rating = finalRating;
+        // const savedReview = await newReview.save();
         return response.send(httpOk(null, "Thanks for your review"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
