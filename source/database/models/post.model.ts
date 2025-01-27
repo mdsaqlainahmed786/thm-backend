@@ -466,6 +466,15 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             {
                 $match: match
             },
+            {
+                $sort: { createdAt: -1, id: 1 }
+            },
+            {
+                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+            },
+            {
+                $limit: documentLimit
+            },
             addMediaInPost().lookup,
             addMediaInPost().sort_media,
             addTaggedPeopleInPost().lookup,
@@ -506,16 +515,6 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                     }
                 }
             },
-            {
-                $sort: { createdAt: -1, id: 1 }
-            },
-            {
-                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-            },
-            {
-                $limit: documentLimit
-            },
-
             {
                 $project: {
                     publicPostedBy: 0,
