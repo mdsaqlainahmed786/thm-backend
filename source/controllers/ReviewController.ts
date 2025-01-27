@@ -30,7 +30,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
     }
 }
 
-const MAXIMUM_REVIEWS_PER_DAY = 3;
+const MAXIMUM_REVIEWS_PER_DAY = 1;
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
@@ -123,7 +123,6 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
         }
         //IF business profile id is 
-        // let postID = null;
         const finalRating = Number.isNaN(rating) ? 0 : parseInt(`${rating}`);
 
         const newPost = new Post();
@@ -132,6 +131,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.content = content;// Review for business
         if (businessProfileID !== undefined && businessProfileID !== "") {
             newPost.reviewedBusinessProfileID = businessProfileID;
+            sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
         } else {
             newPost.googleReviewedBusiness = anonymousUserID;
         }
@@ -143,28 +143,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.reviews = validateReviewJSON;
         newPost.rating = finalRating;
         const savedPost = await newPost.save();
-        // }
-        /*** 
-         * Only for individual account
-         * 
-         **/
-        // const newReview = new ReviewModel();
-        // newReview.postID = postID;
-        // newReview.userID = id;
-        // newReview.content = content;// Review for business
-        // if (businessProfileID !== undefined && businessProfileID !== "") {
-        //     newReview.reviewedBusinessProfileID = businessProfileID;
-        //     newReview.isPublished = true;
-        //     sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
-        // } else {
-        //     newReview.businessName = name;
-        //     newReview.address = { street, city, state, zipCode, country, lat: lat ?? 0, lng: lng ?? 0, };
-        // }
-        // newReview.media = mediaIDs;
-        // newReview.placeID = placeID ?? "";
-        // newReview.reviews = validateReviewJSON;
-        // newReview.rating = finalRating;
-        // const savedReview = await newReview.save();
+
         if (!haveSubscription && accountType === AccountType.INDIVIDUAL) {
             if (!dailyContentLimit) {
                 const today = new Date();
