@@ -104,6 +104,12 @@ export async function fetchBusinessProfiles(match: { [key: string]: any; }, page
         {
             $match: match
         },
+        {
+            $limit: documentLimit
+        },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * 7) : 0
+        },
         addBusinessTypeInBusinessProfile().lookup,
         addBusinessTypeInBusinessProfile().unwindLookup,
         addBusinessSubTypeInBusinessProfile().lookup,
@@ -124,12 +130,8 @@ export async function fetchBusinessProfiles(match: { [key: string]: any; }, page
                 },
             }
         },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * 7) : 0
-        },
-        {
-            $limit: documentLimit
-        },
+
+
     ])
 
 }
