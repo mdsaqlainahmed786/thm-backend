@@ -512,19 +512,19 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                     }
                 },
                 {
-                    $project: {
-                        googleReviewedBusinessRef: 0,
-                        publicPostedBy: 0,
-                        reviews: 0,
-                        isPublished: 0,
-                        sharedRef: 0,
-                        commentsRef: 0,
-                        likesRef: 0,
-                        tagged: 0,
-                        media: 0,
-                        updatedAt: 0,
-                        __v: 0,
-                    }
+                    $unset: [
+                        "publicPostedBy",
+                        "googleReviewedBusinessRef",
+                        "reviews",
+                        "isPublished",
+                        "sharedRef",
+                        "commentsRef",
+                        "likesRef",
+                        "tagged",
+                        "media",
+                        "updatedAt",
+                        "__v"
+                    ]
                 }
             ]
         ).exec()

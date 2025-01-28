@@ -162,11 +162,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     $limit: documentLimit
                 },
                 {
-                    $project: {
-                        googleReviewedBusinessRef: 0,
-                        publicPostedBy: 0,
-                        reports: 0
-                    }
+                    $unset: [
+                        "publicPostedBy",
+                        "googleReviewedBusinessRef",
+                        "reports",
+                        "__v"
+                    ]
                 }
             ]),
             Post.find(dbQuery).countDocuments()

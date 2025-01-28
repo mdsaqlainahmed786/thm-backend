@@ -548,21 +548,21 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                 }
             },
             {
-                $project: {
-                    distance: 1,
-                    publicPostedBy: 0,
-                    googleReviewedBusinessRef: 0,
-                    eventJoinsRef: 0,
-                    reviews: 0,
-                    isPublished: 0,
-                    sharedRef: 0,
-                    commentsRef: 0,
-                    likesRef: 0,
-                    tagged: 0,
-                    media: 0,
-                    updatedAt: 0,
-                    __v: 0,
-                }
+                $unset: [
+                    "distance",
+                    "publicPostedBy",
+                    "googleReviewedBusinessRef",
+                    "eventJoinsRef",
+                    "reviews",
+                    "isPublished",
+                    "sharedRef",
+                    "commentsRef",
+                    "likesRef",
+                    "tagged",
+                    "media",
+                    "updatedAt",
+                    "__v"
+                ]
             }
         ]
     ).exec();
