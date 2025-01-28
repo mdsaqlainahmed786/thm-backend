@@ -499,7 +499,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                 }
             },
             {
-                $sort: { distance: 1, createdAt: -1, id: 1 }
+                $sort: { createdAt: -1, distance: 1, id: 1 }
             },
             {
                 $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
