@@ -11,6 +11,7 @@ import { AwsS3AccessEndpoints } from "../config/constants";
 import S3Service from "../services/S3Service";
 import AppNotificationController from "./AppNotificationController";
 import { NotificationType } from "../database/models/notification.model";
+import { GeoCoordinate } from "../database/models/common.model";
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -49,7 +50,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.endTime = endTime;
         newPost.type = type;
         if (placeName && lat && lng) {
-            newPost.location = { placeName, lat, lng };
+            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+            newPost.location = { placeName, lat, lng, geoCoordinate };
         } else {
             newPost.location = null;
         }
@@ -109,7 +111,8 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         post.endTime = endTime ?? post.endTime;
         post.type = type ?? post.type;
         if (placeName && lat && lng) {
-            post.location = { placeName, lat, lng };
+            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+            post.location = { placeName, lat, lng, geoCoordinate };
         }
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             post.businessProfileID = businessProfileID;

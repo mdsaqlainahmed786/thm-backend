@@ -1,3 +1,4 @@
+import { GeoCoordinate } from './../database/models/common.model';
 import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk, httpAcceptedOrUpdated, httpForbidden } from "../utils/response";
@@ -123,7 +124,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
 
         if (placeName && lat && lng) {
-            newPost.location = { placeName, lat, lng };
+            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+            newPost.location = { placeName, lat, lng, geoCoordinate };
         } else {
             newPost.location = null;
         }
@@ -267,7 +269,8 @@ const update = async (request: Request, response: Response, next: NextFunction) 
             post.tagged = tagged;
         }
         if (placeName && lat && lng) {
-            post.location = { placeName, lat, lng };
+            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
+            post.location = { placeName, lat, lng, geoCoordinate };
         }
         /**
          * Handle post media

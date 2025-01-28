@@ -1,9 +1,10 @@
 import { Schema, Document, model, Types } from "mongoose";
-import { ILocation, LocationSchema } from "./common.model";
+import { ILocation } from "./common.model";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
 import SavedPost from "./savedPost.model";
+import { GeoCoordinate } from "./common.model";
 export enum PostType {
     POST = "post",
     REVIEW = "review",
@@ -50,6 +51,31 @@ interface IEvent {
     streamingLink: string,
     venue: string,
 }
+interface PostLocation extends ILocation {
+    geoCoordinate?: GeoCoordinate,
+}
+
+export const LocationSchema = new Schema<PostLocation>(
+    {
+        lat: { type: Number, default: 0 },
+        lng: { type: Number, default: 0 },
+        placeName: { type: String, default: "" },
+        geoCoordinate: {
+            type: {
+                type: String,
+                enum: ['Point'],  // Specify the type as "Point" for geo spatial indexing
+            },
+            coordinates: {
+                type: [Number],
+            }
+        },
+    },
+    {
+        _id: false,
+    }
+)
+
+
 interface IPost extends IReview, IEvent, Document {
     userID: MongoID;
     businessProfileID?: MongoID;
@@ -57,7 +83,7 @@ interface IPost extends IReview, IEvent, Document {
     content: string;
     isPublished: boolean;
     isDeleted: boolean;
-    location: ILocation | null;
+    location: PostLocation | null;
     media: MongoID[];
     tagged: MongoID[];
     feelings: string;
@@ -139,6 +165,7 @@ const PostSchema: Schema = new Schema<IPost>(
         timestamps: true
     }
 );
+PostSchema.index({ 'location.geoCoordinate': '2dsphere' });
 PostSchema.set('toObject', { virtuals: true });
 PostSchema.set('toJSON', { virtuals: true });
 
@@ -460,14 +487,19 @@ export function imJoining(joiningEvents: MongoID[]) {
  * 
  * This will return post with like and comment count and also determine post saved or liked by requested user
  */
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined) {
     return Post.aggregate(
         [
             {
-                $match: match
+                $geoNear: {
+                    near: { type: "Point", coordinates: [lng ? parseFloat(lng.toString()) : 0, lat ? parseFloat(lat.toString()) : 0] },
+                    spherical: true,
+                    query: match,
+                    distanceField: "distance"
+                }
             },
             {
-                $sort: { createdAt: -1, id: 1 }
+                $sort: { distance: 1, createdAt: -1, id: 1 }
             },
             {
                 $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -517,6 +549,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $project: {
+                    distance: 1,
                     publicPostedBy: 0,
                     googleReviewedBusinessRef: 0,
                     eventJoinsRef: 0,

@@ -65,7 +65,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         const [lng, lat] = currentUser?.geoCoordinate?.coordinates || [0, 0];
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument, suggestions] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
             Post.find(dbQuery).countDocuments(),
             fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng)
         ]);
