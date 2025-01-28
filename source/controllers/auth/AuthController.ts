@@ -369,7 +369,8 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             const businessTypeID = isBusinessTypeExist.id;
             const businessSubTypeID = isBusinessSubTypeExist.id
 
-            const address = { city, state, street, zipCode, country, geoCoordinate, lat, lng }
+            const address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
+            const username = await generateUsername(businessEmail, AccountType.BUSINESS);
             const savedBusinessProfile = await createBusinessProfile({
                 profilePic, username, businessTypeID, businessSubTypeID, bio, address, gstn, placeID, privateAccount,
                 name: businessName,

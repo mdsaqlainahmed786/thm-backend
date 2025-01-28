@@ -3,7 +3,7 @@ import https from "http";
 import { allowedOrigins } from "./app";
 import { SocketUser, AppSocketUser, MongoID } from "./common";
 import InMemorySessionStore from "./utils/sessionStore";
-import User, { activeUserQuery, addBusinessProfileInUser } from "./database/models/user.model";
+import User, { activeUserQuery, addBusinessProfileInUser, IUser } from "./database/models/user.model";
 import { randomBytes } from 'crypto';
 import { SocketChannel } from "./config/constants";
 import moment from "moment";
@@ -20,6 +20,8 @@ import { createMessagePayload } from "./notification/FirebaseNotificationControl
 import { Message as FMessage } from "firebase-admin/lib/messaging/messaging-api";
 import { sendNotification } from "./notification/FirebaseNotificationController";
 import { NotificationType } from "./database/models/notification.model";
+import { AccountType } from "./database/models/anonymousUser.model";
+import BusinessProfile from "./database/models/businessProfile.model";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
@@ -438,13 +440,23 @@ async function updateLastSeen(socket: Socket) {
     }
 }
 
-async function sendMessageNotification(targetUserID: MongoID, message: string, data: any,) {
+async function sendMessageNotification(targetUserID: MongoID, message: string, data: IUser) {
     try {
         const notificationID = v4();
         const type = NotificationType.MESSAGING;
-        const image = data?.profilePic?.small ?? '';
-        let title = `${data.name ?? 'User'}`;
+        let profileImage = data?.profilePic?.small || '';
+        let title = `${data.name || 'User'}`;
         const description = message;
+
+        const accountType = data?.accountType || undefined;
+        if (accountType && accountType === AccountType.BUSINESS && data && data.businessProfileID) {
+            const businessProfile = await BusinessProfile.findOne({ _id: data.businessProfileID });
+            if (businessProfile) {
+                title = `${businessProfile.name || 'User'}`;
+                profileImage = businessProfile?.profilePic?.small || '';
+            }
+        }
+
         const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
         await Promise.all(devicesConfigs.map(async (devicesConfig) => {
             if (devicesConfig && devicesConfig.notificationToken) {
@@ -453,7 +465,7 @@ async function sendMessageNotification(targetUserID: MongoID, message: string, d
                     devicePlatform: devicesConfig.devicePlatform,
                     type: type,
                     image: "",
-                    profileImage: image
+                    profileImage,
                 });
                 await sendNotification(message);
             }

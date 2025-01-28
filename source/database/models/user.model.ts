@@ -406,13 +406,14 @@ export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: Mon
 }
 
 export async function calculateProfileCompletion(userID: MongoID): Promise<number> {
+    const removeField = ['profilePic.small', 'profilePic.medium', 'businessProfileID', 'otp', 'socialIDs.socialUId', 'socialIDs.socialType', 'socialIDs._id', 'password', '_id', "__v", "password", "createdAt", "updatedAt", "geoCoordinate.type", "geoCoordinate.coordinates", "lastSeen"];
     const userProfile = await User.findOne({ _id: userID });
     if (userProfile && userProfile.accountType === AccountType.INDIVIDUAL) {
         const schemaKeys = getAllKeysFromSchema(User.schema);
         const topLevelNestedFields = getTopLevelNestedFields(User.schema);
         // Remove top-level nested fields from the schemaKeys
         const filteredSchemaFields = schemaKeys.filter(field => !topLevelNestedFields.includes(field))
-            .filter(field => !['profilePic.small', 'profilePic.medium', 'businessProfileID', 'otp'].includes(field));
+            .filter(field => !removeField.includes(field));
         const filledKeys = filteredSchemaFields.filter((key) => {
             const value = userProfile?.get(key);
             if (isArray(value)) {
@@ -431,7 +432,7 @@ export async function calculateProfileCompletion(userID: MongoID): Promise<numbe
         const topLevelNestedFields = getTopLevelNestedFields(BusinessProfile.schema);
         // Remove top-level nested fields from the schemaKeys
         const filteredSchemaFields = schemaKeys.filter(field => !topLevelNestedFields.includes(field))
-            .filter(field => !['profilePic.small', 'profilePic.medium', 'otp'].includes(field));
+            .filter(field => !removeField.includes(field));
         const filledKeys = filteredSchemaFields.filter((key) => {
             const value = businessProfile?.get(key);
             if (isArray(value)) {
