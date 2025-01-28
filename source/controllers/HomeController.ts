@@ -45,7 +45,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     try {
         //Only shows public profile post here and follower posts
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, suggestion }: any = request.query;
+        let { pageNumber, documentLimit, query, }: any = request.query;
         const dbQuery = { ...getPostQuery };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
@@ -54,27 +54,29 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs, currentUser] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
             getSavedPost(id),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
             getBlockedUsers(id),
-            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } })
+            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } }),
+            User.findOne({ _id: id }),
         ]);
+        const [lng, lat] = currentUser?.geoCoordinate?.coordinates || [0, 0];
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument, suggestions] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
             Post.find(dbQuery).countDocuments(),
-            fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7)
+            fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng)
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         const data = documents
-        if (suggestion && suggestions.length !== 0) {
+        if (suggestions && suggestions.length !== 0) {
             data.push({
                 _id: new ObjectId(),
                 postType: "suggestion",
                 data: suggestions
-            })
+            });
         }
         return response.send(httpOkExtended(data, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
@@ -91,15 +93,17 @@ const suggestion = async (request: Request, response: Response, next: NextFuncti
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [blockedUsers, verifiedBusinessIDs] = await Promise.all([
+        const [blockedUsers, verifiedBusinessIDs, currentUser] = await Promise.all([
             getBlockedUsers(id),
-            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } })
+            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } }),
+            User.findOne({ _id: id }),
         ]);
+        const [lng, lat] = currentUser?.geoCoordinate?.coordinates || [0, 0];
         const dbQuery = {
             _id: { $in: verifiedBusinessIDs, $nin: blockedUsers }
         };
         const [documents, totalDocument] = await Promise.all([
-            fetchBusinessProfiles(dbQuery, pageNumber, documentLimit),
+            fetchBusinessProfiles(dbQuery, pageNumber, documentLimit, lat, lng),
             BusinessProfile.find(dbQuery).countDocuments(),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

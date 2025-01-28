@@ -99,8 +99,21 @@ export function addUserInBusinessProfile() {
     return { lookup, unwindLookup }
 }
 
-export async function fetchBusinessProfiles(match: { [key: string]: any; }, pageNumber: number, documentLimit: number) {
+export async function fetchBusinessProfiles(match: { [key: string]: any; }, pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined) {
     return BusinessProfile.aggregate([
+        {
+            $geoNear: {
+                near: { type: "Point", coordinates: [lng ? parseFloat(lng.toString()) : 0, lat ? parseFloat(lat.toString()) : 0] },
+                spherical: true,
+                query: match,
+                distanceField: "distance"
+            }
+        },
+        {
+            $sort: {
+                distance: 1,
+            }
+        },
         {
             $match: match
         },
