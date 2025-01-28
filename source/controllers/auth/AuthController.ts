@@ -142,9 +142,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 ]);
                 if (!user) {
                     const profilePic = {
-                        small: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'small'),
-                        large: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'large'),
-                        medium: picture ?? getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+                        small: picture ?? getDefaultProfilePic(request, 'small'),
+                        large: picture ?? getDefaultProfilePic(request, 'large'),
+                        medium: picture ?? getDefaultProfilePic(request, 'medium')
                     }
                     const socialIDs = [{
                         socialUId: sub,
@@ -242,9 +242,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 ]);
                 if (!user) {
                     const profilePic = {
-                        small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
-                        large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
-                        medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+                        small: getDefaultProfilePic(request, 'small'),
+                        large: getDefaultProfilePic(request, 'large'),
+                        medium: getDefaultProfilePic(request, 'medium')
                     }
                     const socialIDs = [{
                         socialUId: sub,
@@ -362,9 +362,9 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             const isApproved = false;
             const privateAccount = false;
             const profilePic = {
-                small: getDefaultProfilePic(request, businessName.substring(0, 1), 'small'),
-                large: getDefaultProfilePic(request, businessName.substring(0, 1), 'large'),
-                medium: getDefaultProfilePic(request, businessName.substring(0, 1), 'medium')
+                small: getDefaultProfilePic(request, 'small'),
+                large: getDefaultProfilePic(request, 'large'),
+                medium: getDefaultProfilePic(request, 'medium')
             }
             const businessTypeID = isBusinessTypeExist.id;
             const businessSubTypeID = isBusinessSubTypeExist.id
@@ -386,9 +386,9 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
         const profilePic = {
-            small: getDefaultProfilePic(request, name.substring(0, 1), 'small'),
-            large: getDefaultProfilePic(request, name.substring(0, 1), 'large'),
-            medium: getDefaultProfilePic(request, name.substring(0, 1), 'medium')
+            small: getDefaultProfilePic(request, 'small'),
+            large: getDefaultProfilePic(request, 'large'),
+            medium: getDefaultProfilePic(request, 'medium')
         }
         const isActivated = true;
         const savedUser = await createUserAccount({

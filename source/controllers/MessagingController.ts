@@ -29,6 +29,15 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
     return Message.aggregate([
         { $match: query },
         {
+            $sort: { createdAt: -1, id: 1 }
+        },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit,
+        },
+        {
             $addFields: {
                 "sentByMe": { $eq: ["$userID", new ObjectId(userID)] }
             }
@@ -118,15 +127,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 },
             }
         },
-        {
-            $sort: { createdAt: -1, id: 1 }
-        },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
+
         {
             $project: {
                 mediaRef: 0,
@@ -144,6 +145,12 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
     return Message.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit,
+        },
         {
             $addFields: {
                 sentByMe: { "$eq": ["$userID", new ObjectId(userID)] }
@@ -205,12 +212,6 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
             }
         },
         { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
         {
             $project: {
                 __v: 0,

@@ -226,9 +226,9 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
                 newAnonymousUser.accountType = AccountType.INDIVIDUAL;
                 newAnonymousUser.name = name;
                 newAnonymousUser.profilePic = {
-                    "small": getDefaultProfilePic(request, name.substring(0, 1), 'small'),
-                    "medium": getDefaultProfilePic(request, name.substring(0, 1), 'small'),
-                    "large": getDefaultProfilePic(request, name.substring(0, 1), 'small')
+                    "small": getDefaultProfilePic(request, 'small'),
+                    "medium": getDefaultProfilePic(request, 'medium'),
+                    "large": getDefaultProfilePic(request, 'large')
                 };
                 const savedAnonymousUser = await newAnonymousUser.save();
                 userID = savedAnonymousUser.id;

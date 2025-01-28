@@ -183,8 +183,8 @@ export function randomColor() {
 }
 
 
-export function getDefaultProfilePic(request: Request, letter: string, size: string) {
-    return request.protocol + "://" + request.get("host") + `/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&letter=${letter}&size=${size}`;
+export function getDefaultProfilePic(request: Request, size: string) {
+    return request.protocol + "://" + request.get("host") + `/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&size=${size}`;
 }
 
 
