@@ -1,10 +1,10 @@
 import { Schema, Document, model, Types } from "mongoose";
-import { ILocation } from "./common.model";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
 import SavedPost from "./savedPost.model";
 import { GeoCoordinate } from "./common.model";
+import { LocationSchema, ILocation } from "./common.model";
 export enum PostType {
     POST = "post",
     REVIEW = "review",
@@ -51,29 +51,8 @@ interface IEvent {
     streamingLink: string,
     venue: string,
 }
-interface PostLocation extends ILocation {
-    geoCoordinate?: GeoCoordinate,
-}
 
-export const LocationSchema = new Schema<PostLocation>(
-    {
-        lat: { type: Number, default: 0 },
-        lng: { type: Number, default: 0 },
-        placeName: { type: String, default: "" },
-        geoCoordinate: {
-            type: {
-                type: String,
-                enum: ['Point'],  // Specify the type as "Point" for geo spatial indexing
-            },
-            coordinates: {
-                type: [Number],
-            }
-        },
-    },
-    {
-        _id: false,
-    }
-)
+
 
 
 interface IPost extends IReview, IEvent, Document {
@@ -83,15 +62,15 @@ interface IPost extends IReview, IEvent, Document {
     content: string;
     isPublished: boolean;
     isDeleted: boolean;
-    location: PostLocation | null;
+    location: ILocation | null;
     media: MongoID[];
     tagged: MongoID[];
     feelings: string;
     createdAt: Date;
     updatedAt: Date;
     views: number;
+    geoCoordinate: GeoCoordinate;
 }
-
 
 const PostSchema: Schema = new Schema<IPost>(
     {
@@ -159,13 +138,22 @@ const PostSchema: Schema = new Schema<IPost>(
         type: { type: String, },
         streamingLink: { type: String, },
         venue: { type: String, },
+        geoCoordinate: {
+            type: {
+                type: String,
+                enum: ['Point'],  // Specify the type as "Point" for geo spatial indexing
+            },
+            coordinates: {
+                type: [Number],
+            }
+        },
         views: { type: Number }
     },
     {
         timestamps: true
     }
 );
-PostSchema.index({ 'location.geoCoordinate': '2dsphere' });
+PostSchema.index({ 'geoCoordinate': '2dsphere' });
 PostSchema.set('toObject', { virtuals: true });
 PostSchema.set('toJSON', { virtuals: true });
 
@@ -499,13 +487,26 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                 }
             },
             {
-                $sort: { createdAt: -1, distance: 1, id: 1 }
+                $addFields: {
+                    distance: { $toInt: "$distance" },
+                    sortDate: {
+                        $dateToString: {
+                            format: "%Y-%m-%d",
+                            date: "$createdAt"
+                        }
+                    }
+                }
             },
             {
                 $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
             },
             {
                 $limit: documentLimit
+            },
+            {
+                $sort: {
+                    sortDate: -1, distance: 1,
+                }
             },
             addMediaInPost().lookup,
             addMediaInPost().sort_media,
@@ -549,7 +550,8 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $unset: [
-                    "distance",
+                    // "distance",//Need to 
+                    // "sortDate",
                     "publicPostedBy",
                     "googleReviewedBusinessRef",
                     "eventJoinsRef",

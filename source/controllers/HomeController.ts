@@ -45,7 +45,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     try {
         //Only shows public profile post here and follower posts
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, }: any = request.query;
+        let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
         const dbQuery = { ...getPostQuery };
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
@@ -54,7 +54,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         if (!id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs, currentUser] = await Promise.all([
+        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = await Promise.all([
             Like.distinct('postID', { userID: id, postID: { $ne: null } }),
             getSavedPost(id),
             EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
@@ -62,7 +62,16 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
             User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } }),
             User.findOne({ _id: id }),
         ]);
-        const [lng, lat] = currentUser?.geoCoordinate?.coordinates || [0, 0];
+        lat = lat || 0;
+        lng = lng || 0;
+        if (lat !== 0 && lng !== 0) {
+            User.updateOne(
+                { _id: id },
+                { $set: { geoCoordinate: { type: "Point", coordinates: [lat, lng] } } } // Assuming the user model has a location field
+            ).then(() => console.log("Home location updated", "lat", lat, "lng", lng)).catch(error => {
+                console.error('Error updating location:', error);
+            });
+        }
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument, suggestions] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),

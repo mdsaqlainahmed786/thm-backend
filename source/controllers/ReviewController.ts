@@ -35,8 +35,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
     try {
         const { id, accountType } = request.user;
         const { content, businessProfileID, placeID, reviews, anonymousUserID } = request.body;
-        const userdata = await User.findOne({ _id: id });
-        if (!userdata) {
+        const authUser = await User.findOne({ _id: id });
+        if (!authUser) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         if (content === undefined || content === "") {
@@ -68,7 +68,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 }
             })
         ]);
-        if (accountType === AccountType.INDIVIDUAL) {
+        if (authUser.accountType === AccountType.INDIVIDUAL) {
             // if (!haveSubscription) {
             if (dailyContentLimit && dailyContentLimit.reviews >= MAXIMUM_REVIEWS_PER_DAY && content && content !== "") {
                 const error = `You cannot post more reviews today. You've reached your daily limit.`;
@@ -131,12 +131,17 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.content = content;// Review for business
         if (businessProfileID !== undefined && businessProfileID !== "") {
             newPost.reviewedBusinessProfileID = businessProfileID;
-            sendReviewNotification(businessProfileID, userdata.name, finalRating, content);
+            sendReviewNotification(businessProfileID, authUser.name, finalRating, content);
         } else {
             newPost.googleReviewedBusiness = anonymousUserID;
         }
         newPost.isPublished = true;
         newPost.location = null;
+        if (authUser && authUser.geoCoordinate) {
+            newPost.geoCoordinate = authUser.geoCoordinate;
+        } else {
+            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
+        }
         newPost.tagged = [];
         newPost.media = mediaIDs;
         newPost.placeID = placeID ?? "";

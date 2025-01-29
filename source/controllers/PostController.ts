@@ -49,7 +49,9 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const mediaFiles = files && files.media as Express.Multer.S3File[];
         const images = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('image/'));
         const videos = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('video/'));
-        if (!accountType && !id) {
+
+        const authUser = await User.findOne({ _id: id });
+        if (!authUser) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         if (!content && !mediaFiles) {
@@ -70,7 +72,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 }
             })
         ]);
-        if (accountType === AccountType.INDIVIDUAL) {
+        if (authUser.accountType === AccountType.INDIVIDUAL) {
             if (!haveSubscription) {
                 if (!dailyContentLimit && content && countWords(content) > MAX_CONTENT_LENGTH) {
                     const error = `Content must be a string and cannot exceed ${MAX_CONTENT_LENGTH} words.`;
@@ -124,10 +126,14 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
 
         if (placeName && lat && lng) {
-            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-            newPost.location = { placeName, lat, lng, geoCoordinate };
+            newPost.location = { placeName, lat, lng };
         } else {
             newPost.location = null;
+        }
+        if (authUser && authUser.geoCoordinate) {
+            newPost.geoCoordinate = authUser.geoCoordinate;
+        } else {
+            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
         }
 
         /**
@@ -269,8 +275,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
             post.tagged = tagged;
         }
         if (placeName && lat && lng) {
-            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-            post.location = { placeName, lat, lng, geoCoordinate };
+            post.location = { placeName, lat, lng };
         }
         /**
          * Handle post media

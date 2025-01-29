@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpAcceptedOrUpdated, httpBadRequest, httpCreated, httpForbidden, httpInternalServerError, httpNoContent, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import { AccountType } from "../database/models/user.model";
+import User, { AccountType } from "../database/models/user.model";
 import Post, { PostType } from "../database/models/post.model";
 import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
@@ -27,13 +27,15 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         // const videos = files && files.videos as Express.Multer.S3File[];
-        if (!accountType && !id) {
+
+        const authUser = await User.findOne({ _id: id });
+        if (!authUser) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
         /**
          * Content restrictions for business user
          */
-        if (accountType !== AccountType.BUSINESS) {
+        if (authUser.accountType !== AccountType.BUSINESS) {
             return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: You do not have the necessary permissions to access this API."), "Access denied: You do not have the necessary permissions to access this API."))
         }
 
@@ -50,10 +52,14 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newPost.endTime = endTime;
         newPost.type = type;
         if (placeName && lat && lng) {
-            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-            newPost.location = { placeName, lat, lng, geoCoordinate };
+            newPost.location = { placeName, lat, lng };
         } else {
             newPost.location = null;
+        }
+        if (authUser && authUser.geoCoordinate) {
+            newPost.geoCoordinate = authUser.geoCoordinate;
+        } else {
+            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
         }
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             newPost.businessProfileID = businessProfileID;
@@ -111,8 +117,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         post.endTime = endTime ?? post.endTime;
         post.type = type ?? post.type;
         if (placeName && lat && lng) {
-            const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-            post.location = { placeName, lat, lng, geoCoordinate };
+            post.location = { placeName, lat, lng };
         }
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             post.businessProfileID = businessProfileID;

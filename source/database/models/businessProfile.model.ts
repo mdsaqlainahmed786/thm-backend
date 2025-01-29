@@ -111,7 +111,7 @@ export async function fetchBusinessProfiles(match: { [key: string]: any; }, page
         },
         {
             $sort: {
-                distance: 1,
+                distance: -1,
             }
         },
         {
