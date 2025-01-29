@@ -498,15 +498,15 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                 }
             },
             {
+                $sort: {
+                    sortDate: -1, distance: 1,
+                }
+            },
+            {
                 $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
             },
             {
                 $limit: documentLimit
-            },
-            {
-                $sort: {
-                    sortDate: -1, distance: 1,
-                }
             },
             addMediaInPost().lookup,
             addMediaInPost().sort_media,
