@@ -13,6 +13,8 @@ import AppNotificationController from "./AppNotificationController";
 import { NotificationType } from "../database/models/notification.model";
 import { GeoCoordinate } from "../database/models/common.model";
 const s3Service = new S3Service();
+
+export const lat_lng = [20.5937, 78.9629];
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
 
@@ -61,7 +63,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         } else if (authUser && authUser.geoCoordinate) {
             newPost.geoCoordinate = authUser.geoCoordinate;
         } else {
-            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
+            newPost.geoCoordinate = { type: "Point", coordinates: lat_lng };
         }
         if (accountType === AccountType.BUSINESS && businessProfileID) {
             newPost.businessProfileID = businessProfileID;

@@ -1,4 +1,4 @@
-import { Schema, Document, model, Types } from "mongoose";
+import { Schema, Document, model, Types, PipelineStage } from "mongoose";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
@@ -475,12 +475,35 @@ export function imJoining(joiningEvents: MongoID[]) {
  * 
  * This will return post with like and comment count and also determine post saved or liked by requested user
  */
+function locationBased(lat: number, lng: number): { sort: PipelineStage } {
+    if (lat !== 0 && lng !== 0) {
+        const sort: PipelineStage = {
+            $sort: {
+                sortDate: -1,
+                distance: 1,
+            }
+        };
+        return { sort }
+    } else {
+        const sort: PipelineStage = {
+            $sort: {
+                createdAt: -1,
+                id: 1
+            }
+        }
+        return { sort }
+    }
+}
 export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined) {
+
+    lng = lng ? parseFloat(lng.toString()) : 0;
+    lat = lat ? parseFloat(lat.toString()) : 0;
+
     return Post.aggregate(
         [
             {
                 $geoNear: {
-                    near: { type: "Point", coordinates: [lng ? parseFloat(lng.toString()) : 0, lat ? parseFloat(lat.toString()) : 0] },
+                    near: { type: "Point", coordinates: [lng, lat] },
                     spherical: true,
                     query: match,
                     distanceField: "distance"
@@ -497,11 +520,12 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
                     }
                 }
             },
-            {
-                $sort: {
-                    sortDate: -1, distance: 1,
-                }
-            },
+            locationBased(lat, lng).sort,
+            // {
+            //     $sort: {
+            //         sortDate: -1, distance: 1,
+            //     }
+            // },
             {
                 $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
             },
@@ -550,9 +574,9 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $unset: [
-                    // "geoCoordinate",//FIXME remove me
-                    // "distance",//Need to 
-                    // "sortDate",
+                    "geoCoordinate",
+                    "distance",
+                    "sortDate",
                     "publicPostedBy",
                     "googleReviewedBusinessRef",
                     "eventJoinsRef",

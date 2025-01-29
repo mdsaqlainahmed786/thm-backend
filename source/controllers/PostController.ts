@@ -26,6 +26,7 @@ import AppNotificationController from './AppNotificationController';
 import { NotificationType } from '../database/models/notification.model';
 import FileQueue, { QueueStatus } from '../database/models/file-processing.model';
 import { addAnonymousUserInPost } from '../database/models/anonymousUser.model';
+import { lat_lng } from './EventController';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -135,7 +136,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         } else if (authUser && authUser.geoCoordinate) {
             newPost.geoCoordinate = authUser.geoCoordinate;
         } else {
-            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
+            newPost.geoCoordinate = { type: "Point", coordinates: lat_lng };
         }
 
         /**

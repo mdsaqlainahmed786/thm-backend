@@ -22,6 +22,7 @@ import { AwsS3AccessEndpoints } from "../config/constants";
 import AnonymousUser from "../database/models/anonymousUser.model";
 import { generateUsername } from "./auth/AuthController";
 import { getDefaultProfilePic } from "../utils/helper/basic";
+import { lat_lng } from "./EventController";
 const encryptionService = new EncryptionService();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -140,7 +141,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (authUser && authUser.geoCoordinate) {
             newPost.geoCoordinate = authUser.geoCoordinate;
         } else {
-            newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
+            newPost.geoCoordinate = { type: "Point", coordinates: lat_lng };
         }
         newPost.tagged = [];
         newPost.media = mediaIDs;
@@ -243,6 +244,9 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
                 newPost.publicUserID = isAnonymousUserExist.id;
             }
         }
+
+
+
         /**
          * Handle review media
          */
@@ -266,6 +270,7 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         newPost.reviewedBusinessProfileID = businessProfile.id;
         newPost.isPublished = true;
         newPost.location = null;
+        newPost.geoCoordinate = { type: "Point", coordinates: lat_lng };
         newPost.tagged = [];
         newPost.media = mediaIDs;
         newPost.placeID = placeID ?? "";

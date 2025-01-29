@@ -64,10 +64,13 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         ]);
         lat = lat || 0;
         lng = lng || 0;
-        if (lat !== 0 && lng !== 0) {
+        const parsedLat = Number(lat);
+        const parsedLng = Number(lng);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+            const location = { geoCoordinate: { type: "Point", coordinates: [lng, lat] } }
             User.updateOne(
                 { _id: id },
-                { $set: { geoCoordinate: { type: "Point", coordinates: [lat, lng] } } } // Assuming the user model has a location field
+                { $set: location } // Assuming the user model has a location field
             ).then(() => console.log("Home location updated", "lat", lat, "lng", lng)).catch(error => {
                 console.error('Error updating location:', error);
             });
