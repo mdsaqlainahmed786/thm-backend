@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { parseQueryParam } from '../../utils/helper/basic';
 import { httpAcceptedOrUpdated, httpNotFoundOr404, httpOkExtended, httpInternalServerError } from '../../utils/response';
 import { ErrorMessage } from '../../utils/response-message/error';
-import Post, { addGoogleReviewedBusinessProfileInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, PostType } from '../../database/models/post.model';
+import Post, { addGoogleReviewedBusinessProfileInPost, addMediaInPost, addPostedByInPost, addReviewedBusinessProfileInPost, countPostDocument, PostType } from '../../database/models/post.model';
 import { addBusinessProfileInUser, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, profileBasicProject } from '../../database/models/user.model';
 import { ContentType } from '../../common';
 import { addAnonymousUserInPost } from '../../database/models/anonymousUser.model';
@@ -170,7 +170,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     ]
                 }
             ]),
-            Post.find(dbQuery).countDocuments()
+            countPostDocument(dbQuery),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));

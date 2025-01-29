@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk, httpOkExtended } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import Post, { getSavedPost } from "../database/models/post.model";
+import Post, { countPostDocument, getSavedPost } from "../database/models/post.model";
 import SavedPost from '../database/models/savedPost.model';
 import { parseQueryParam } from "../utils/helper/basic";
 import Like from "../database/models/like.model";
@@ -27,7 +27,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const dbQuery = { ...getPostQuery, _id: { $in: savedByMe } };
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
-            Post.find(dbQuery).countDocuments()
+            countPostDocument(dbQuery),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));

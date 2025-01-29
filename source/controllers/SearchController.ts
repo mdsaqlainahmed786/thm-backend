@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNoContent, httpNotFoundOr404, httpOk } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import Post, { fetchPosts, getPostQuery, PostType } from "../database/models/post.model";
+import Post, { countPostDocument, fetchPosts, getPostQuery, PostType } from "../database/models/post.model";
 import Like, { addUserInLike } from '../database/models/like.model';
 import Comment from '../database/models/comment.model';
 import Story from "../database/models/story.model";
@@ -76,7 +76,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             }
             [documents, totalDocument] = await Promise.all([
                 fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                Post.find(dbQuery).countDocuments()
+                countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Posts fetched.', pageNumber, totalPagesCount, totalDocument));
@@ -115,7 +115,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             }
             [documents, totalDocument] = await Promise.all([
                 fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                Post.find(dbQuery).countDocuments()
+                countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Events fetched.', pageNumber, totalPagesCount, totalDocument));
@@ -152,7 +152,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             }
             [documents, totalDocument] = await Promise.all([
                 fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
-                Post.find(dbQuery).countDocuments()
+                countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
             return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));

@@ -550,6 +550,7 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             },
             {
                 $unset: [
+                    // "geoCoordinate",//FIXME remove me
                     // "distance",//Need to 
                     // "sortDate",
                     "publicPostedBy",
@@ -568,6 +569,10 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             }
         ]
     ).exec();
+}
+
+export function countPostDocument(filter: { [key: string]: any; }) {
+    return Post.find(filter).countDocuments();
 }
 export const getPostQuery = { isPublished: true, isDeleted: false };
 export async function getPostsCount(userID: MongoID) {

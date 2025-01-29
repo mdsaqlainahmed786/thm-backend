@@ -6,7 +6,7 @@ import BusinessType from "../database/models/businessType.model";
 import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessQuestion from "../database/models/businessQuestion.model";
 import { parseQueryParam, predictCategory, randomColor } from "../utils/helper/basic";
-import Post, { fetchPosts, getPostQuery, getSavedPost, } from "../database/models/post.model";
+import Post, { countPostDocument, fetchPosts, getPostQuery, getPostsCount, getSavedPost, } from "../database/models/post.model";
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile, { addUserInBusinessProfile, fetchBusinessProfiles } from "../database/models/businessProfile.model";
@@ -75,7 +75,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         const [documents, totalDocument, suggestions] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
-            Post.find(dbQuery).countDocuments(),
+            countPostDocument(dbQuery),
             fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng)
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

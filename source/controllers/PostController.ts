@@ -518,6 +518,7 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
                 },
                 {
                     $unset: [
+                        "geoCoordinate",
                         "publicPostedBy",
                         "googleReviewedBusinessRef",
                         "reviews",

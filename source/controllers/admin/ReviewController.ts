@@ -4,7 +4,7 @@ import { ErrorMessage } from "../../utils/response-message/error";
 import { parseQueryParam } from "../../utils/helper/basic";
 import Review from "../../database/models/reviews.model";
 import { addBusinessProfileInUser, profileBasicProject } from "../../database/models/user.model";
-import Post, { PostType } from "../../database/models/post.model";
+import Post, { countPostDocument, PostType } from "../../database/models/post.model";
 import { addMediaInPost } from "../../database/models/post.model";
 import { addUserInBusinessProfile } from "../../database/models/businessProfile.model";
 import { addAnonymousUserInPost } from "../../database/models/anonymousUser.model";
@@ -172,7 +172,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     ]
                 }
             ]),
-            Post.find(dbQuery).countDocuments()
+            countPostDocument(dbQuery),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'Reviews fetched.', pageNumber, totalPagesCount, totalDocument));
