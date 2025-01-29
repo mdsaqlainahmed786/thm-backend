@@ -130,7 +130,9 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         } else {
             newPost.location = null;
         }
-        if (authUser && authUser.geoCoordinate) {
+        if (lat && lng) {
+            newPost.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+        } else if (authUser && authUser.geoCoordinate) {
             newPost.geoCoordinate = authUser.geoCoordinate;
         } else {
             newPost.geoCoordinate = { type: "Point", coordinates: [0, 0] };
