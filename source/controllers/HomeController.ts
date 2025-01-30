@@ -171,124 +171,7 @@ const dbSeeder = async (request: Request, response: Response, next: NextFunction
 
 }
 
-//Fetch business based on google place id 
-const getBusinessProfileByPlaceID = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { placeID } = request.params;
-        let parsedQuerySet = request.query;
-        let { businessProfileID }: any = parsedQuerySet;
-        const dbQuery = { placeID: placeID, };
-        if (businessProfileID && businessProfileID !== '') {
-            Object.assign(dbQuery, { _id: businessProfileID });
-        }
-        let type = "business-profile";
-        const businessProfileRef = await BusinessProfile.findOne(dbQuery, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
-        if (!businessProfileRef) {
-            const googlePlaceApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeID}&key=${AppConfig.GOOGLE.MAP_KEY}`;
-            const apiResponse = await (await fetch(googlePlaceApiUrl)).json();
-            if (apiResponse.status === "OK") {
-                const data = apiResponse.result;
-                const name = data?.name ?? "";
-                const rating = data?.rating ?? 0;
-                const lat = data?.geometry?.location?.lat ?? 0;
-                const lng = data?.geometry?.location?.lng ?? 0;
-                /***
-                 * Review Question based on place type
-                 */
-                let reviewQuestions: any[] = [];
-                const types = data?.types ?? [];
-                let businessTypeID: string | undefined = undefined;
-                const predictedCategoryName = predictCategory(types, name);
-                if (predictedCategoryName) {
-                    const businessType = await BusinessType.findOne({ name: predictedCategoryName });
-                    if (businessType) {
-                        businessTypeID = businessType.id;
-                        reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: [businessTypeID] } }).limit(8);
-                    }
-                }
-                console.log("predictedCategory", predictedCategoryName)
 
-                const photoReference = data?.photos && data?.photos?.length !== 0 ? data?.photos?.[0]?.photo_reference : null;
-                let street = "";
-                let city = "";
-                let state = "";
-                let zipCode = "";
-                let country = "";
-                const address_components = data?.address_components as { long_name: string, short_name: string, types: string[] }[];
-                address_components.map((component) => {
-                    const types = component.types;
-                    if (types.includes('street_number') || types.includes('route') || types.includes("neighborhood") || types.includes("sublocality")) {
-                        street = component.long_name;
-                    } else if (types.includes('locality')) {
-                        city = component.long_name;
-                    } else if (types.includes('administrative_area_level_1')) {
-                        state = component.short_name;
-                    } else if (types.includes('postal_code')) {
-                        zipCode = component.long_name;
-                    }
-                    else if (types.includes('country')) {
-                        country = component.short_name;
-                    }
-                });
-                let coverImage = "";
-                if (photoReference) {
-                    coverImage = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoReference}&key=${AppConfig.GOOGLE.MAP_KEY}`;
-                    const res = await axios.get(coverImage);
-                    coverImage = res.request._redirectable._options.href;
-                }
-
-                const anonymousBusinessExits = await AnonymousUser.findOne({ placeID: placeID, accountType: AccountType.BUSINESS });
-                type = "google-business-profile";
-                if (!anonymousBusinessExits) {
-                    const newAnonymousBusiness = new AnonymousUser();
-                    newAnonymousBusiness.accountType = AccountType.BUSINESS;
-                    newAnonymousBusiness.name = name;
-                    const geoCoordinate: GeoCoordinate = { type: "Point", coordinates: [lng, lat] }
-                    newAnonymousBusiness.address = { city, state, street, zipCode, country, geoCoordinate, lat, lng };
-                    newAnonymousBusiness.profilePic = {
-                        "small": coverImage,
-                        "medium": coverImage,
-                        "large": coverImage
-                    };
-                    newAnonymousBusiness.coverImage = coverImage;
-                    newAnonymousBusiness.rating = rating;
-                    newAnonymousBusiness.placeID = placeID;
-                    if (businessTypeID) {
-                        newAnonymousBusiness.businessTypeID = businessTypeID;
-                    }
-                    const businessProfileRef = await newAnonymousBusiness.save();
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
-                } else {
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
-                }
-            }
-            return response.send(httpInternalServerError(null, ErrorMessage.INTERNAL_SERVER_ERROR));
-        }
-        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
-        return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
-
-//Fetch business profile by encrypted business profile id
-const getBusinessProfileByID = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { encryptedID } = request.params;
-        const decryptedBusinessProfileID = encryptionService.decrypt(encryptedID as string);
-        const businessProfileRef = await BusinessProfile.findOne({ _id: decryptedBusinessProfileID }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
-        if (!businessProfileRef) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
-        }
-        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
-        return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
-        }, "Business profile fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
 
 
 const transactions = async (request: Request, response: Response, next: NextFunction) => {
@@ -410,6 +293,6 @@ const professions = async (request: Request, response: Response, next: NextFunct
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { feed, dbSeeder, getBusinessProfileByPlaceID, getBusinessProfileByID, transactions, createThumbnail, professions, suggestion };
+export default { feed, dbSeeder, transactions, createThumbnail, professions, suggestion };
 
 
