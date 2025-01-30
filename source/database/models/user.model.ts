@@ -5,7 +5,7 @@ import { getAllKeysFromSchema } from "../../utils/helper/basic";
 import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
-import { MongoID, Role } from "../../common";
+import { Language, MongoID, Role } from "../../common";
 import { addMediaInStory } from "./story.model";
 import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount } from "./userConnection.model";
@@ -58,6 +58,7 @@ export interface Individual {
     socialIDs: ISocialID[];
     profession: string;
     geoCoordinate: GeoCoordinate;
+    language: string;
 }
 
 export interface Business {
@@ -131,6 +132,12 @@ const UserSchema: Schema = new Schema<IUser>(
         profession: {
             type: String,
             default: ""
+        },
+        language: {
+            type: String,
+            default: Language.English,
+            enum: Language,
+            required: true
         },
         geoCoordinate: {
             type: {
@@ -577,7 +584,7 @@ export const activeUserQuery = { isVerified: true, isApproved: true, isActivated
  * Return new user account 
  */
 export async function createUserAccount(data: any, sendOTP: boolean) {
-    const { name, password, profession, username, email, accountType, dialCode, phoneNumber, profilePic, isActivated, businessProfileID, isApproved, privateAccount, geoCoordinate, isVerified, hasProfilePicture, socialIDs } = data;
+    const { name, password, profession, username, email, accountType, dialCode, phoneNumber, profilePic, isActivated, businessProfileID, isApproved, privateAccount, geoCoordinate, isVerified, hasProfilePicture, socialIDs, language } = data;
     const newUser = new User();
     newUser.profilePic = profilePic;
     newUser.profession = profession;
@@ -591,6 +598,9 @@ export async function createUserAccount(data: any, sendOTP: boolean) {
     newUser.isActivated = isActivated;
     if (geoCoordinate) {
         newUser.geoCoordinate = geoCoordinate;
+    }
+    if (language) {
+        newUser.language = language;
     }
     if (businessProfileID) {
         newUser.businessProfileID = businessProfileID;

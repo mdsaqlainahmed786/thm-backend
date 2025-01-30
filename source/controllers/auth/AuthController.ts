@@ -27,7 +27,7 @@ import { v4 } from 'uuid';
 const emailNotificationService = new EmailNotificationService();
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, password, deviceID, notificationToken, devicePlatform, lat, lng } = request.body;
+        const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
         const user = await User.findOne({ email: email });
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
@@ -38,6 +38,9 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         }
         if (lat && lng) {
             user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+        }
+        if (language) {
+            user.language = language;
         }
         if (!user.isVerified) {
             const otp = generateOTP();
@@ -115,7 +118,7 @@ const login = async (request: Request, response: Response, next: NextFunction) =
 
 const socialLogin = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken, name, lat, lng } = request.body;
+        const { socialType, token, dialCode, phoneNumber, deviceID, devicePlatform, notificationToken, name, lat, lng, language } = request.body;
 
         let isDocumentUploaded = true;
         let hasAmenities = true;
@@ -151,7 +154,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         socialType: socialType
                     }]
                     const savedUser = await createUserAccount({
-                        profilePic, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate
+                        profilePic, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate, language
                     }, false);
                     const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, businessProfileID: savedUser.businessProfileID, role: savedUser.role };
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
@@ -177,6 +180,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
                 }
                 user.geoCoordinate = geoCoordinate;
+                if (language) {
+                    user.language = language;
+                }
                 await Promise.all([
                     addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType),
                     user.save()
@@ -251,7 +257,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         socialType: socialType
                     }]
                     const savedUser = await createUserAccount({
-                        profilePic, username, email, name: name ?? username, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate
+                        profilePic, username, email, name: name ?? username, accountType, dialCode, phoneNumber, password, isActivated, isVerified, hasProfilePicture, socialIDs, geoCoordinate, language
                     }, false);
                     const authenticateUser: AuthenticateUser = { id: savedUser.id, accountType: savedUser.accountType, businessProfileID: savedUser.businessProfileID, role: savedUser.role };
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
@@ -274,6 +280,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 }
                 if (user.isDeleted) {
                     return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED))
+                }
+                if (language) {
+                    user.language = language;
                 }
                 user.geoCoordinate = geoCoordinate;
                 await Promise.all([
@@ -336,7 +345,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
 
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession } = request.body;
+        const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession, language } = request.body;
         const [username, isUserExist] = await Promise.all([
             generateUsername(email, accountType),
             User.findOne({ email: email }),
@@ -381,7 +390,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
             });
             const businessProfileID = savedBusinessProfile._id;
             const savedUser = await createUserAccount({
-                email, username, name, accountType, dialCode, phoneNumber, password, isActivated, isApproved, privateAccount, businessProfileID
+                email, username, name, accountType, dialCode, phoneNumber, password, isActivated, isApproved, privateAccount, businessProfileID, language
             }, true);
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL))
         }
@@ -392,7 +401,7 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         }
         const isActivated = true;
         const savedUser = await createUserAccount({
-            profilePic, profession, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, geoCoordinate
+            profilePic, profession, username, email, name, accountType, dialCode, phoneNumber, password, isActivated, geoCoordinate, language
         }, true);
         return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL));
     } catch (error: any) {

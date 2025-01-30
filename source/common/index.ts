@@ -89,3 +89,12 @@ export enum InsightType {
     WEBSITE_REDIRECTION = 'website-redirection',
     ACCOUNT_REACH = "account-reach"
 }
+
+export enum Language {
+    English = 'en',
+    Hindi = 'hi',
+    Gujarati = 'gu',
+    Kannada = "kn",
+    Marathi = "mr",
+    Telugu = "te"
+}
