@@ -10,11 +10,12 @@ import BusinessController from "../../controllers/BusinessController";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/feed', authenticateUser, HomeController.feed);
 
-HomeEndpoints.get('/get-business/:placeID', authenticateUser, HomeController.getBusinessProfileByPlaceID);
-HomeEndpoints.get('/get-business/public/:encryptedID', HomeController.getBusinessProfileByID);
+
 
 
 //FIXME Remove this api after deploy
+HomeEndpoints.get('/get-business/:placeID', authenticateUser, BusinessController.getBusinessProfileByPlaceID);
+HomeEndpoints.get('/get-business/public/:encryptedID', BusinessController.getBusinessProfileByID);
 HomeEndpoints.get('/business-types', BusinessController.businessTypes);
 HomeEndpoints.get('/business-subtypes/:id', BusinessController.businessSubTypes);
 HomeEndpoints.post('/business-questions', businessQuestionsApiValidator, validateRequest, BusinessController.businessQuestions);
