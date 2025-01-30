@@ -1,5 +1,5 @@
 import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule, codeValidationRule, cartValueValidationRule, valueValidationRule, typeValidationRule, priceTypeValidationRule, validToValidationRule, quantityValidationRule, validFromValidationRule, maxDiscountValidationRule, redeemedCountValidationRule, socialTypeValidationRule } from './../common-validation';
-import { ContentType } from '../../common';
+import { ContentType, InsightType } from '../../common';
 import { body, param } from "express-validator";
 import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
 import { AccountType } from "../../database/models/user.model";
@@ -270,15 +270,12 @@ export const buySubscriptionApiValidator = [
 ]
 
 
-export enum Type {
-    WEBSITE_REDIRECTION = 'website-redirection',
-    ACCOUNT_REACH = "account-reach"
-}
-const TypeValue = Object.values(Type);
-export const collectDataApiValidator = [
+
+const TypeValue = Object.values(InsightType);
+export const collectInsightsDataApiValidator = [
     body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypeValue).withMessage(`Type must be in  ${TypeValue.join(' | ')}`),
     body('type').custom((value, { req }) => {
-        if (value === Type.WEBSITE_REDIRECTION) {
+        if (value === InsightType.WEBSITE_REDIRECTION) {
             return body("businessProfileID", "Business profile is required for website redirection.").exists().bail().notEmpty().bail().run(req);
         }
         return true;

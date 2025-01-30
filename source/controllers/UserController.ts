@@ -269,63 +269,7 @@ const businessDocument = async (request: Request, response: Response, next: Next
 }
 
 
-const businessQuestionAnswer = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id } = request.user;
-        const body = request.body;
-        let questionIDs: string[] = [];
-        let answers: any[] = [];
-        if (isArray(body)) {
-            const user = await User.findOne({ _id: id });
-            if (!user) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-            }
-            if (user.accountType !== AccountType.BUSINESS) {
-                return response.send(httpForbidden(ErrorMessage.invalidRequest("Access Denied! You don't have business account"), "Access Denied! You don't have business account"))
-            }
-            if (!user.businessProfileID) {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
-            }
-            const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
-            if (!businessProfile) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
-            }
-            body.map((answerData: any) => {
-                if (answerData.questionID && answerData.answer && answerData.answer.toLowerCase() === "yes") {
-                    questionIDs.push(answerData.questionID);
-                    answers.push({
-                        questionID: answerData?.questionID,
-                        answer: answerData?.answer,
-                        businessProfileID: businessProfile._id
-                    });
-                } else {
-                    answers.push({
-                        questionID: answerData?.questionID,
-                        answer: answerData?.answer,
-                        businessProfileID: businessProfile._id
-                    });
-                }
-            })
-            const [businessQuestionAnswerIDs, businessAnswer] = await Promise.all([
-                BusinessQuestion.distinct('_id', {
-                    _id: { $in: questionIDs },
-                    businessTypeID: { $in: [businessProfile.businessTypeID] }, businessSubtypeID: { $in: [businessProfile.businessSubTypeID] }
-                }),
-                //Remove old answer from db
-                BusinessAnswer.deleteMany({ businessProfileID: businessProfile._id })
-            ]);
-            businessProfile.amenities = businessQuestionAnswerIDs as string[];
-            //store new answer
-            const savedAnswers = await BusinessAnswer.create(answers);
-            const savedAmenity = await businessProfile.save();
-            return response.send(httpOk(savedAmenity, "Business answer saved successfully"));
-        } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid request payload"), "Invalid request payload"))
-        }
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
-}
+
 
 const userPosts = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -716,4 +660,4 @@ const address = async (request: Request, response: Response, next: NextFunction)
     }
 }
 
-export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, businessQuestionAnswer, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };
+export default { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };
