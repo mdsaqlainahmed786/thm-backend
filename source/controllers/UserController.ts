@@ -29,7 +29,7 @@ import UserAddress from '../database/models/user-address.model';
 import { SuccessMessage } from '../utils/response-message/success';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -40,6 +40,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
             user.bio = bio ?? user.bio;
+            user.language = language ?? user.language;
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
 
             if (businessProfileRef) {
@@ -77,6 +78,7 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.dialCode = dialCode ?? user.dialCode;
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
+            user.language = language ?? user.language;
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
