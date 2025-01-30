@@ -158,19 +158,21 @@ const insights = async (request: Request, response: Response, next: NextFunction
             ]).exec(),
             fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10)
         ]);
-        const engaged = await fetchEngagedData(businessProfileID, id);
+        const { engagementsData, engagements } = await fetchEngagedData(businessProfileID, id, groupFormat, labels, labelFormat);
         const responseData = {
             dashboard: {
                 accountReached: accountReached,
                 websiteRedirection,
                 totalFollowers,
-                engaged: engaged,//FIXME todo
+                engagements: engagements,
+                engaged: 0,//FIXME remove me
             },
             data: {
                 accountReached: accountReachedData,
                 websiteRedirection: websiteRedirectionData,
                 totalFollowers: followerData,
-                engaged: [],
+                engagements: engagementsData,
+                engaged: [],//TODO remove me
             },
             stories: stories,
             posts: posts
@@ -652,21 +654,147 @@ function fetchAccountReach(query: { [key: string]: any; }, groupFormat: string, 
     )
 }
 
-async function fetchEngagedData(businessProfileID: string, userID: string) {
+function engagementAggregatePipeline(groupFormat: string, labels: string[], labelFormat: string) {
+    const pipeline = [
+        {
+            $group: {
+                _id: { $dateToString: { format: groupFormat, date: "$createdAt" } },
+                createdAt: { '$first': "$createdAt" },
+                engagement: { $sum: 1 }, // Optional: Count the number of sales per day
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                engagement: 1,
+                labelName: {
+                    $let: {
+                        vars: {
+                            labelNames: labels//Label array base on global filter 
+                        },
+                        in: {
+                            $arrayElemAt: [
+                                "$$labelNames",//Create label name based on global filter and dateString
+                                {
+                                    $subtract: [{ $toInt: { $dateToString: { format: labelFormat, date: "$createdAt" } } }, 1]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                data: { $push: "$$ROOT" }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                data: {
+                    $map: {
+                        input: labels,
+                        as: "labelName",
+                        in: {
+                            $let: {
+                                vars: {
+                                    matchedData: {
+                                        $filter: {
+                                            input: "$data",
+                                            as: "item",
+                                            cond: { $eq: ["$$item.labelName", "$$labelName"] }
+                                        }
+                                    }
+                                },
+                                in: {//check if data for current label is exits or not if not then add dummy data for label,
+                                    $cond: {
+                                        if: { $eq: [{ $size: "$$matchedData" }, 0] },
+                                        then: {
+                                            engagement: 0,
+                                            labelName: "$$labelName"
+                                        },
+                                        else: { $arrayElemAt: ["$$matchedData", 0] }
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        },
+        {
+            $unwind: "$data"
+        },
+        {
+            $replaceRoot: { newRoot: "$data" }
+        },
+    ]
+    return { pipeline };
+}
+
+async function fetchEngagedData(businessProfileID: string, userID: string, groupFormat: string, labels: string[], labelFormat: string) {
     console.log(businessProfileID, userID, "businessProfileID");
+    //analyzing posts && stories
+    const [posts, stories] = await Promise.all([
+        Post.distinct('_id', { businessProfileID: new ObjectId(businessProfileID) }),
+        Story.distinct('_id', { $match: { userID: new ObjectId(userID), timeStamp: { $gte: storyTimeStamp } } })
+    ])
+    console.log(posts);
+    console.log(stories);
+    const [likesData, commentsData, sharedContentData, storyLikesData, storyCommentsData, storyViewsData, likes, comments, sharedContent, storyLikes, storyComments, storyViews] = await Promise.all(
+        [
+            Like.aggregate([
+                {
+                    $match: { postID: { $in: posts } }
+                },
+                ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+            ]),
+            Comment.aggregate(
+                [
+                    {
+                        $match: { postID: { $in: posts } }
+                    },
+                    ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+                ]
+            ),
+            SharedContent.aggregate([
+                {
+                    $match: { contentID: { $in: posts }, contentType: ContentType.POST }
+                },
+                ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+            ]),
+            Like.aggregate([
+                {
+                    $match: { storyID: { $in: stories } }
+                },
+                ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+            ]),
+            Message.aggregate([
+                {
+                    $match: { storyID: { $in: stories }, type: MessageType.STORY_COMMENT }
+                },
+                ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+            ]),
+            View.aggregate([
+                {
+                    $match: { storyID: { $in: stories } }
+                },
+                ...engagementAggregatePipeline(groupFormat, labels, labelFormat).pipeline
+            ]),
 
-    //analyzing posts
-    const posts = await Post.distinct('_id', { businessProfileID: new ObjectId(businessProfileID) });
-    const likes = await Like.countDocuments({ postID: { $in: posts } });
-    const comments = await Comment.countDocuments({ postID: { $in: posts } });
-    const sharedContent = await SharedContent.countDocuments({ contentID: { $in: posts }, contentType: ContentType.POST });
 
-    //analyzing stories
-    const stories = await Story.distinct('_id', { $match: { userID: new ObjectId(userID), timeStamp: { $gte: storyTimeStamp } } });
-    const storyLikes = await Like.countDocuments({ storyID: { $in: stories } });
-    const storyComments = await Message.countDocuments({ storyID: { $in: stories }, type: MessageType.STORY_COMMENT });
-    const storyViews = await View.countDocuments({ storyID: { $in: stories } });
 
+            Like.countDocuments({ postID: { $in: posts } }),
+            Comment.countDocuments({ postID: { $in: posts } }),
+            SharedContent.countDocuments({ contentID: { $in: posts }, contentType: ContentType.POST }),
+            Like.countDocuments({ storyID: { $in: stories } }),
+            Message.countDocuments({ storyID: { $in: stories }, type: MessageType.STORY_COMMENT }),
+            View.countDocuments({ storyID: { $in: stories } })
+        ]
+    );
     console.log(storyLikes);
     console.log(storyComments);
     console.log(storyViews);
@@ -674,7 +802,28 @@ async function fetchEngagedData(businessProfileID: string, userID: string) {
     console.log(likes);
     console.log(comments);
     console.log(sharedContent);
-    return storyLikes + storyComments + storyViews + likes + comments + sharedContent;
+
+    type Engagement = { labelName: string, engagement: number };
+    const allEngagements = [...likesData, ...commentsData, ...sharedContentData, ...storyLikesData, ...storyCommentsData, ...storyViewsData,];
+    // Group by `labelName` and sum the engagements
+    const engagementsData = allEngagements.reduce((acc, { labelName, engagement }) => {
+        // Find the existing entry for the current `labelName`
+        const existing = acc.find((item: Engagement) => item.labelName === labelName);
+        if (existing) {
+            // If entry exists, add the engagement to it
+            existing.engagement += engagement;
+        } else {
+            // If no entry exists, create a new one
+            acc.push({ labelName, engagement });
+        }
+
+        return acc;
+    }, []);
+
+    const engagements = likes + comments + sharedContent + storyLikes + storyComments + storyViews;
+    console.log(allEngagements);
+    console.log(engagements);
+    return { engagementsData, engagements };
 }
 
 export default { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID };
