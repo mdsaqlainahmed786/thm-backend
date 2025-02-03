@@ -47,7 +47,7 @@ const encryptionService = new EncryptionService();
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         //Only shows public profile post here and follower posts
-        const { id } = request.user;
+        const { id, accountType } = request.user;
         let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
         const dbQuery = { ...getPostQuery };
         pageNumber = parseQueryParam(pageNumber, 1);
@@ -86,7 +86,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         const data = documents
-        if (suggestions && suggestions.length !== 0) {
+        if (accountType === AccountType.INDIVIDUAL && suggestions && suggestions.length !== 0) {
             data.push({
                 _id: new ObjectId(),
                 postType: "suggestion",
@@ -98,6 +98,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+//FIXME Remove my own business from suggestions
 const suggestion = async (request: Request, response: Response, next: NextFunction) => {
     try {
 

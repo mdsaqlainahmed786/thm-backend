@@ -212,16 +212,26 @@ export default function createSocketServer(httpServer: https.Server) {
                     ]
                 }
                 if (query !== undefined && query !== "") {
-                    const userProfileIDs = await User.distinct("_id", {
+                    const businessProfileIDs = await BusinessProfile.distinct("_id", {
                         $or: [
-                            { "personalInfo.name": { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { "personalInfo.username": { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { "name": { $regex: new RegExp(query.toLowerCase(), "i") } },
+                            { "username": { $regex: new RegExp(query.toLowerCase(), "i") } },
                         ]
                     });
+                    const [userIDs] = await Promise.all([
+                        User.distinct("_id", {
+                            $or: [
+                                { "name": { $regex: new RegExp(query.toLowerCase(), "i") } },
+                                { "username": { $regex: new RegExp(query.toLowerCase(), "i") } },
+                                { "businessProfileID": { $in: businessProfileIDs } }
+                            ]
+                        }),
+
+                    ]);
                     Object.assign(findQuery, {
                         $or: [
-                            { userID: new ObjectId(ID), targetUserID: { $in: userProfileIDs }, deletedByID: { $nin: [ID] } },
-                            { targetUserID: new ObjectId(ID), userID: { $in: userProfileIDs }, deletedByID: { $nin: [ID] } },
+                            { userID: new ObjectId(ID), targetUserID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
+                            { targetUserID: new ObjectId(ID), userID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
                         ]
                     });
                 }

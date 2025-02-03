@@ -489,7 +489,17 @@
                                             </div>
                                             <input type="text" id="search" className="form-control form-control-sm hidden" />
                                         </div>
-                                        <div className="flex gap-3 py-2 border-t border-black/10 ">
+                                        <div className="rounded-[5px] w-full border border-[#FAFAFA] bg-black/10 flex justify-start items-center gap-1.5 py-2 px-2.5">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path fill-rule="evenodd" clip-rule="evenodd" d="M11.5 5.75C11.5 2.57436 8.92564 0 5.75 0C2.57436 0 0 2.57436 0 5.75C0 8.92564 2.57436 11.5 5.75 11.5C7.06725 11.5 8.28105 11.0571 9.25057 10.312L12.4017 13.4623L12.4858 13.5349C12.7794 13.7528 13.196 13.7286 13.4623 13.4623C13.7552 13.1694 13.7552 12.6945 13.4623 12.4017L10.312 9.25057C11.0571 8.28105 11.5 7.06725 11.5 5.75ZM1.5 5.75C1.5 3.40279 3.40279 1.5 5.75 1.5C8.09721 1.5 10 3.40279 10 5.75C10 8.09721 8.09721 10 5.75 10C3.40279 10 1.5 8.09721 1.5 5.75Z" fill="#3C3C43" fill-opacity="0.6" />
+                                            </svg>
+                                            <input type="text" className="text-sm outline-0 bg-transparent" onChange={(e) => {
+                                                socket.emit("chat screen", { query: e.target.value, pageNumber: 1 });
+                                                console.log(e.target.value)
+                                            }} />
+                                        </div>
+
+                                        <div className="flex gap-3 py-2 border-t border-black/10 mt-2 ">
                                             {onlineUsers && onlineUsers.map((user, index) => {
                                                 return (
                                                     <div key={index} className="flex flex-col justify-center items-center cursor-pointer" onClick={() => handleUserListClick(user)}>
