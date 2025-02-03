@@ -118,12 +118,12 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             const comment = await Comment.findOne({ _id: parentID });
             if (comment) {
                 newComment.parentID = comment.id;
-                AppNotificationController.store(id, comment.userID, NotificationType.REPLY, { postID: post.id, userID: comment.userID, message: message }).catch((error) => console.error(error));
+                AppNotificationController.store(id, comment.userID, NotificationType.REPLY, { postID: post._id, userID: comment.userID, message: message }).catch((error) => console.error(error));
             }
         }
         const savedComment = await newComment.save();
         if (savedComment.isParent) {
-            AppNotificationController.store(id, post.userID, NotificationType.COMMENT, { postID: post.id, userID: post.userID, message: message, postType: post.postType }).catch((error) => console.error(error));
+            AppNotificationController.store(id, post.userID, NotificationType.COMMENT, { postID: post._id, userID: post.userID, message: message, postType: post.postType }).catch((error) => console.error(error));
         }
         return response.send(httpNoContent(savedComment, 'Comment posted successfully'));
     } catch (error: any) {

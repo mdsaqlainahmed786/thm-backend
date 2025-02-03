@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { httpCreated, httpInternalServerError, httpNoContent, httpAcceptedOrUpdated, httpOk, httpNotFoundOr404 } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
-import FileQueue, { QueueStatus } from "../database/models/file-processing.model";
+import FileQueue, { QueueStatus } from "../database/models/fileProcessing.model";
 import fileSystem from "fs/promises";
 import { isArray } from "../utils/helper/basic";
 import Media from "../database/models/media.model";

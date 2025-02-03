@@ -38,11 +38,11 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.postID = postID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
-                AppNotificationController.store(id, post.userID, NotificationType.LIKE_POST, { postID: post.id, userID: post.userID, postType: post.postType }).catch((error) => console.error(error));
+                AppNotificationController.store(id, post.userID, NotificationType.LIKE_POST, { postID: post._id, userID: post.userID, postType: post.postType }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Post liked successfully"));
             }
             await isLiked.deleteOne();
-            AppNotificationController.destroy(id, post.userID, NotificationType.LIKE_POST, { postID: post.id, userID: post.userID, postType: post.postType }).catch((error) => console.error(error));
+            AppNotificationController.destroy(id, post.userID, NotificationType.LIKE_POST, { postID: post._id, userID: post.userID, postType: post.postType }).catch((error) => console.error(error));
             return response.send(httpNoContent(null, 'Post disliked successfully'));
         }
         //Like comment
@@ -65,11 +65,11 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                 newLike.commentID = commentID;
                 newLike.businessProfileID = businessProfileID ?? null;
                 const savedLike = await newLike.save();
-                AppNotificationController.store(id, comment.userID, NotificationType.LIKE_COMMENT, { commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
+                AppNotificationController.store(id, comment.userID, NotificationType.LIKE_COMMENT, { postID: comment.postID, commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
                 return response.send(httpCreated(savedLike, "Comment liked successfully"));
             }
             await isLiked.deleteOne();
-            AppNotificationController.destroy(id, comment.userID, NotificationType.LIKE_COMMENT, { commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
+            AppNotificationController.destroy(id, comment.userID, NotificationType.LIKE_COMMENT, { postID: comment.postID, commentID: comment.id, userID: comment.userID, message: comment.message }).catch((error) => console.error(error));
             return response.send(httpNoContent(null, 'Comment disliked successfully'));
         }
         //Like Story

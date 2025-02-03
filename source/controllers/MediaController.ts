@@ -11,7 +11,7 @@ import { AwsS3AccessEndpoints } from "../config/constants";
 import { generateScreenshot } from "../middleware/file-uploading";
 import path from "path";
 import fileSystem from "fs/promises";
-import FileQueue, { QueueStatus } from "../database/models/file-processing.model";
+import FileQueue, { QueueStatus } from "../database/models/fileProcessing.model";
 import { ErrorMessage } from "../utils/response-message/error";
 import View from "../database/models/view.model.";
 import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404, httpCreated, httpNoContent } from "../utils/response";

@@ -23,8 +23,8 @@ import Comment from '../database/models/comment.model';
 import Review from '../database/models/reviews.model';
 import S3Service from '../services/S3Service';
 import AppNotificationController from './AppNotificationController';
-import { NotificationType } from '../database/models/notification.model';
-import FileQueue, { QueueStatus } from '../database/models/file-processing.model';
+import Notification, { NotificationType } from '../database/models/notification.model';
+import FileQueue, { QueueStatus } from '../database/models/fileProcessing.model';
 import { addAnonymousUserInPost } from '../database/models/anonymousUser.model';
 import { lat_lng } from './EventController';
 const s3Service = new S3Service();
@@ -384,6 +384,7 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
             SavedPost.deleteMany({ postID: ID }),
             Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
             EventJoin.deleteMany({ postID: ID }),
+            Notification.deleteMany({ "metadata.postID": post._id })
         ]);
         console.log('likes', likes);
         console.log('comments', comments);
@@ -410,7 +411,10 @@ const deletePost = async (request: Request, response: Response, next: NextFuncti
             return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
         }
         post.isDeleted = true;
-        await post.save();
+        await Promise.all([
+            post.save(),
+            Notification.updateMany({ "metadata.postID": post._id }, { isDeleted: true }),//Remove notification as well
+        ]);
         return response.send(httpNoContent(null, 'Post deleted'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
