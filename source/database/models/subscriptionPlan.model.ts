@@ -32,7 +32,11 @@ export interface ISubscriptionPlan extends Document, IBusinessSubscription {
     level: SubscriptionLevel;
     image: string;
     type: AccountType;
+    googleSubscriptionID: string;
+    appleSubscriptionID: string;
 }
+
+//FIXME add google purchase id or apple purchase id;
 const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
     {
         name: { type: String, required: true },
@@ -68,6 +72,8 @@ const SubscriptionPlanSchema: Schema = new Schema<ISubscriptionPlan>(
                 ref: "BusinessType"
             },
         ],
+        googleSubscriptionID: { type: String, default: "" },
+        appleSubscriptionID: { type: String, default: "" },
     },
     {
         timestamps: true

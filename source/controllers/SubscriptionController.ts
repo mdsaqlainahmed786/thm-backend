@@ -783,6 +783,8 @@ const subscriptionCheckout = async (request: Request, response: Response, next: 
                 price: subscriptionPlan.price,
                 image: subscriptionPlan.image,
                 duration: subscriptionPlan.duration,
+                googleSubscriptionID: subscriptionPlan.googleSubscriptionID,
+                appleSubscriptionID: subscriptionPlan.appleSubscriptionID,
             },
             payment: payment
         }, "Checkout data fetched"));
