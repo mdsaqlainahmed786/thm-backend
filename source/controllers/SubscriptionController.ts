@@ -10,15 +10,28 @@ import BusinessSubType from "../database/models/businessSubType.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import moment from "moment";
 import PromoCode, { PriceType, PromoType } from "../database/models/promoCode.model";
-import Order, { generateNextOrderID, OrderStatus } from "../database/models/order.model";
+import Order, { generateNextOrderID, OrderStatus, fetchCreatedOrder } from "../database/models/order.model";
 import RazorPayService, { BillingDetails } from "../services/RazorPayService";
 import { parseFloatToFixed } from "../utils/helper/basic";
 import { BillingAddress, Role } from '../common';
 import UserAddress from '../database/models/user-address.model';
 import EmailNotificationService from '../services/EmailNotificationService';
 import { MediaType } from '../database/models/media.model';
+import axios from 'axios';
+import { google } from "googleapis";
+import { GoogleAuthService } from '../services/GoogleAuthService';
 const razorPayService = new RazorPayService();
 const emailNotificationService = new EmailNotificationService();
+const googleAuthService = new GoogleAuthService();
+/**
+ * @deprecate
+ * This method is deprecated and may be removed in future versions. 
+ * Please use a verifyGooglePurchase method for subscription purchase.
+ * @param request 
+ * @param response 
+ * @param next 
+ * @returns 
+ */
 const buySubscription = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
@@ -131,6 +144,181 @@ const buySubscription = async (request: Request, response: Response, next: NextF
             paymentMethod: order.paymentDetail.paymentMethod
         });
         return response.send(httpOk(savedSubscription, "Subscription updated."));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+const verifyGooglePurchase = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.user;
+        const { token, subscriptionID, orderID } = request.body;
+        const [user, order] = await Promise.all([
+            User.findOne({ _id: id }),
+            fetchCreatedOrder(orderID),
+        ]);
+        if (!user) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!order) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Order not found"), "Order not found"));
+        }
+        const [subscriptionPlan, googleAuth] = await Promise.all([
+            SubscriptionPlan.findOne({ _id: order.subscriptionPlanID }),
+            googleAuthService.getAccessToken(),
+        ]);
+        if (!subscriptionPlan) {
+            order.status = OrderStatus.FAILED;
+            await order.save();
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.SUBSCRIPTION_NOT_FOUND), ErrorMessage.SUBSCRIPTION_NOT_FOUND));
+        }
+        //The token provided to the user's device when the subscription was purchased.
+        //The purchased subscription ID (for example, 'monthly001').
+        const { auth } = googleAuth;
+        const androidpublisher = google.androidpublisher({
+            version: 'v3',
+            auth,
+        });
+        const packageName = "com.thehotelmedia.android";
+        const { data } = await androidpublisher.purchases.subscriptions.get({
+            packageName,
+            subscriptionId: subscriptionID,
+            token,
+        });
+        console.log("Subscription Transaction DATA::", data)
+        if (data) {
+            const { paymentState, priceAmountMicros, priceCurrencyCode, orderId, startTimeMillis, expiryTimeMillis, acknowledgementState } = data;
+
+            if (acknowledgementState && acknowledgementState === 0) {
+                await androidpublisher.purchases.subscriptions.acknowledge({
+                    packageName,
+                    subscriptionId: subscriptionID,
+                    token,
+                })
+            }
+
+            switch (paymentState) {
+                case 0://Payment pending 
+                    order.status = OrderStatus.COMPLETED;
+                    break;
+                case 1://Payment received
+                    order.status = OrderStatus.COMPLETED;
+                    break;
+                case 2://Free trial
+                    order.status = OrderStatus.COMPLETED;
+                    break;
+                case 3://Pending deferred upgrade / downgrade Not present for canceled, expired subscriptions.
+                    order.status = OrderStatus.COMPLETED;
+                    break;
+            }
+
+            const amount = parseInt(`${priceAmountMicros}`) / 1000000;
+            order.paymentDetail = {
+                transactionID: orderId ?? "google.purchases.subscriptions",
+                paymentMethod: "google pay",
+                transactionAmount: parseFloatToFixed(amount, 2)
+            }
+            await order.save();
+            const dbQuery = { userID: user.id, expirationDate: { $gt: new Date() }, isCancelled: false }
+            if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                Object.assign(dbQuery, { businessProfileID: user.businessProfileID })
+            }
+            const [hasSubscription, admins] = await Promise.all([
+                Subscription.findOne(dbQuery),
+                User.distinct('email', { role: Role.ADMINISTRATOR })
+            ]);
+            if (!hasSubscription) {
+                console.log("Does not have subscription man")
+                const newSubscription = new Subscription();
+                newSubscription.businessProfileID = user.businessProfileID;
+                newSubscription.userID = user.id;
+                newSubscription.subscriptionPlanID = subscriptionPlan.id;
+                newSubscription.orderID = order.id;
+                switch (subscriptionPlan.duration) {
+                    case SubscriptionDuration.YEARLY:
+                        newSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
+                        break;
+                    case SubscriptionDuration.HALF_YEARLY:
+                        newSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
+                        break;
+                    case SubscriptionDuration.QUARTERLY:
+                        newSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                        break;
+                    default:
+                        newSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
+                }
+                const savedSubscription = await newSubscription.save();
+                console.log(moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'))
+                emailNotificationService.sendSubscriptionEmail({
+                    name: user.name ?? user.username,
+                    toAddress: user.email,
+                    cc: admins,
+                    subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
+                    orderID: order.orderID,
+                    purchaseDate: moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'),
+                    grandTotal: order.grandTotal.toString(),
+                    transactionID: order.paymentDetail.transactionID,
+                    paymentMethod: order.paymentDetail.paymentMethod
+                });
+                return response.send(httpOk(savedSubscription, "Subscription added."));
+            }
+            console.log("Have old subscription");
+            hasSubscription.orderID = order.id;
+            switch (subscriptionPlan.duration) {
+                case SubscriptionDuration.YEARLY:
+                    hasSubscription.expirationDate = new Date(moment().add(365, 'days').toString());
+                    break;
+                case SubscriptionDuration.HALF_YEARLY:
+                    hasSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
+                    break;
+                case SubscriptionDuration.QUARTERLY:
+                    hasSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                    break;
+                default:
+                    hasSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
+            }
+            hasSubscription.subscriptionPlanID = order.subscriptionPlanID;
+            const savedSubscription = await hasSubscription.save();
+            console.log(moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'))
+            emailNotificationService.sendSubscriptionEmail({
+                name: user.name ?? user.username,
+                toAddress: user.email,
+                cc: admins,
+                subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
+                orderID: order.orderID,
+                purchaseDate: moment(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'),
+                grandTotal: order.grandTotal.toString(),
+                transactionID: order.paymentDetail.transactionID,
+                paymentMethod: order.paymentDetail.paymentMethod
+            });
+            return response.send(httpOk(savedSubscription, "Subscription updated."));
+        }
+        order.status = OrderStatus.FAILED;
+        await order.save();
+        return response.send(httpBadRequest(null, "Purchased failed."));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+const subscriptionNotification = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const notification = request.body;
+        console.log("subscriptionNotification", notification)
+        // Check for the subscription renewal event in the notification
+        if (notification.subscriptionNotification) {
+            const { subscriptionId, purchaseToken, eventTimeMillis, notificationType } = notification.subscriptionNotification;
+
+            if (notificationType === 'SUBSCRIPTION_RENEWED') {
+                console.log(`Subscription ${subscriptionId} renewed. Purchase token: ${purchaseToken}`);
+                // Process renewal (e.g., update user status)
+            } else if (notificationType === 'SUBSCRIPTION_CANCELLED') {
+                console.log(`Subscription ${subscriptionId} cancelled. Purchase token: ${purchaseToken}`);
+                // Process cancellation (e.g., revoke subscription features)
+            }
+        }
+        // Respond to acknowledge receipt of the notification
+        return response.status(200).send('Notification received');
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -637,4 +825,31 @@ const subscriptionMeta = async (request: Request, response: Response, next: Next
     }
 }
 
-export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout, subscriptionMeta };
+const fetchPurchasesSubscriptions = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+
+        // androidpublisher.purchases.subscriptions.cancel({
+        //     packageName:packageName,
+        //     subscriptionId:subscriptionID,
+        //     token:token
+        // })
+        const packageName = 'com.thehotelmedia.android';
+        const { token } = await googleAuthService.getAccessToken();
+        const data = await axios.get(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.thehotelmedia.android/subscriptions/thm_individual_premium_199`, {
+            headers: {
+                Authorization: `Bearer ${token.token}`
+            }
+        });
+        console.log(data.data);
+        if (data.status === 200 && data.data) {
+            return response.send(httpOk(data?.data, "Subscription fetched"));
+        }
+        return response.send(httpBadRequest(null, "Invalid subscription plan"))
+        return response.send("Fi");
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+
+export default { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout, subscriptionMeta, fetchPurchasesSubscriptions, verifyGooglePurchase, subscriptionNotification };

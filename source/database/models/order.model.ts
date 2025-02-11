@@ -9,8 +9,25 @@ export interface DeliveryInstruction {
 }
 export enum OrderStatus {
     CREATED = "order-created",
-    COMPLETED = "order-completed"
+    COMPLETED = "order-completed",
+    FAILED = "order-failed"
 }
+
+// Active – The subscription is live, and the customer is receiving the service or product.
+// Pending Activation – The subscription has been purchased but hasn't started yet.
+// Renewal Pending – The subscription is close to its renewal date, and the system is preparing to renew it.
+// Canceled – The subscription has been canceled either by the customer or the provider, and no future payments will occur.
+// Suspended – The subscription is temporarily paused, usually due to payment or account issues.
+// Expired – The subscription has ended, and no further services or products are being delivered unless renewed.
+// Paused – The subscription is temporarily halted but will resume in the future.
+// Failed – The subscription renewal or payment attempt was unsuccessful, often due to payment issues (insufficient funds, expired card, etc.).
+// Payment Pending – The payment is in process, but it hasn't been confirmed or completed yet.
+// Payment Declined – The payment was declined by the bank or payment processor, often due to issues like insufficient funds, expired card, or incorrect details.
+// Retrying Payment – The system is attempting to process the payment again after a failure, often automatically.
+// Blocked – The subscription has been blocked or restricted, usually due to fraud detection or violation of terms.
+// Refunded – The subscription has been refunded, often due to cancellation or an issue with the service/product.
+// Unpaid – The subscription has been marked as unpaid due to an issue with payment processing.
+
 // Order Placed: The subscription order has been successfully submitted.
 
 // Processing: The order is being processed, and the payment is being verified.
@@ -180,6 +197,9 @@ export async function generateNextOrderID(): Promise<string> {
     }
 }
 
+export function fetchCreatedOrder(orderID: MongoID) {
+    return Order.findOne({ orderID: orderID, status: OrderStatus.CREATED });
+}
 
 
 

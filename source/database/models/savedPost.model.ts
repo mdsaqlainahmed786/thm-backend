@@ -6,7 +6,7 @@ interface ISavedPost extends Document {
     postID: MongoID;
     businessProfileID?: MongoID;
 }
-const SavedPosSchema: Schema = new Schema<ISavedPost>(
+const SavedPostSchema: Schema = new Schema<ISavedPost>(
     {
         userID: { type: Schema.Types.ObjectId, ref: "User", required: true },
         postID: { type: Schema.Types.ObjectId, ref: "Post", required: true },
@@ -16,11 +16,11 @@ const SavedPosSchema: Schema = new Schema<ISavedPost>(
         timestamps: true
     }
 );
-SavedPosSchema.set('toObject', { virtuals: true });
-SavedPosSchema.set('toJSON', { virtuals: true });
+SavedPostSchema.set('toObject', { virtuals: true });
+SavedPostSchema.set('toJSON', { virtuals: true });
 
 export interface ISavedPostModel extends Model<ISavedPost> {
 }
 
-const SavedPost = model<ISavedPost, ISavedPostModel>('SavedPost', SavedPosSchema);
+const SavedPost = model<ISavedPost, ISavedPostModel>('SavedPost', SavedPostSchema);
 export default SavedPost;

@@ -9,6 +9,10 @@ export abstract class AppConfig {
     //API Version
     static readonly API_VERSION: string = "/api/v1";
 
+    static readonly ANDROID: {
+        PACKAGE_NAME: "com.thehotelmedia.android",
+    }
+
     //Authentication token configurations for user side 
     static readonly APP_ACCESS_TOKEN_SECRET: string = process.env.APP_ACCESS_TOKEN_SECRET!;
     static readonly APP_REFRESH_TOKEN_SECRET: string = process.env.APP_REFRESH_TOKEN_SECRET!;
