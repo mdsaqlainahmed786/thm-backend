@@ -29,7 +29,7 @@ ApiEndpoints.use('/business', BusinessEndpoints);
 ApiEndpoints.use('/posts', authenticateUser, PostEndpoints);
 ApiEndpoints.use('/reviews', ReviewEndpoints);
 ApiEndpoints.use('/events', authenticateUser, EventEndpoints);
-ApiEndpoints.use('/story', authenticateUser, StoryEndpoints);
+ApiEndpoints.use('/story',  StoryEndpoints);
 ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
 ApiEndpoints.use('/share', ShareEndpoints);

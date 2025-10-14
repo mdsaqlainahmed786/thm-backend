@@ -33,6 +33,12 @@ App.get('/chat-react', function (request: Request, response: Response) {
     const filePath = path.join(__dirname, "../public/files/index-react.html");
     return response.sendFile(filePath);
 })
+
+App.get("/health-checkup", (request: Request, response: Response) => {
+    return response.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+})
+
+
 App.use('', ApiEndpoints);
 App.use((request: Request, response: Response) => {
     console.log("Request Path:", request.path);
@@ -62,5 +68,12 @@ App.use((err: any, request: Request, response: Response, next: NextFunction) => 
     const errorMessage = err.message || 'Internal Server Error';
     return response.status(statusCode).send(httpInternalServerError(err, errorMessage))
 });
+
+App.use((request: Request, response: Response) => {
+    console.log("Request Path:", request.path);
+    console.log("Forwarded Headers:", request.headers.forwarded);
+    return response.sendStatus(404);
+});
+
 
 export default App;
