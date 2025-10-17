@@ -29,7 +29,8 @@ const options: cors.CorsOptions = {
 };
 App.use(cors(options));
 App.use(`/public`, express.static(path.join(__dirname, "../public")));
-App.get("/status", (request: Request, response: Response) => {
+console.log("HELLO....")
+App.get('/status', (request: Request, response: Response) => {
     return response.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 })
 App.get('/chat-react', function (request: Request, response: Response) {

@@ -35,7 +35,7 @@ ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
 ApiEndpoints.use('/share', ShareEndpoints);
 ApiEndpoints.use('/files-queue', FileQueueEndpoints);
-ApiEndpoints.use("/collaboration", authenticateUser, CollaborationEndpoints);
+ApiEndpoints.use('/collaboration', authenticateUser, CollaborationEndpoints);
 
 //Admin Routes
 ApiEndpoints.use('/admin', AdminApiEndpoints)
