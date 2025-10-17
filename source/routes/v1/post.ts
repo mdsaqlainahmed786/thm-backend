@@ -9,6 +9,7 @@ import SavedPostController from "../../controllers/SavedPostController";
 import CommentController from "../../controllers/CommentController";
 import ReportController from "../../controllers/ReportController";
 import MediaController from "../../controllers/MediaController";
+import Post from "../../database/models/post.model";
 const PostEndpoints: Router = express.Router();
 /**
  * Saved post endpoints
@@ -22,6 +23,8 @@ PostEndpoints.post('/saved-posts/:id', savedPostApiValidator, validateRequest, S
  */
 PostEndpoints.post('/comments', createCommentApiValidator, validateRequest, CommentController.store);
 PostEndpoints.get('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.index);
+PostEndpoints.delete('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.destroy);
+PostEndpoints.patch('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.update);
 PostEndpoints.post('/comments/reports/:id', [paramIDValidationRule], validateRequest, ReportController.reportComment);
 PostEndpoints.post('/comments/likes/:id', [paramIDValidationRule], validateRequest, LikeController.store);
 PostEndpoints.post('/reports/:id', [paramIDValidationRule], validateRequest, ReportController.reportContent);
