@@ -196,155 +196,63 @@ const store = async (request: Request, response: Response, next: NextFunction) =
     }
 }
 const update = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const ID = request?.params?.id;
-        const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, tagged, feelings, deletedMedia } = request.body;
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        // const images = files && files.images as Express.Multer.S3File[];
-        // const videos = files && files.videos as Express.Multer.S3File[];
-        const mediaFiles = files && files.media as Express.Multer.S3File[];
-        const images = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('image/'));
-        const videos = mediaFiles && mediaFiles.filter((file) => file.mimetype.startsWith('video/'));
-        if (!accountType && !id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        /**
-         * Content restrictions for individual user
-         */
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-        const [haveSubscription, dailyContentLimit] = await Promise.all([
-            hasActiveSubscription(id),
-            DailyContentLimit.findOne({
-                userID: id, timeStamp: {
-                    $gte: startOfDay,
-                    $lt: endOfDay
-                }
-            })
-        ]);
-        if (accountType === AccountType.INDIVIDUAL) {
-            if (!haveSubscription) {
-                if (!dailyContentLimit && content && countWords(content) > MAX_CONTENT_LENGTH) {
-                    const error = `Content must be a string and cannot exceed ${MAX_CONTENT_LENGTH} words.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-                } else if (!dailyContentLimit && images && images.length > MAX_IMAGE_UPLOADS) {
+  try {
+    const postID = request?.params?.id;
+    const { id, accountType, businessProfileID } = request.user;
+    const { content, placeName, lat, lng, tagged, feelings, deletedMedia } = request.body;
+    const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+    const mediaFiles = files?.media as Express.Multer.S3File[];
 
-                    await deleteUnwantedFiles(images);
-                    await deleteUnwantedFiles(videos);
-                    const error = `You cannot upload multiple images because your current plan does not include this feature.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-
-                } else if (!dailyContentLimit && videos && videos.length > MAX_VIDEO_UPLOADS) {
-                    await deleteUnwantedFiles(images);
-                    await deleteUnwantedFiles(videos);
-                    const error = `You cannot upload multiple videos because your current plan does not include this feature.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-
-                } else if (dailyContentLimit && dailyContentLimit.text >= MAX_CONTENT_UPLOADS && content && content !== "") {
-
-                    const error = `Your daily content upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-
-                } else if (dailyContentLimit && dailyContentLimit.images !== 0 && images && images.length >= dailyContentLimit.images) {
-
-                    await deleteUnwantedFiles(images);
-                    await deleteUnwantedFiles(videos);
-                    const error = `Your daily image upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-
-                } else if (dailyContentLimit && dailyContentLimit.videos !== 0 && videos && videos.length >= dailyContentLimit.videos) {
-                    await deleteUnwantedFiles(images);
-                    await deleteUnwantedFiles(videos);
-                    const error = `Your daily video upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-                    return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error))
-                }
-            }
-        }
-        const post = await Post.findOne({ _id: ID });
-        if (!post) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND))
-        }
-        if (accountType === AccountType.BUSINESS && businessProfileID) {
-            post.businessProfileID = businessProfileID;
-        }
-        if (post.userID.toString() !== id) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("You can't update this post"), "You can't update this post"));
-        }
-        post.content = content ?? post.content;
-        post.feelings = feelings ?? post.feelings;
-        if (tagged && isArray(tagged)) {
-            post.tagged = tagged;
-        }
-        if (placeName && lat && lng) {
-            post.location = { placeName, lat, lng };
-        }
-        /**
-         * Handle post media
-         */
-        let mediaIDs: MongoID[] = post.media;
-        // if (videos && videos.length !== 0 || images && images.length !== 0) {
-        //     const [videoList, imageList] = await Promise.all([
-        //         storeMedia(videos, id, businessProfileID, MediaType.VIDEO, AwsS3AccessEndpoints.POST, 'POST'),
-        //         storeMedia(images, id, businessProfileID, MediaType.IMAGE, AwsS3AccessEndpoints.POST, 'POST'),
-        //     ])
-        //     if (imageList && imageList.length !== 0) {
-        //         imageList.map((image) => mediaIDs.push(image.id));
-        //     }
-        //     if (videoList && videoList.length !== 0) {
-        //         videoList.map((video) => mediaIDs.push(video.id));
-        //     }
-        // }
-        if (mediaFiles && mediaFiles.length !== 0) {
-            const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
-            if (mediaList && mediaList.length !== 0) {
-                mediaList.map((media) => mediaIDs.push(media.id));
-            }
-        }
-        if (deletedMedia && deletedMedia.length && mediaIDs.length !== 0) {
-            //Remove old event images
-            await Promise.all(deletedMedia.map(async (media_id: string) => {
-                const mediaObject = await Media.findOne({ _id: media_id });
-                if (mediaObject) {
-                    await Promise.all([
-                        s3Service.deleteS3Object(mediaObject.s3Key),
-                        s3Service.deleteS3Asset(mediaObject.thumbnailUrl)
-                    ]);
-                    await mediaObject.deleteOne();
-                    mediaIDs = mediaIDs.filter(function (item) {
-                        return item.toString() !== media_id
-                    });
-                    console.log(mediaIDs)
-                }
-            }));
-        }
-        post.media = mediaIDs;
-        const savedPost = await post.save();
-        if (savedPost && !haveSubscription && accountType === AccountType.INDIVIDUAL) {
-            if (!dailyContentLimit) {
-                const today = new Date();
-                const midnightToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-                const newDailyContentLimit = new DailyContentLimit();
-                newDailyContentLimit.timeStamp = midnightToday;
-                newDailyContentLimit.userID = id;
-                newDailyContentLimit.videos = (videos && videos.length) ? videos.length : 0;
-                newDailyContentLimit.images = (images && images.length) ? images.length : 0;
-                newDailyContentLimit.text = (content && content !== "") ? 1 : 0;
-                await newDailyContentLimit.save();
-            } else {
-                dailyContentLimit.videos = (videos && videos.length) ? dailyContentLimit.videos + videos.length : dailyContentLimit.videos;
-                dailyContentLimit.images = (images && images.length) ? dailyContentLimit.images + images.length : dailyContentLimit.images;
-                await dailyContentLimit.save();
-            }
-        }
-        return response.send(httpAcceptedOrUpdated(savedPost, 'Your post has been created successfully'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    const post = await Post.findOne({ _id: postID });
+    if (!post) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
     }
-}
 
-//FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test 
+    // Only the owner can update
+    if (post.userID.toString() !== id.toString()) {
+      return response.send(httpForbidden(ErrorMessage.invalidRequest("You can't update this post"), "You can't update this post"));
+    }
+
+    // Update simple fields
+    if (content) post.content = content;
+    if (feelings) post.feelings = feelings;
+    if (placeName && lat && lng) post.location = { placeName, lat, lng };
+    if (tagged && isArray(tagged)) post.tagged = tagged;
+
+    // Handle uploaded media
+    let mediaIDs: MongoID[] = post.media;
+    if (mediaFiles?.length) {
+      const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, "POST");
+      mediaList?.forEach((media) => mediaIDs.push(media.id));
+    }
+
+    // Handle deleted media
+    if (deletedMedia?.length && mediaIDs?.length) {
+      await Promise.all(
+        deletedMedia.map(async (media_id: string) => {
+          const mediaObject = await Media.findById(media_id);
+          if (mediaObject) {
+            await Promise.all([
+              s3Service.deleteS3Object(mediaObject.s3Key),
+              s3Service.deleteS3Asset(mediaObject.thumbnailUrl),
+            ]);
+            await mediaObject.deleteOne();
+            mediaIDs = mediaIDs.filter((m) => m.toString() !== media_id);
+          }
+        })
+      );
+    }
+
+    post.media = mediaIDs;
+    const updatedPost = await post.save();
+
+    return response.send(httpAcceptedOrUpdated(updatedPost, "Post updated successfully"));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
+};
+
+//FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -400,26 +308,31 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
 
 
 const deletePost = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id, accountType, businessProfileID } = request.user;
-        const ID = request?.params?.id;
-        const post = await Post.findOne({ _id: ID });
-        if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
-        }
-        if (post.userID.toString() !== id) {
-            return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
-        }
-        post.isDeleted = true;
-        await Promise.all([
-            post.save(),
-            Notification.updateMany({ "metadata.postID": post._id }, { isDeleted: true }),//Remove notification as well
-        ]);
-        return response.send(httpNoContent(null, 'Post deleted'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const { id } = request.user;
+    const postID = request?.params?.id;
+
+    const post = await Post.findById(postID);
+    if (!post) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
     }
-}
+
+    if (post.userID.toString() !== id.toString()) {
+      return response.send(httpForbidden(ErrorMessage.invalidRequest("This post cannot be deleted."), "This post cannot be deleted."));
+    }
+
+    post.isDeleted = true;
+    await Promise.all([
+      post.save(),
+      Notification.updateMany({ "metadata.postID": post._id }, { isDeleted: true }),
+    ]);
+
+    return response.send(httpNoContent(null, "Post deleted successfully (soft delete)"));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
+};
+
 
 
 const show = async (request: Request, response: Response, next: NextFunction) => {
