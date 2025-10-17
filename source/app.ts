@@ -29,6 +29,9 @@ const options: cors.CorsOptions = {
 };
 App.use(cors(options));
 App.use(`/public`, express.static(path.join(__dirname, "../public")));
+App.get("/status", (request: Request, response: Response) => {
+    return response.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+})
 App.get('/chat-react', function (request: Request, response: Response) {
     const filePath = path.join(__dirname, "../public/files/index-react.html");
     return response.sendFile(filePath);
@@ -58,9 +61,6 @@ App.use((err: any, request: Request, response: Response, next: NextFunction) => 
     }
 });
 
-App.get("/status", (request: Request, response: Response) => {
-    return response.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
-})
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
     const statusCode = err.status || 500;
     const errorMessage = err.message || 'Internal Server Error';
