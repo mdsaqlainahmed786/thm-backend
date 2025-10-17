@@ -17,6 +17,7 @@ import ShareEndpoints from "./share";
 import FileQueueEndpoints from "./filequeues";
 import BusinessEndpoints from "./business";
 import SubscriptionEndpoints from "./subscription";
+import CollaborationEndpoints from "./collaboration";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
 ApiEndpoints.use('', SubscriptionEndpoints);
@@ -29,11 +30,12 @@ ApiEndpoints.use('/business', BusinessEndpoints);
 ApiEndpoints.use('/posts', authenticateUser, PostEndpoints);
 ApiEndpoints.use('/reviews', ReviewEndpoints);
 ApiEndpoints.use('/events', authenticateUser, EventEndpoints);
-ApiEndpoints.use('/story',  StoryEndpoints);
+ApiEndpoints.use('/story', authenticateUser, StoryEndpoints);
 ApiEndpoints.use('/notifications', authenticateUser, NotificationEndpoints);
 ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
 ApiEndpoints.use('/share', ShareEndpoints);
 ApiEndpoints.use('/files-queue', FileQueueEndpoints);
+ApiEndpoints.use("/collaboration", authenticateUser, CollaborationEndpoints);
 
 //Admin Routes
 ApiEndpoints.use('/admin', AdminApiEndpoints)

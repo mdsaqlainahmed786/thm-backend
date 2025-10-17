@@ -70,6 +70,13 @@ interface IPost extends IReview, IEvent, Document {
     updatedAt: Date;
     views: number;
     geoCoordinate: GeoCoordinate;
+    collaborators?: MongoID[];
+    collaborationInvites?: {
+        invitedUserID?: MongoID;
+        status?: "pending" | "accepted" | "declined";
+        invitedAt?: Date;
+        respondedAt?: Date;
+    }[];
 }
 
 const PostSchema: Schema = new Schema<IPost>(
@@ -147,8 +154,23 @@ const PostSchema: Schema = new Schema<IPost>(
                 type: [Number],
             }
         },
-        views: { type: Number }
+        views: { type: Number },
+        collaborators: [{ type: Schema.Types.ObjectId, ref: "User" }],
+        collaborationInvites: [
+            {
+                invitedUserID: { type: Schema.Types.ObjectId, ref: "User" },
+                status: {
+                    type: String,
+                    enum: ["pending", "accepted", "declined"],
+                    default: "pending",
+                },
+                invitedAt: { type: Date, default: Date.now },
+                respondedAt: { type: Date },
+            },
+        ],
+        // rest unchanged...
     },
+
     {
         timestamps: true
     }
