@@ -29,12 +29,38 @@ import { addAnonymousUserInPost } from '../database/models/anonymousUser.model';
 import { lat_lng } from './EventController';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
-    try {
+  try {
+    const { id } = request.user;
 
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    const limit = Number(request.query.limit) || 10;
+
+    const posts = await Post.aggregate([
+      { $match: { isDeleted: { $ne: true }, isPublished: true } },
+      { $sample: { size: limit } },
+      addMediaInPost().lookup,
+      addTaggedPeopleInPost().lookup,
+      addLikesInPost().lookup,
+      addCommentsInPost().lookup,
+      addSharedCountInPost().lookup,
+      addPostedByInPost().lookup,
+      { $sort: { createdAt: -1 } },
+      {
+        $project: {
+          "geoCoordinate": 0,
+          "__v": 0,
+        },
+      },
+    ]);
+
+    if (!posts.length) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("No posts found"), "No posts found"));
     }
-}
+
+    return response.send(httpOk(posts, "Posts fetched successfully."));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
+};
 
 const MAX_CONTENT_LENGTH = 20; // Set maximum content length
 const MAX_CONTENT_UPLOADS = 2;
