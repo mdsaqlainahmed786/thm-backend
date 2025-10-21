@@ -130,13 +130,13 @@ async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, busin
                     await fileSystem.unlink(generatedThumbnailUrl);
                 }
             }
-                //             const s3Object = await s3Service.getS3Object(file.key);
-                // const rawBuffer = await s3Object.Body?.transformToByteArray();
-                // if (!rawBuffer) throw new Error("Could not read image buffer from S3");
-                // const sharpImage = await sharp(file.path);
+            //             const s3Object = await s3Service.getS3Object(file.key);
+            // const rawBuffer = await s3Object.Body?.transformToByteArray();
+            // if (!rawBuffer) throw new Error("Could not read image buffer from S3");
+            // const sharpImage = await sharp(file.path);
             const uploadedFile = {
-                Location: file.location,  
-                Key: file.key             
+                Location: file.location,
+                Key: file.key
             };
 
             if (uploadedFile && uploadedFile.Key) {
@@ -165,7 +165,9 @@ async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, busin
                     //   await fileSystem.unlink(file.path);
                     // }
 
+                    thumbnailPath = thumbnailPath.replace(/\/{2,}/g, '/'); // sanitize BEFORE sending
                     const uploadedThumbnailFile = await s3Service.putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
+
                     if (uploadedThumbnailFile) {
                         Object.assign(fileObject, {
                             thumbnailUrl: uploadedThumbnailFile.Location,
