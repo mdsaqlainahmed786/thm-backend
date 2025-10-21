@@ -19,7 +19,7 @@ interface FileQueue extends Document {
 
 const FileQueueSchema: Schema = new Schema<FileQueue>(
     {
-        filePath: { type: String, required: true },
+        filePath: { type: String, required: false },
         status: { type: String, enum: QueueStatus, default: QueueStatus.CREATED, required: true },
         s3Key: { type: String, required: true },
         s3Location: [{ type: String }],

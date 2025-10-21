@@ -67,7 +67,7 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
 }
 
 
-async function storeMedia(files: Express.Multer.File[], userID: MongoID, businessProfileID: MongoID | null, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
+async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, businessProfileID: MongoID | null, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
     let fileList: any[] = [];
     if (files) {
         await Promise.all(files && files.map(async (file) => {
@@ -101,7 +101,11 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
             let thumbnail: Buffer | null = null;
             if (file && file.mimetype.startsWith('image/')) {
                 Object.assign(fileObject, { mediaType: MediaType.IMAGE });
-                const sharpImage = await sharp(file.path);
+                const s3Object = await s3Service.getS3Object(file.key);
+                const rawBuffer = await s3Object.Body?.transformToByteArray();
+                if (!rawBuffer) throw new Error("Could not read image buffer from S3");
+                // const sharpImage = await sharp(file.path);
+                const sharpImage = await sharp(rawBuffer);
                 //Read metadata of video
                 const metadata = await sharpImage.metadata();
                 if (metadata) {
@@ -126,11 +130,15 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                     await fileSystem.unlink(generatedThumbnailUrl);
                 }
             }
+                //             const s3Object = await s3Service.getS3Object(file.key);
+                // const rawBuffer = await s3Object.Body?.transformToByteArray();
+                // if (!rawBuffer) throw new Error("Could not read image buffer from S3");
+                // const sharpImage = await sharp(file.path);
+            const uploadedFile = {
+                Location: file.location,  
+                Key: file.key             
+            };
 
-            const fileBody = fs.createReadStream(file.path);
-            const s3Path = s3BasePath + file.filename;
-            //Upload video and images
-            const uploadedFile = await s3Service.putS3Object(fileBody, file.mimetype, s3Path);
             if (uploadedFile && uploadedFile.Key) {
                 Object.assign(fileObject, {
                     sourceUrl: uploadedFile.Location,
@@ -141,12 +149,22 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
                     let thumbnailPath = addStringBeforeExtension(uploadedFile.Key, `-${width}x${height}`);
                     let thumbnailMimeType = file.mimetype;
 
+                    // if (file && file.mimetype.startsWith('video/')) {
+                    //     const thumbnailExtName = "png";
+                    //     let thumbnailPathT = path.parse(uploadedFile.Key);
+                    //     thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${width}x${height}`);
+                    //     thumbnailMimeType = `image/${thumbnailExtName}`;
+                    // }
                     if (file && file.mimetype.startsWith('video/')) {
-                        const thumbnailExtName = "png";
-                        let thumbnailPathT = path.parse(uploadedFile.Key);
-                        thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${width}x${height}`);
-                        thumbnailMimeType = `image/${thumbnailExtName}`;
+                        await FileQueue.create({
+                            filePath: null, // no local file
+                            s3Key: fileObject.s3Key
+                        });
                     }
+                    // else {
+                    //   await fileSystem.unlink(file.path);
+                    // }
+
                     const uploadedThumbnailFile = await s3Service.putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
                     if (uploadedThumbnailFile) {
                         Object.assign(fileObject, {
@@ -163,11 +181,11 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
             }
             if (file && file.mimetype.startsWith('video/')) {
                 await FileQueue.create({
-                    filePath: file.path,
+                    filePath: file.path || null,
                     s3Key: fileObject.s3Key
                 });
             } else {
-                await fileSystem.unlink(file.path);
+                // await fileSystem.unlink(file.path);
             }
             fileList.push(fileObject)
         }));
@@ -178,7 +196,7 @@ async function storeMedia(files: Express.Multer.File[], userID: MongoID, busines
 async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     try {
         await Promise.all(files.map(async (file) => {
-            await fileSystem.unlink(file.path)
+            // await fileSystem.unlink(file.path)
         }))
     } catch (error: any) {
         console.error(error)

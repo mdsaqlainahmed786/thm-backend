@@ -287,6 +287,7 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         const singleFile = files.media;
         const type = messageType as MediaType;
         const [uploadedFiles] = await Promise.all([
+            //@ts-ignore
             storeMedia(singleFile, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
         ])
         if (uploadedFiles && uploadedFiles.length === 0) {

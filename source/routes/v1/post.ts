@@ -32,11 +32,11 @@ PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeC
 
 //Posts
 PostEndpoints.get('/feed', PostController.index);
-PostEndpoints.post('/', diskUpload.fields([{ name: 'media', maxCount: 20 }]), PostController.store);
+PostEndpoints.post('/', s3Upload(AwsS3AccessEndpoints.POST).fields([{ name: 'media', maxCount: 20 }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
 PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);
 PostEndpoints.delete('/:id/soft', paramIDValidationRule, validateRequest, PostController.deletePost);
-PostEndpoints.put("/:id", diskUpload.fields([{ name: 'media', maxCount: 20 }]), paramIDValidationRule, validateRequest, PostController.update);
+PostEndpoints.put("/:id", s3Upload(AwsS3AccessEndpoints.POST).fields([{ name: 'media', maxCount: 20 }]), paramIDValidationRule, validateRequest, PostController.update);
 
 //MediaViews
 PostEndpoints.post('/media/views', createMediaViewsApiValidator, validateRequest, MediaController.storeViews);
