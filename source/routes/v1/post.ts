@@ -31,7 +31,7 @@ PostEndpoints.post('/reports/:id', [paramIDValidationRule], validateRequest, Rep
 PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeController.store);
 
 //Posts
-// PostEndpoints.get('/feed', PostController.index);
+PostEndpoints.get('/feed', PostController.index);
 PostEndpoints.post('/', s3Upload(AwsS3AccessEndpoints.POST).fields([{ name: 'media', maxCount: 20 }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
 PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);

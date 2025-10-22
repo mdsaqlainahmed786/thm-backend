@@ -48,150 +48,121 @@ const encryptionService = new EncryptionService();
 const feedVisitCount: Record<string, number> = {};
 
 const feed = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id, accountType } = request.user;
-        let { pageNumber, documentLimit, lat, lng }: any = request.query;
+  try {
+    // Only shows public profile post here and follower posts
+    const { id, accountType } = request.user;
+    let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
 
-        if (!id) {
-            return response.send(
-                httpNotFoundOr404(
-                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
-                    ErrorMessage.USER_NOT_FOUND
-                )
-            );
-        }
+    const dbQuery = { ...getPostQuery };
+    pageNumber = parseQueryParam(pageNumber, 1);
+    documentLimit = parseQueryParam(documentLimit, 20);
 
-        pageNumber = parseQueryParam(pageNumber, 1);
-        documentLimit = parseQueryParam(documentLimit, 20);
-
-        // Initialize or increment user feed visit count
-        if (!feedVisitCount[id]) feedVisitCount[id] = 0;
-        feedVisitCount[id]++;
-
-        // Fetch user's posts
-        const userPosts = await Post.find({
-            userID: id,
-            isDeleted: false,
-            isPublished: true,
-        });
-
-        
-        if (userPosts.length > 0 && feedVisitCount[id] <= 2) {
-            console.log("Showing user's own posts first...");
-
-            // increment their views
-            await Promise.all(
-                userPosts.map(post =>
-                    Post.updateOne({ _id: post._id }, { $inc: { views: 1 } })
-                )
-            );
-
-            // fetch random other people's posts
-            const randomPosts = await Post.aggregate([
-                { $match: { isDeleted: false, isPublished: true, userID: { $ne: id } } },
-                { $sample: { size: documentLimit } },
-            ]);
-
-            const data = [...userPosts, ...randomPosts];
-            const totalDocument = data.length;
-            const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-
-            return response.send(
-                httpOkExtended(
-                    data,
-                    "Home feed fetched (user posts first).",
-                    pageNumber,
-                    totalPagesCount,
-                    totalDocument
-                )
-            );
-        }
-
-       
-        console.log("Showing random posts...");
-
-        const dbQuery: any = {
-            ...getPostQuery,
-            isPublished: true,
-            isDeleted: false,
-            userID: { $ne: id }, // exclude logged-in user's posts
-        };
-
-
-        const [
-            likedByMe,
-            savedByMe,
-            joiningEvents,
-            blockedUsers,
-            verifiedBusinessIDs,
-        ] = await Promise.all([
-            Like.distinct("postID", { userID: id, postID: { $ne: null } }),
-            getSavedPost(id),
-            EventJoin.distinct("postID", { userID: id, postID: { $ne: null } }),
-            getBlockedUsers(id),
-            User.distinct("businessProfileID", {
-                ...activeUserQuery,
-                businessProfileID: { $ne: null },
-            }),
-        ]);
-
-        Object.assign(dbQuery, { userID: { $nin: [...blockedUsers, id] } });
-
-        // Get random posts using MongoDB's $sample
-        const [documents, totalDocument, suggestions] = await Promise.all([
-            Post.aggregate([
-                { $match: dbQuery },
-                { $sample: { size: documentLimit } },
-            ]),
-            countPostDocument(dbQuery),
-            fetchBusinessProfiles(
-                { _id: { $in: verifiedBusinessIDs } },
-                pageNumber,
-                7,
-                lat,
-                lng
-            ),
-        ]);
-
-        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        let data = documents;
-
-        // Add suggestions if needed
-        if (
-            accountType === AccountType.INDIVIDUAL &&
-            suggestions &&
-            suggestions.length
-        ) {
-            data.push({
-                _id: new ObjectId(),
-                postType: "suggestion",
-                data: suggestions,
-            });
-        }
-
-        // Reset feed counter every 4th refresh to restart cycle
-        if (feedVisitCount[id] >= 4) {
-            feedVisitCount[id] = 0;
-        }
-
-        return response.send(
-            httpOkExtended(
-                data,
-                "Home feed fetched (random posts).",
-                pageNumber,
-                totalPagesCount,
-                totalDocument
-            )
-        );
-    } catch (error: any) {
-        console.error("❌ Feed error:", error);
-        next(
-            httpInternalServerError(
-                error,
-                error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR
-            )
-        );
+    if (query !== undefined && query !== "") {
+      // handle query if needed
     }
+
+    if (!id) {
+      return response.send(
+        httpNotFoundOr404(
+          ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+          ErrorMessage.USER_NOT_FOUND
+        )
+      );
+    }
+
+    const [
+      likedByMe,
+      savedByMe,
+      joiningEvents,
+      blockedUsers,
+      verifiedBusinessIDs
+    ] = await Promise.all([
+      Like.distinct("postID", { userID: id, postID: { $ne: null } }),
+      getSavedPost(id),
+      EventJoin.distinct("postID", { userID: id, postID: { $ne: null } }),
+      getBlockedUsers(id),
+      User.distinct("businessProfileID", {
+        ...activeUserQuery,
+        businessProfileID: { $ne: null },
+      }),
+      User.findOne({ _id: id }),
+    ]);
+
+    lat = lat || 0;
+    lng = lng || 0;
+
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+
+    // Update user's location if valid coordinates provided
+    if (
+      !isNaN(parsedLat) &&
+      !isNaN(parsedLng) &&
+      parsedLat !== 0 &&
+      parsedLng !== 0
+    ) {
+      const location = {
+        geoCoordinate: {
+          type: "Point",
+          coordinates: [lng, lat],
+        },
+      };
+
+      User.updateOne(
+        { _id: id },
+        { $set: location } // Assuming the user model has a location field
+      )
+        .then(() =>
+          console.log("Home location updated", "lat", lat, "lng", lng)
+        )
+        .catch((error) => {
+          console.error("Error updating location:", error);
+        });
+    }
+
+    // Exclude blocked users from query
+    Object.assign(dbQuery, {
+      userID: { $nin: blockedUsers },
+    });
+
+    const [documents, totalDocument, suggestions] = await Promise.all([
+      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
+      countPostDocument(dbQuery),
+      fetchBusinessProfiles(
+        { _id: { $in: verifiedBusinessIDs } },
+        pageNumber,
+        7,
+        lat,
+        lng
+      ),
+    ]);
+
+    const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+    const data = documents;
+
+    if (
+      accountType === AccountType.INDIVIDUAL &&
+      suggestions &&
+      suggestions.length !== 0
+    ) {
+      data.push({
+        _id: new ObjectId(),
+        postType: "suggestion",
+        data: suggestions,
+      });
+    }
+
+    return response.send(
+      httpOkExtended(data, "Home feed fetched.", pageNumber, totalPagesCount, totalDocument)
+    );
+  } catch (error: any) {
+    next(
+      httpInternalServerError(
+        error,
+        error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR
+      )
+    );
+  }
 };
 
 
