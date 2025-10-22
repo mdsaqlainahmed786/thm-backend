@@ -12,8 +12,8 @@ class S3Service {
     private s3Client: S3Client;
     constructor() {
         this.bucketName = AppConfig.AWS_BUCKET_NAME;
-        this.accessKeyId = AppConfig.AWS_ACCESS_KEY_ID;
-        this.secretAccessKey = AppConfig.AWS_SECRET_ACCESS_KEY;
+        this.accessKeyId = AppConfig.AWS_ACCESS_KEY;
+        this.secretAccessKey = AppConfig.AWS_SECRET_KEY;
         this.region = AppConfig.AWS_REGION;
         this.s3Client = new S3Client({
             credentials: {
@@ -44,29 +44,18 @@ class S3Service {
         const s3Key = await this.extractS3Key(assetLink);
         return await this.deleteS3Object(s3Key);
     }
-  async putS3Object(
-    body: StreamingBlobPayloadInputTypes,
-    contentType: string,
-    path: string
-): Promise<CompleteMultipartUploadCommandOutput> {
-
-    // ✅ Always sanitize path before sending to AWS
-    path = path.replace(/\/{2,}/g, '/').replace(/^\/+/, ''); // remove leading slashes too
-
-    const upload = new Upload({
-        client: this.s3Client,
-        params: {
-            Bucket: this.bucketName,
-            Key: path,
-            Body: body,
-            ContentType: contentType,
-            ACL: "public-read",
-        },
-    });
-
-    return await upload.done();
-}
-
+    async putS3Object(body: StreamingBlobPayloadInputTypes, contentType: string, path: string): Promise<CompleteMultipartUploadCommandOutput> {
+        const upload = new Upload({
+            client: this.s3Client,
+            params: {
+                Bucket: this.bucketName,
+                Key: path,
+                Body: body,
+                ContentType: contentType
+            }
+        });
+        return await upload.done();
+    }
     async generatePresignedUrl(s3Key: string) {
         // Create a command for the object you want to access
         const command = new GetObjectCommand({

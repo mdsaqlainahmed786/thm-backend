@@ -28,8 +28,8 @@ export abstract class AppConfig {
 
     //Aws S3 Configurations
     static readonly AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAME!;
-    static readonly AWS_ACCESS_KEY_ID: string = process.env.AWS_ACCESS_KEY_ID!;
-    static readonly AWS_SECRET_ACCESS_KEY: string = process.env.AWS_SECRET_ACCESS_KEY!;
+    static readonly AWS_ACCESS_KEY: string = process.env.AWS_ACCESS_KEY!;
+    static readonly AWS_SECRET_KEY: string = process.env.AWS_SECRET_KEY!;
     static readonly AWS_S3_BUCKET_ARN: string = process.env.AWS_S3_BUCKET_ARN!;
     static readonly AWS_REGION: string = process.env.AWS_REGION!;
 
