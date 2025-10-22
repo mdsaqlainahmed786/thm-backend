@@ -43,7 +43,7 @@ const MediaSchema: Schema = new Schema<IMedia>(
         mimeType: { type: String, required: true },
         sourceUrl: { type: String, required: true },
         videoUrl: { type: String },
-        thumbnailUrl: { type: String, required: false },
+        thumbnailUrl: { type: String, required: true },
         s3Key: { type: String, required: false },
         duration: { type: Number },
     },
