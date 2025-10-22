@@ -47,9 +47,11 @@ const encryptionService = new EncryptionService();
 // simple in-memory counter (resets when server restarts)
 
 
+import { shuffleArray } from "../utils/shuffle"; // create a helper function (shown below)
+import { UserRecentPostCache } from "../utils/recentPostCache"; // simple in-memory cache (or Redis if prod)
+
 const feed = async (request: Request, response: Response, next: NextFunction) => {
   try {
-    // Only shows public profile post here and follower posts
     const { id, accountType } = request.user;
     let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
 
@@ -57,19 +59,13 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     pageNumber = parseQueryParam(pageNumber, 1);
     documentLimit = parseQueryParam(documentLimit, 20);
 
-    if (query !== undefined && query !== "") {
-      // handle query if needed
-    }
-
     if (!id) {
-      console.warn("Feed requested without user context");
       return response.status(200).json({
         success: false,
         message: "User not authenticated",
         data: [],
       });
     }
-
 
     const [
       likedByMe,
@@ -89,39 +85,6 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       User.findOne({ _id: id }),
     ]);
 
-    lat = lat || 0;
-    lng = lng || 0;
-
-    const parsedLat = Number(lat);
-    const parsedLng = Number(lng);
-
-    // Update user's location if valid coordinates provided
-    if (
-      !isNaN(parsedLat) &&
-      !isNaN(parsedLng) &&
-      parsedLat !== 0 &&
-      parsedLng !== 0
-    ) {
-      const location = {
-        geoCoordinate: {
-          type: "Point",
-          coordinates: [lng, lat],
-        },
-      };
-
-      User.updateOne(
-        { _id: id },
-        { $set: location } // Assuming the user model has a location field
-      )
-        .then(() =>
-          console.log("Home location updated", "lat", lat, "lng", lng)
-        )
-        .catch((error) => {
-          console.error("Error updating location:", error);
-        });
-    }
-
-    // Exclude blocked users from query
     Object.assign(dbQuery, {
       userID: { $nin: blockedUsers },
     });
@@ -138,14 +101,37 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       ),
     ]);
 
-    const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-    const data = documents;
+    let data = documents;
 
-    if (
-      accountType === AccountType.INDIVIDUAL &&
-      suggestions &&
-      suggestions.length !== 0
-    ) {
+    // STEP 1: Randomize the posts order safely
+    data = shuffleArray(data);
+
+    // STEP 2: Check if user has a recent post to highlight
+    const recentPost = await UserRecentPostCache.get(id);
+
+    if (recentPost) {
+      const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
+      if (!postExists) {
+        // Fetch it if not already in current page
+        const userPost = await Post.findOne({ _id: recentPost.postID });
+        if (userPost) {
+          data.unshift(userPost);
+        }
+      } else {
+        // Move it to top if already in feed
+        data = [
+          postExists,
+          ...data.filter(p => p._id.toString() !== recentPost.postID.toString()),
+        ];
+      }
+
+      // Decrease its remaining refresh count
+      await UserRecentPostCache.decrement(id);
+    }
+
+    // STEP 3: Add suggestions (unchanged)
+    const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+    if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
       data.push({
         _id: new ObjectId(),
         postType: "suggestion",
@@ -156,13 +142,9 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     return response.send(
       httpOkExtended(data, "Home feed fetched.", pageNumber, totalPagesCount, totalDocument)
     );
+
   } catch (error: any) {
-    next(
-      httpInternalServerError(
-        error,
-        error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR
-      )
-    );
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
   }
 };
 
