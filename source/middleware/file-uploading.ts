@@ -54,25 +54,31 @@ export const s3Upload = (endPoint: string) => multer({
         metadata: (request, file, cb) => {
             cb(null, { fieldname: file.fieldname })
         },
-        key: (request: Request, file, cb) => {
-            /**
-             * Dynamic routes for s3 to better management of assets.
-             */
-            switch (endPoint) {
-                case AwsS3AccessEndpoints.USERS:
-                    const userID = request.user?.id ?? 'anonymous';
-                    cb(null, `${endPoint}${file.fieldname}/${v4() + '-' + userID}${path.extname(file.originalname)}`);
-                    break;
-                case AwsS3AccessEndpoints.BUSINESS_DOCUMENTS:
-                    cb(null, `${endPoint}${file.fieldname}/${v4()}${path.extname(file.originalname)}`);
-                    break;
-                default:
-                    cb(null, `${endPoint}/${Date.now()}-${v4()}${path.extname(file.originalname)}`);
-                    break;
-            }
-        },
+key: (request: Request, file, cb) => {
+    // Clean and safe endpoint
+    const cleanEndpoint = endPoint.replace(/\/+$/, '').replace(/^\/+/, '');
+    const extension = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${v4()}${extension}`;
+
+    switch (endPoint) {
+        case AwsS3AccessEndpoints.USERS:
+            const userID = request.user?.id ?? 'anonymous';
+            cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}-${userID}${extension}`);
+            break;
+        case AwsS3AccessEndpoints.BUSINESS_DOCUMENTS:
+            cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}${extension}`);
+            break;
+        default:
+            cb(null, `${cleanEndpoint}/${uniqueName}`);
+            break;
+    }
+    console.log("🧾 Final S3 Key =>", `${cleanEndpoint}/${uniqueName}`);
+
+}
+
     }),
     fileFilter: (request, file, callback) => {
+        //@ts-ignore
         sanitizeImage(request, file, callback)
     },
     limits: {
