@@ -44,6 +44,9 @@ const encryptionService = new EncryptionService();
 
 //FIXME suggestion based on location
 //FIXME remove suggestion key from request.query
+// simple in-memory counter (resets when server restarts)
+const feedVisitCount: Record<string, number> = {};
+
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType } = request.user;
@@ -61,41 +64,59 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
 
-        const userPosts = await Post.find({ userID: id, isDeleted: false, isPublished: true });
+        // Initialize or increment user feed visit count
+        if (!feedVisitCount[id]) feedVisitCount[id] = 0;
+        feedVisitCount[id]++;
 
-        const allUserPostsViewedTwice =
-            userPosts.length > 0 && userPosts.every(post => (post.views ?? 0) >= 2);
+        // Fetch user's posts
+        const userPosts = await Post.find({
+            userID: id,
+            isDeleted: false,
+            isPublished: true,
+        });
 
-        if (!allUserPostsViewedTwice) {
+        
+        if (userPosts.length > 0 && feedVisitCount[id] <= 2) {
+            console.log("Showing user's own posts first...");
 
-            const lowViewPosts = userPosts.filter(post => (post.views ?? 0) < 2);
-            const data = lowViewPosts.slice(0, documentLimit);
-
+            // increment their views
             await Promise.all(
-                data.map(post =>
+                userPosts.map(post =>
                     Post.updateOne({ _id: post._id }, { $inc: { views: 1 } })
                 )
             );
 
-            const totalDocument = lowViewPosts.length;
+            // fetch random other people's posts
+            const randomPosts = await Post.aggregate([
+                { $match: { isDeleted: false, isPublished: true, userID: { $ne: id } } },
+                { $sample: { size: documentLimit } },
+            ]);
+
+            const data = [...userPosts, ...randomPosts];
+            const totalDocument = data.length;
             const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
 
             return response.send(
                 httpOkExtended(
                     data,
-                    "Home feed fetched (user posts).",
+                    "Home feed fetched (user posts first).",
                     pageNumber,
                     totalPagesCount,
                     totalDocument
                 )
             );
         }
-        const dbQuery = {
-            ...(getPostQuery || {}),
-            userID: { ...(((getPostQuery as any)?.userID) || {}), $ne: id },
+
+       
+        console.log("Showing random posts...");
+
+        const dbQuery: any = {
+            ...getPostQuery,
             isPublished: true,
             isDeleted: false,
+            userID: { $ne: id }, // exclude logged-in user's posts
         };
+
 
         const [
             likedByMe,
@@ -114,20 +135,14 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
             }),
         ]);
 
-        // Exclude blocked users + self
         Object.assign(dbQuery, { userID: { $nin: [...blockedUsers, id] } });
 
-        let [documents, totalDocument, suggestions] = await Promise.all([
-            fetchPosts(
-                dbQuery,
-                likedByMe,
-                savedByMe,
-                joiningEvents,
-                pageNumber,
-                documentLimit,
-                lat,
-                lng
-            ),
+        // Get random posts using MongoDB's $sample
+        const [documents, totalDocument, suggestions] = await Promise.all([
+            Post.aggregate([
+                { $match: dbQuery },
+                { $sample: { size: documentLimit } },
+            ]),
             countPostDocument(dbQuery),
             fetchBusinessProfiles(
                 { _id: { $in: verifiedBusinessIDs } },
@@ -138,14 +153,10 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
             ),
         ]);
 
-        documents = documents.filter(
-            post => post.userID.toString() !== id.toString()
-        );
-
-        const data = documents.sort(() => Math.random() - 0.5);
-
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+        let data = documents;
 
+        // Add suggestions if needed
         if (
             accountType === AccountType.INDIVIDUAL &&
             suggestions &&
@@ -156,6 +167,11 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
                 postType: "suggestion",
                 data: suggestions,
             });
+        }
+
+        // Reset feed counter every 4th refresh to restart cycle
+        if (feedVisitCount[id] >= 4) {
+            feedVisitCount[id] = 0;
         }
 
         return response.send(
@@ -177,6 +193,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         );
     }
 };
+
 
 
 
