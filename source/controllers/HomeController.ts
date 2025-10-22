@@ -46,58 +46,139 @@ const encryptionService = new EncryptionService();
 //FIXME remove suggestion key from request.query
 const feed = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        //Only shows public profile post here and follower posts
         const { id, accountType } = request.user;
-        let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
-        const dbQuery = { ...getPostQuery };
+        let { pageNumber, documentLimit, lat, lng }: any = request.query;
+
+        if (!id) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND
+                )
+            );
+        }
+
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        if (query !== undefined && query !== "") {
+
+        const userPosts = await Post.find({ userID: id, isDeleted: false, isPublished: true });
+
+        const allUserPostsViewedTwice =
+            userPosts.length > 0 && userPosts.every(post => (post.views ?? 0) >= 2);
+
+        if (!allUserPostsViewedTwice) {
+
+            const lowViewPosts = userPosts.filter(post => (post.views ?? 0) < 2);
+            const data = lowViewPosts.slice(0, documentLimit);
+
+            await Promise.all(
+                data.map(post =>
+                    Post.updateOne({ _id: post._id }, { $inc: { views: 1 } })
+                )
+            );
+
+            const totalDocument = lowViewPosts.length;
+            const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+
+            return response.send(
+                httpOkExtended(
+                    data,
+                    "Home feed fetched (user posts).",
+                    pageNumber,
+                    totalPagesCount,
+                    totalDocument
+                )
+            );
         }
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = await Promise.all([
-            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+        const dbQuery = {
+            ...(getPostQuery || {}),
+            userID: { ...(((getPostQuery as any)?.userID) || {}), $ne: id },
+            isPublished: true,
+            isDeleted: false,
+        };
+
+        const [
+            likedByMe,
+            savedByMe,
+            joiningEvents,
+            blockedUsers,
+            verifiedBusinessIDs,
+        ] = await Promise.all([
+            Like.distinct("postID", { userID: id, postID: { $ne: null } }),
             getSavedPost(id),
-            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
+            EventJoin.distinct("postID", { userID: id, postID: { $ne: null } }),
             getBlockedUsers(id),
-            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } }),
-            User.findOne({ _id: id }),
+            User.distinct("businessProfileID", {
+                ...activeUserQuery,
+                businessProfileID: { $ne: null },
+            }),
         ]);
-        lat = lat || 0;
-        lng = lng || 0;
-        const parsedLat = Number(lat);
-        const parsedLng = Number(lng);
-        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
-            const location = { geoCoordinate: { type: "Point", coordinates: [lng, lat] } }
-            User.updateOne(
-                { _id: id },
-                { $set: location } // Assuming the user model has a location field
-            ).then(() => console.log("Home location updated", "lat", lat, "lng", lng)).catch(error => {
-                console.error('Error updating location:', error);
-            });
-        }
-        Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
-        const [documents, totalDocument, suggestions] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
+
+        // Exclude blocked users + self
+        Object.assign(dbQuery, { userID: { $nin: [...blockedUsers, id] } });
+
+        let [documents, totalDocument, suggestions] = await Promise.all([
+            fetchPosts(
+                dbQuery,
+                likedByMe,
+                savedByMe,
+                joiningEvents,
+                pageNumber,
+                documentLimit,
+                lat,
+                lng
+            ),
             countPostDocument(dbQuery),
-            fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng)
+            fetchBusinessProfiles(
+                { _id: { $in: verifiedBusinessIDs } },
+                pageNumber,
+                7,
+                lat,
+                lng
+            ),
         ]);
+
+        documents = documents.filter(
+            post => post.userID.toString() !== id.toString()
+        );
+
+        const data = documents.sort(() => Math.random() - 0.5);
+
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        const data = documents
-        if (accountType === AccountType.INDIVIDUAL && suggestions && suggestions.length !== 0) {
+
+        if (
+            accountType === AccountType.INDIVIDUAL &&
+            suggestions &&
+            suggestions.length
+        ) {
             data.push({
                 _id: new ObjectId(),
                 postType: "suggestion",
-                data: suggestions
+                data: suggestions,
             });
         }
-        return response.send(httpOkExtended(data, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
+
+        return response.send(
+            httpOkExtended(
+                data,
+                "Home feed fetched (random posts).",
+                pageNumber,
+                totalPagesCount,
+                totalDocument
+            )
+        );
     } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        console.error("❌ Feed error:", error);
+        next(
+            httpInternalServerError(
+                error,
+                error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR
+            )
+        );
     }
-}
+};
+
+
 
 //FIXME Remove my own business from suggestions
 const suggestion = async (request: Request, response: Response, next: NextFunction) => {
