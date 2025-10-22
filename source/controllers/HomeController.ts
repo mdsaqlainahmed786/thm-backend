@@ -45,7 +45,7 @@ const encryptionService = new EncryptionService();
 //FIXME suggestion based on location
 //FIXME remove suggestion key from request.query
 // simple in-memory counter (resets when server restarts)
-const feedVisitCount: Record<string, number> = {};
+
 
 const feed = async (request: Request, response: Response, next: NextFunction) => {
   try {
