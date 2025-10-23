@@ -19,6 +19,9 @@ import Story, { addMediaInStory, storyTimeStamp } from "../database/models/story
 import { ObjectId } from "mongodb";
 import BusinessQuestionSeeder from "../database/seeders/BusinessQuestionSeeder";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
+import { shuffleArray } from "../utils/shuffle"; // create a helper function (shown below)
+import { UserRecentPostCache } from "../utils/recentPostCache"; // simple in-memory cache (or Redis if prod)
+import { FeedOrderCache } from "../utils/feedOrderCache";
 import BusinessTypeSeeder from "../database/seeders/BusinessTypeSeeder";
 import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
@@ -47,17 +50,11 @@ const encryptionService = new EncryptionService();
 // simple in-memory counter (resets when server restarts)
 
 
-import { shuffleArray } from "../utils/shuffle"; // create a helper function (shown below)
-import { UserRecentPostCache } from "../utils/recentPostCache"; // simple in-memory cache (or Redis if prod)
 
 const feed = async (request: Request, response: Response, next: NextFunction) => {
   try {
     const { id, accountType } = request.user;
     let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
-
-    const dbQuery = { ...getPostQuery };
-    pageNumber = parseQueryParam(pageNumber, 1);
-    documentLimit = parseQueryParam(documentLimit, 20);
 
     if (!id) {
       return response.status(200).json({
@@ -66,6 +63,10 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         data: [],
       });
     }
+
+    const dbQuery = { ...getPostQuery };
+    pageNumber = parseQueryParam(pageNumber, 1);
+    documentLimit = parseQueryParam(documentLimit, 20);
 
     const [
       likedByMe,
@@ -85,9 +86,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       User.findOne({ _id: id }),
     ]);
 
-    Object.assign(dbQuery, {
-      userID: { $nin: blockedUsers },
-    });
+    Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
 
     const [documents, totalDocument, suggestions] = await Promise.all([
       fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
@@ -101,35 +100,49 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       ),
     ]);
 
-    let data = documents;
+    let data: any[] = [];
 
-    // STEP 1: Randomize the posts order safely
-    data = shuffleArray(data);
+    // Only cache the top page to avoid messing with pagination behavior
+    const isTopPage = Number(pageNumber) === 1;
 
-    // STEP 2: Check if user has a recent post to highlight
+    // Try to reuse cached randomized order for top page
+    if (isTopPage) {
+      const cachedFeed = FeedOrderCache.get(id);
+      if (cachedFeed) {
+        data = cachedFeed;
+        FeedOrderCache.decrement(id);
+      } else {
+        data = shuffleArray(documents);
+        FeedOrderCache.set(id, data);
+      }
+    } else {
+      // For deeper pages just shuffle on-the-fly (no caching) to keep pagination sane
+      data = shuffleArray(documents);
+    }
+
+    // Highlight user’s most recent post (top priority)
     const recentPost = await UserRecentPostCache.get(id);
 
     if (recentPost) {
       const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
       if (!postExists) {
-        // Fetch it if not already in current page
-        const userPost = await Post.findOne({ _id: recentPost.postID });
-        if (userPost) {
-          data.unshift(userPost);
-        }
+        const userPost = await Post.findOne({ _id: recentPost.postID }).populate([
+    { path: "userID", select: "fullName userName profileImage city country accountType" },
+    { path: "businessProfileID", select: "businessName businessLogo category" },
+  ]);
+
+
+        if (userPost) data.unshift(userPost);
       } else {
-        // Move it to top if already in feed
         data = [
           postExists,
           ...data.filter(p => p._id.toString() !== recentPost.postID.toString()),
         ];
       }
-
-      // Decrease its remaining refresh count
       await UserRecentPostCache.decrement(id);
     }
 
-    // STEP 3: Add suggestions (unchanged)
+    // Append business suggestions (unchanged)
     const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
     if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
       data.push({
@@ -147,6 +160,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
   }
 };
+
 
 
 
