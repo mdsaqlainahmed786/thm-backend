@@ -1,5 +1,6 @@
 import { GeoCoordinate } from './../database/models/common.model';
 import { ObjectId } from 'mongodb';
+import { UserRecentPostCache } from '../utils/recentPostCache';
 import { Request, Response, NextFunction } from "express";
 import { httpBadRequest, httpCreated, httpInternalServerError, httpNotFoundOr404, httpNoContent, httpOk, httpAcceptedOrUpdated, httpForbidden } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
@@ -164,7 +165,9 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
         newPost.media = mediaIDs;
         const savedPost = await newPost.save();
-        
+        //@ts-ignore
+        UserRecentPostCache.set(request.user.id, newPost._id.toString());
+
         if (savedPost && savedPost.tagged && savedPost.tagged.length !== 0) {
             savedPost.tagged.map((tagged) => {
                 AppNotificationController.store(id, tagged, NotificationType.TAGGED, { postID: savedPost.id, userID: tagged }).catch((error) => console.error(error));

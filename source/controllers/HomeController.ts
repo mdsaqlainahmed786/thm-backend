@@ -19,6 +19,9 @@ import Story, { addMediaInStory, storyTimeStamp } from "../database/models/story
 import { ObjectId } from "mongodb";
 import BusinessQuestionSeeder from "../database/seeders/BusinessQuestionSeeder";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
+import { shuffleArray } from "../utils/shuffle"; // create a helper function (shown below)
+import { UserRecentPostCache } from "../utils/recentPostCache"; // simple in-memory cache (or Redis if prod)
+import { FeedOrderCache } from "../utils/feedOrderCache";
 import BusinessTypeSeeder from "../database/seeders/BusinessTypeSeeder";
 import BusinessSubtypeSeeder from "../database/seeders/BusinessSubtypeSeeder";
 import PromoCodeSeeder from "../database/seeders/PromoCodeSeeder";
@@ -47,60 +50,122 @@ const encryptionService = new EncryptionService();
 // simple in-memory counter (resets when server restarts)
 
 
+
 const feed = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        //Only shows public profile post here and follower posts
-        const { id, accountType } = request.user;
-        let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
-        const dbQuery = { ...getPostQuery };
-        pageNumber = parseQueryParam(pageNumber, 1);
-        documentLimit = parseQueryParam(documentLimit, 20);
-        if (query !== undefined && query !== "") {
-        }
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = await Promise.all([
-            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            getSavedPost(id),
-            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
-            getBlockedUsers(id),
-            User.distinct('businessProfileID', { ...activeUserQuery, businessProfileID: { $ne: null } }),
-            User.findOne({ _id: id }),
-        ]);
-        lat = lat || 0;
-        lng = lng || 0;
-        const parsedLat = Number(lat);
-        const parsedLng = Number(lng);
-        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
-            const location = { geoCoordinate: { type: "Point", coordinates: [lng, lat] } }
-            User.updateOne(
-                { _id: id },
-                { $set: location } // Assuming the user model has a location field
-            ).then(() => console.log("Home location updated", "lat", lat, "lng", lng)).catch(error => {
-                console.error('Error updating location:', error);
-            });
-        }
-        Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
-        const [documents, totalDocument, suggestions] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
-            countPostDocument(dbQuery),
-            fetchBusinessProfiles({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng)
-        ]);
-        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        const data = documents
-        if (accountType === AccountType.INDIVIDUAL && suggestions && suggestions.length !== 0) {
-            data.push({
-                _id: new ObjectId(),
-                postType: "suggestion",
-                data: suggestions
-            });
-        }
-        return response.send(httpOkExtended(data, 'Home feed fetched.', pageNumber, totalPagesCount, totalDocument));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const { id, accountType } = request.user;
+    let { pageNumber, documentLimit, query, lat, lng }: any = request.query;
+
+    if (!id) {
+      return response.status(200).json({
+        success: false,
+        message: "User not authenticated",
+        data: [],
+      });
     }
-}
+
+    const dbQuery = { ...getPostQuery };
+    pageNumber = parseQueryParam(pageNumber, 1);
+    documentLimit = parseQueryParam(documentLimit, 20);
+
+    const [
+      likedByMe,
+      savedByMe,
+      joiningEvents,
+      blockedUsers,
+      verifiedBusinessIDs
+    ] = await Promise.all([
+      Like.distinct("postID", { userID: id, postID: { $ne: null } }),
+      getSavedPost(id),
+      EventJoin.distinct("postID", { userID: id, postID: { $ne: null } }),
+      getBlockedUsers(id),
+      User.distinct("businessProfileID", {
+        ...activeUserQuery,
+        businessProfileID: { $ne: null },
+      }),
+      User.findOne({ _id: id }),
+    ]);
+
+   
+    lat = lat || 0;
+    lng = lng || 0;
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+    if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+      const location = {
+        geoCoordinate: { type: "Point", coordinates: [lng, lat] }
+      };
+      User.updateOne({ _id: id }, { $set: location })
+        .then(() => console.log("Home location updated", "lat", lat, "lng", lng))
+        .catch((error) => console.error("Error updating location:", error));
+    }
+
+    Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
+
+    const [documents, totalDocument, suggestions] = await Promise.all([
+      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
+      countPostDocument(dbQuery),
+      fetchBusinessProfiles(
+        { _id: { $in: verifiedBusinessIDs } },
+        pageNumber,
+        7,
+        lat,
+        lng
+      ),
+    ]);
+
+    let data: any[] = [];
+    const isTopPage = Number(pageNumber) === 1;
+
+    if (isTopPage) {
+      const cachedFeed = FeedOrderCache.get(id);
+      if (cachedFeed) {
+        data = cachedFeed;
+        FeedOrderCache.decrement(id);
+      } else {
+        data = shuffleArray(documents);
+        FeedOrderCache.set(id, data);
+      }
+    } else {
+      data = shuffleArray(documents);
+    }
+  
+    const recentPost = await UserRecentPostCache.get(id);
+
+    if (recentPost) {
+      const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
+      if (!postExists) {
+        const userPost = await Post.findOne({ _id: recentPost.postID }).populate([
+          { path: "userID", select: "fullName userName profileImage city country accountType" },
+          { path: "businessProfileID", select: "businessName businessLogo category" },
+        ]);
+        if (userPost) data.unshift(userPost);
+      } else {
+        data = [
+          postExists,
+          ...data.filter(p => p._id.toString() !== recentPost.postID.toString()),
+        ];
+      }
+      await UserRecentPostCache.decrement(id);
+    }
+    const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
+    if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
+      data.push({
+        _id: new ObjectId(),
+        postType: "suggestion",
+        data: suggestions,
+      });
+    }
+
+    return response.send(
+      httpOkExtended(data, "Home feed fetched.", pageNumber, totalPagesCount, totalDocument)
+    );
+
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
+};
+
 
 
 
