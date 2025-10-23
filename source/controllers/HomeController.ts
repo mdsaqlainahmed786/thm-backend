@@ -86,6 +86,20 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       User.findOne({ _id: id }),
     ]);
 
+   
+    lat = lat || 0;
+    lng = lng || 0;
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+    if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0) {
+      const location = {
+        geoCoordinate: { type: "Point", coordinates: [lng, lat] }
+      };
+      User.updateOne({ _id: id }, { $set: location })
+        .then(() => console.log("Home location updated", "lat", lat, "lng", lng))
+        .catch((error) => console.error("Error updating location:", error));
+    }
+
     Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
 
     const [documents, totalDocument, suggestions] = await Promise.all([
@@ -101,11 +115,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     ]);
 
     let data: any[] = [];
-
-    // Only cache the top page to avoid messing with pagination behavior
     const isTopPage = Number(pageNumber) === 1;
 
-    // Try to reuse cached randomized order for top page
     if (isTopPage) {
       const cachedFeed = FeedOrderCache.get(id);
       if (cachedFeed) {
@@ -116,22 +127,18 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         FeedOrderCache.set(id, data);
       }
     } else {
-      // For deeper pages just shuffle on-the-fly (no caching) to keep pagination sane
       data = shuffleArray(documents);
     }
-
-    // Highlight user’s most recent post (top priority)
+  
     const recentPost = await UserRecentPostCache.get(id);
 
     if (recentPost) {
       const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
       if (!postExists) {
         const userPost = await Post.findOne({ _id: recentPost.postID }).populate([
-    { path: "userID", select: "fullName userName profileImage city country accountType" },
-    { path: "businessProfileID", select: "businessName businessLogo category" },
-  ]);
-
-
+          { path: "userID", select: "fullName userName profileImage city country accountType" },
+          { path: "businessProfileID", select: "businessName businessLogo category" },
+        ]);
         if (userPost) data.unshift(userPost);
       } else {
         data = [
@@ -141,8 +148,6 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       }
       await UserRecentPostCache.decrement(id);
     }
-
-    // Append business suggestions (unchanged)
     const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
     if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
       data.push({
