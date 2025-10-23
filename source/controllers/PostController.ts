@@ -28,6 +28,7 @@ import Notification, { NotificationType } from '../database/models/notification.
 import FileQueue, { QueueStatus } from '../database/models/fileProcessing.model';
 import { addAnonymousUserInPost } from '../database/models/anonymousUser.model';
 import { lat_lng } from './EventController';
+import { FeedOrderCache } from '../utils/feedOrderCache';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -167,6 +168,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const savedPost = await newPost.save();
         //@ts-ignore
         UserRecentPostCache.set(request.user.id, newPost._id.toString());
+        FeedOrderCache.clear(request.user.id);
 
         if (savedPost && savedPost.tagged && savedPost.tagged.length !== 0) {
             savedPost.tagged.map((tagged) => {
