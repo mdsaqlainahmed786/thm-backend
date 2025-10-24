@@ -21,7 +21,9 @@ const inviteCollaborator = async (req: Request, res: Response, next: NextFunctio
     }
 
     const alreadyInvited = post.collaborationInvites?.some(
-      (invite) => invite.invitedUserID?.toString() === invitedUserID.toString()
+      (invite) =>
+        invite.invitedUserID?.toString() === invitedUserID.toString() &&
+        invite.status === "pending"
     );
     if (alreadyInvited) {
       return res.send(httpBadRequest(ErrorMessage.invalidRequest("User already invited")));
