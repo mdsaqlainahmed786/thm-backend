@@ -11,18 +11,15 @@ import AppNotificationController from "./AppNotificationController";
  * Invite a collaborator to a post
  */
 
-
-
-/**
- * Invite a collaborator to a post
- */
 const inviteCollaborator = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { postID, invitedUserID } = req.body;
     const { id: requesterID } = req.user;
 
     const post = await Post.findById(postID);
-    if (!post) return res.send(httpNotFoundOr404(null, "Post not found"));
+    if (!post) {
+      return res.send(httpNotFoundOr404(null, "Post not found"));
+    }
 
     if (post.userID.toString() !== requesterID.toString()) {
       return res.send(httpBadRequest(null, "Only the post owner can invite collaborators"));
@@ -37,22 +34,24 @@ const inviteCollaborator = async (req: Request, res: Response, next: NextFunctio
       return res.send(httpBadRequest(null, "User already invited"));
     }
 
+    // Add invite
     post.collaborationInvites?.push({ invitedUserID });
     await post.save();
 
-    // ✅ Use centralized notification store
-    await AppNotificationController.store(
-      new ObjectId(requesterID),   // sender (inviter)
-      new ObjectId(invitedUserID), // receiver (invited user)
+    AppNotificationController.store(
+      requesterID,               // sender (inviter)
+      post.userID.toString() === invitedUserID.toString() ? requesterID : invitedUserID, // receiver
       NotificationType.COLLABORATION_INVITE,
-      { postID: post._id }         // metadata
-    );
+      { postID: post._id, invitedUserID }
+    ).catch((error) => console.error("Error sending invite notification:", error));
 
     return res.send(httpOk(post, "Collaboration invite sent successfully"));
   } catch (error: any) {
+    console.error("Error inviting collaborator:", error);
     next(httpInternalServerError(error, error.message));
   }
 };
+
 
 /**
  * Accept or Decline collaboration
@@ -80,6 +79,7 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
     invite.respondedAt = new Date();
 
     if (action === "accept") {
+      // Add collaborator
       if (!post.collaborators?.includes(userID as any)) {
         post.collaborators?.push(new ObjectId(userID));
       }
@@ -87,24 +87,24 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
 
     await post.save();
 
-    // ✅ Notify post owner (inviter)
     const notificationType =
       action === "accept"
         ? NotificationType.COLLABORATION_ACCEPTED
         : NotificationType.COLLABORATION_REJECTED;
 
-    await AppNotificationController.store(
-      new ObjectId(userID),        // sender (who accepted/declined)
-      new ObjectId(post.userID),   // receiver (post owner)
+    AppNotificationController.store(
+      userID,                  // sender (who responded)
+      post.userID,             // receiver (the inviter / post owner)
       notificationType,
-      { postID: post._id }         // metadata
-    );
+      { postID: post._id, action }
+    ).catch((error) => console.error("Error sending collaboration response notification:", error));
 
     return res.send(httpOk(post, `Invite ${action}ed successfully`));
   } catch (error: any) {
     next(httpInternalServerError(error, error.message));
   }
 };
+
 
 
 
