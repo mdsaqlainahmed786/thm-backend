@@ -56,22 +56,37 @@ const inviteCollaborator = async (req: Request, res: Response, next: NextFunctio
 /**
  * Accept or Decline collaboration
  */
+/**
+ * Accept or Decline collaboration
+ */
 const respondToInvite = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { postID, action } = req.body; // "accept" or "decline"
     const { id: userID } = req.user;
 
+    console.log("🤝 [RESPOND] Collaboration response received:", {
+      postID,
+      action,
+      userID,
+    });
+
     const post = await Post.findById(postID);
-    if (!post) return res.send(httpNotFoundOr404(null, "Post not found"));
+    if (!post) {
+      console.log(" [RESPOND] Post not found:", postID);
+      return res.send(httpNotFoundOr404(null, "Post not found"));
+    }
 
     const invite = post.collaborationInvites?.find(
       (i) => i.invitedUserID?.toString() === userID.toString()
     );
+
     if (!invite) {
+      console.log(" [RESPOND] No invite found for user:", userID);
       return res.send(httpBadRequest(null, "No pending invitation found"));
     }
 
     if (invite.status !== "pending") {
+      console.log(" [RESPOND] Invite already handled:", invite.status);
       return res.send(httpBadRequest(null, "Invite already responded to"));
     }
 
@@ -79,31 +94,52 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
     invite.respondedAt = new Date();
 
     if (action === "accept") {
-      // Add collaborator
+      // Add collaborator if accepted
       if (!post.collaborators?.includes(userID as any)) {
         post.collaborators?.push(new ObjectId(userID));
+        console.log(" [RESPOND] Added collaborator:", userID);
       }
     }
 
     await post.save();
+    console.log("  [RESPOND] Post updated successfully");
 
+    // Determine notification type
     const notificationType =
       action === "accept"
         ? NotificationType.COLLABORATION_ACCEPTED
         : NotificationType.COLLABORATION_REJECTED;
 
+    console.log("  [RESPOND] Sending notification:", {
+      type: notificationType,
+      from: userID,
+      to: post.userID,
+    });
+
+    // Send notification to the inviter (post owner)
     AppNotificationController.store(
-      userID,                  // sender (who responded)
-      post.userID,             // receiver (the inviter / post owner)
+      userID, // sender (the user who accepted/rejected)
+      post.userID, // receiver (the inviter)
       notificationType,
       { postID: post._id, action }
-    ).catch((error) => console.error("Error sending collaboration response notification:", error));
+    )
+      .then((notif) => {
+        if (notif) {
+          //@ts-ignore
+          console.log(" [RESPOND] Notification created successfully:", notif._id.toString());
+        } else {
+          console.log(" [RESPOND] Notification creation returned null (skipped)");
+        }
+      })
+      .catch((error) => console.error(" [RESPOND] Notification creation error:", error));
 
     return res.send(httpOk(post, `Invite ${action}ed successfully`));
   } catch (error: any) {
+    console.error(" [RESPOND] Unexpected error:", error.message);
     next(httpInternalServerError(error, error.message));
   }
 };
+
 
 
 

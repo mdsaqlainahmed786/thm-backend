@@ -131,33 +131,48 @@ const status = async (request: Request, response: Response, next: NextFunction) 
     }
 }
 
-const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationType, metadata: { [key: string]: any; }) => {
+const store = async (
+  userID: MongoID,
+  targetUserID: MongoID,
+  type: NotificationType,
+  metadata: { [key: string]: any }
+) => {
   try {
+    console.log("   [STORE] Start creating notification:");
+    console.log("   → Type:", type);
+    console.log("   → From (userID):", userID?.toString());
+    console.log("   → To (targetUserID):", targetUserID?.toString());
+    console.log("   → Metadata:", metadata);
+
     const [userData, targetUserData] = await Promise.all([
       User.findOne({ _id: userID }),
-      User.findOne({ _id: targetUserID })
+      User.findOne({ _id: targetUserID }),
     ]);
+
     if (!userData || !targetUserData) {
-      console.error(`User or target user not found. userID: ${userID}, targetUserID: ${targetUserID}`);
+      console.error(
+        ` User or target user not found. userID: ${userID}, targetUserID: ${targetUserID}`
+      );
       return null;
     }
 
     let name = userData.name;
-    let profileImage = userData?.profilePic?.small || '';
+    let profileImage = userData?.profilePic?.small || "";
     let postType = "post";
-    let description = 'Welcome to The Hotel Media';
+    let description = "Welcome to The Hotel Media";
     let image = "";
     let title = AppConfig.APP_NAME;
 
     if (userData.accountType === AccountType.BUSINESS && userData.businessProfileID) {
-      const businessData = await BusinessProfile.findOne({ _id: userData.businessProfileID });
+      const businessData = await BusinessProfile.findOne({
+        _id: userData.businessProfileID,
+      });
       if (businessData) {
         name = businessData.name;
         profileImage = businessData?.profilePic?.small ?? profileImage;
       }
     }
 
-    // 🧩 MAIN: Notification text logic
     switch (type) {
       case NotificationType.LIKE_A_STORY:
         description = `${name} liked your story.`;
@@ -189,7 +204,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
         description = `${name} tagged you in a post.`;
         break;
       case NotificationType.EVENT_JOIN:
-        const eventName = metadata.name ?? '';
+        const eventName = metadata.name ?? "";
         description = `${name} has joined the event \n${eventName}.`;
         break;
       case NotificationType.COLLABORATION_INVITE:
@@ -201,29 +216,37 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
       case NotificationType.COLLABORATION_REJECTED:
         description = `${name} declined your collaboration invite.`;
         break;
-
       default:
         description = `Unknown notification type: ${type}`;
     }
 
-   
+    console.log(" [STORE] Creating Notification object...");
     const newNotification = new Notification({
       userID,
+      senderID: userID, 
       targetUserID,
       title,
       description,
       type,
-      metadata
+      metadata,
     });
+
+    try {
+      const saved = await newNotification.save();
+      //@ts-ignore
+      console.log(" [STORE] Notification saved successfully:", saved._id.toString());
+    } catch (saveErr: any) {
+      console.error(" [STORE] Failed to save notification:", saveErr.message);
+    }
 
     const devicesConfigs = await DevicesConfig.find({ userID: targetUserID });
 
     try {
-      console.log(`Send notification NotificationType::${type} \nTitle:${title} \nDescription:${description}`);
       if (userID.toString() !== targetUserID.toString()) {
+        console.log("📡 Sending push notification...");
         await Promise.all(
           devicesConfigs.map(async (devicesConfig) => {
-            if (devicesConfig && devicesConfig.notificationToken) {
+            if (devicesConfig?.notificationToken) {
               const notificationID = newNotification.id || v4();
               const devicePlatform = devicesConfig.devicePlatform;
               const message: Message = createMessagePayload(
@@ -235,7 +258,7 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
                   devicePlatform,
                   type,
                   image,
-                  profileImage
+                  profileImage,
                 }
               );
               await sendNotification(message);
@@ -244,33 +267,17 @@ const store = async (userID: MongoID, targetUserID: MongoID, type: NotificationT
           })
         );
       }
-    } catch (error) {
-      console.error("Error sending one or more notifications:", error);
+    } catch (pushErr) {
+      console.error(" [STORE] Error sending push notification:", pushErr);
     }
 
-    // 🚫 Skip saving in self-notification edge cases
-    if (
-      userID.toString() === targetUserID.toString() &&
-      [
-        NotificationType.LIKE_POST,
-        NotificationType.COMMENT,
-        NotificationType.LIKE_COMMENT,
-        NotificationType.REPLY,
-        NotificationType.LIKE_A_STORY,
-        NotificationType.EVENT_JOIN
-        // 🧠 Notice: We purposely DO NOT include collaboration types here
-      ].includes(type)
-    ) {
-      console.log("Not save");
-      return null;
-    }
-
-    console.log("Save");
-    return await newNotification.save();
+    return newNotification;
   } catch (error: any) {
+    console.error(" [STORE] Unexpected error:", error.message);
     throw error;
   }
 };
+
 
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
