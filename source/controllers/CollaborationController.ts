@@ -13,15 +13,20 @@ import AppNotificationController from "./AppNotificationController";
 
 const inviteCollaborator = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // console.log(" [INVITE] Hit inviteCollaborator route");
     const { postID, invitedUserID } = req.body;
     const { id: requesterID } = req.user;
 
+    // console.log(" [INVITE] Request Body:", { postID, invitedUserID, requesterID });
+
     const post = await Post.findById(postID);
     if (!post) {
+      console.log(" [INVITE] Post not found:", postID);
       return res.send(httpNotFoundOr404(null, "Post not found"));
     }
 
     if (post.userID.toString() !== requesterID.toString()) {
+      // console.log(" [INVITE] Not the post owner. userID:", requesterID);
       return res.send(httpBadRequest(null, "Only the post owner can invite collaborators"));
     }
 
@@ -30,24 +35,29 @@ const inviteCollaborator = async (req: Request, res: Response, next: NextFunctio
         invite.invitedUserID?.toString() === invitedUserID.toString() &&
         invite.status === "pending"
     );
+
     if (alreadyInvited) {
+      // console.log(" [INVITE] Already invited:", invitedUserID);
       return res.send(httpBadRequest(null, "User already invited"));
     }
 
-    // Add invite
     post.collaborationInvites?.push({ invitedUserID });
     await post.save();
 
+    // console.log(" [INVITE] Calling AppNotificationController.store()");
+
     AppNotificationController.store(
-      requesterID,               // sender (inviter)
-      post.userID.toString() === invitedUserID.toString() ? requesterID : invitedUserID, // receiver
+      requesterID, // sender
+      invitedUserID, // receiver
       NotificationType.COLLABORATION_INVITE,
       { postID: post._id, invitedUserID }
-    ).catch((error) => console.error("Error sending invite notification:", error));
+    )
+      .then(() => console.log("[INVITE] store() call completed successfully"))
+      .catch((err) => console.error("[INVITE] store() threw error:", err));
 
     return res.send(httpOk(post, "Collaboration invite sent successfully"));
   } catch (error: any) {
-    console.error("Error inviting collaborator:", error);
+    // console.error(" [INVITE] Unexpected error:", error.message);
     next(httpInternalServerError(error, error.message));
   }
 };
@@ -64,11 +74,11 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
     const { postID, action } = req.body; // "accept" or "decline"
     const { id: userID } = req.user;
 
-    console.log("🤝 [RESPOND] Collaboration response received:", {
-      postID,
-      action,
-      userID,
-    });
+    // console.log(" [RESPOND] Collaboration response received:", {
+    //   postID,
+    //   action,
+    //   userID,
+    // });
 
     const post = await Post.findById(postID);
     if (!post) {
@@ -97,12 +107,12 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
       // Add collaborator if accepted
       if (!post.collaborators?.includes(userID as any)) {
         post.collaborators?.push(new ObjectId(userID));
-        console.log(" [RESPOND] Added collaborator:", userID);
+        // console.log(" [RESPOND] Added collaborator:", userID);
       }
     }
 
     await post.save();
-    console.log("  [RESPOND] Post updated successfully");
+    // console.log("  [RESPOND] Post updated successfully");
 
     // Determine notification type
     const notificationType =
