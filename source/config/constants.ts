@@ -63,6 +63,15 @@ export abstract class AppConfig {
         API_KEY: process.env.SENDGRID_API_KEY!,
         FROM_ADDRESS: process.env.SENDGRID_FROM_ADDRESS!
     }
+    // Amazon SES
+    static readonly SES = {
+        REGION: process.env.AWS_REGION ?? "ap-south-1",
+        ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "",
+        SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+        FROM_ADDRESS: process.env.SES_FROM_ADDRESS ?? process.env.SENDGRID_FROM_ADDRESS!
+    };
+
+
 
     //Mailersend
     static readonly MAILER_SEND = {
@@ -83,6 +92,8 @@ export abstract class AppConfig {
         TEAM_ID: process.env.APPLE_TEAM_ID!,
         KEY_IDENTIFIER: process.env.APPLE_KEY_IDENTIFIER!,
     }
+     // If PUBLIC_DIR is set and points to folder
+    static readonly PUBLIC_DIR: string = process.env.PUBLIC_DIR || "public";
 }
 
 export abstract class SocketChannel {
