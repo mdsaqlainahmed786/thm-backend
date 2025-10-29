@@ -94,10 +94,7 @@ export abstract class SocketChannel {
     static readonly CHAT_SCREEN = "chat screen";
     static readonly FETCH_CONVERSATIONS = "fetch conversations";
     static readonly FETCH_LAST_SEEN = "fetch last seen";
-    static readonly COLLAB_INVITE = "collab_invite";
-    static readonly COLLAB_RESPONSE = "collab_response";
-    static readonly COLLAB_UPDATE = "collab_update";
-    static readonly LAST_SEEN = "last seen";
+    static readonly LAST_SEEN = "last seen"
     static readonly TYPING = "typing";
     static readonly STOP_TYPING = "stop typing";
     static readonly MESSAGE_SEEN = "message seen";

@@ -5,7 +5,6 @@ import { SocketUser, AppSocketUser, MongoID } from "./common";
 import InMemorySessionStore from "./utils/sessionStore";
 import User, { activeUserQuery, addBusinessProfileInUser, IUser } from "./database/models/user.model";
 import { randomBytes } from 'crypto';
-import Post from "./database/models/post.model";
 import { SocketChannel } from "./config/constants";
 import moment from "moment";
 import Message, { MessageType } from "./database/models/message.model";
@@ -363,116 +362,6 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
             } else {
                 lastSeen(socket, '')
-            }
-        });
-        socket.on(SocketChannel.COLLAB_INVITE, async (data: { postID: string; invitedUserID: string }) => {
-            try {
-                const { postID, invitedUserID } = data;
-                const requesterID = (socket as AppSocketUser).userID;
-
-                const post = await Post.findById(postID);
-                if (!post) {
-                    return socket.emit("error", { message: "Post not found" });
-                }
-
-                if (post.userID.toString() !== requesterID.toString()) {
-                    return socket.emit("error", { message: "Only post owner can invite collaborators" });
-                }
-
-                // Avoid duplicate invites
-                const alreadyInvited = post.collaborationInvites?.some(
-                    (invite) => invite.invitedUserID?.toString() === invitedUserID.toString() && invite.status === "pending"
-                );
-                if (alreadyInvited) {
-                    return socket.emit("error", { message: "User already invited" });
-                }
-
-                // Push invite
-                post.collaborationInvites?.push({ invitedUserID });
-                await post.save();
-
-                // Notify invited user in real time
-                socket.to(invitedUserID.toString()).emit(SocketChannel.COLLAB_INVITE, {
-                    postID,
-                    invitedBy: requesterID,
-                    message: "You’ve been invited to collaborate on a post.",
-                });
-
-                console.log(`Collaboration invite sent from ${requesterID} to ${invitedUserID}`);
-            } catch (error) {
-                console.error("COLLAB_INVITE_ERROR:", error);
-            }
-        });
-
-
-        // Accept or decline collaboration
-        socket.on(SocketChannel.COLLAB_RESPONSE, async (data: { postID: string; action: "accept" | "decline" }) => {
-            try {
-                const { postID, action } = data;
-                const userID = (socket as AppSocketUser).userID;
-
-                const post = await Post.findById(postID);
-                if (!post) return socket.emit("error", { message: "Post not found" });
-
-                const invite = post.collaborationInvites?.find(
-                    (i) => i.invitedUserID?.toString() === userID.toString()
-                );
-                if (!invite) return socket.emit("error", { message: "No pending invite found" });
-                if (invite.status !== "pending") return socket.emit("error", { message: "Invite already responded to" });
-
-                // Update status
-                //@ts-ignore
-                invite.status = action;
-                invite.respondedAt = new Date();
-
-                if (action === "accept") {
-                    if (!post.collaborators?.some((c) => c.toString() === userID.toString())) {
-                        post.collaborators?.push(new ObjectId(userID));
-                    }
-                }
-
-                await post.save();
-
-                // Notify post owner
-                const postOwner = post.userID.toString();
-                socket.to(postOwner).emit(SocketChannel.COLLAB_RESPONSE, {
-                    postID,
-                    fromUser: userID,
-                    action,
-                    message: `User ${action}ed your collaboration invite.`,
-                });
-
-                // Notify both users to refresh their post feed (if accepted)
-                if (action === "accept") {
-                    socket.to(postOwner).emit(SocketChannel.COLLAB_UPDATE, {
-                        postID,
-                        collaborator: userID,
-                        updateType: "new_collaboration",
-                    });
-                    socket.emit(SocketChannel.COLLAB_UPDATE, {
-                        postID,
-                        collaborator: userID,
-                        updateType: "new_collaboration",
-                    });
-                }
-
-                console.log(`Collaboration ${action}ed by ${userID} for post ${postID}`);
-            } catch (error) {
-                console.error("COLLAB_RESPONSE_ERROR:", error);
-            }
-        });
-        socket.on(SocketChannel.COLLAB_UPDATE, async (data: { postID: string; updateType: string }) => {
-            const { postID, updateType } = data;
-            const post = await Post.findById(postID);
-            if (!post) return;
-            //@ts-ignore
-            const targetUsers = [post.userID.toString(), ...post.collaborators?.map(String)];
-            for (const user of targetUsers) {
-                socket.to(user).emit(SocketChannel.COLLAB_UPDATE, {
-                    postID,
-                    updateType,
-                    message: "Post insights updated",
-                });
             }
         });
 

@@ -6,9 +6,6 @@ export enum NotificationType {
     LIKE_COMMENT = "like-comment",
     FOLLOW_REQUEST = "follow-request",
     ACCEPT_FOLLOW_REQUEST = "accept-follow-request",
-    COLLABORATION_INVITE = "collaboration-invite", 
-    COLLABORATION_ACCEPTED = "collaboration-accepted",
-    COLLABORATION_REJECTED = "collaboration-rejected",
     FOLLOWING = "following",
     COMMENT = "comment",
     REPLY = "reply",
@@ -21,22 +18,18 @@ export enum NotificationType {
 export interface INotification extends Document {
     userID: MongoID;//represents the user who is initiating the action
     targetUserID: MongoID; //represents the user who is the subject of that action.
-    senderID?: MongoID;
-    postID?: MongoID;
     title: string;
     description: string;
     type: NotificationType;
     isSeen: boolean;
     isDeleted: boolean;
-    metadata?: any;
+    metadata: any;
 }
 const NotificationSchema: Schema = new Schema<INotification>(
     {
         userID: {
             type: Schema.Types.ObjectId, ref: "User", required: true
         },
-        senderID: { type: Schema.Types.ObjectId, ref: "User", required: true }, // who triggered it
-        postID: { type: Schema.Types.ObjectId, ref: "Post" },
         targetUserID: {
             type: Schema.Types.ObjectId, ref: "User", required: true
         },
