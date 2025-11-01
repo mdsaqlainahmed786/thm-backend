@@ -1,7 +1,10 @@
 
 import S3Storage from "multer-s3";
 import path, { normalize } from "path";
+import fs from "fs/promises";
+import { tmpdir } from "os";
 import multer from "multer";
+import fsSync from "fs";
 import { AppConfig, AwsS3AccessEndpoints } from "../config/constants";
 import { Request } from "express";
 import { v4 } from "uuid";
@@ -54,27 +57,27 @@ export const s3Upload = (endPoint: string) => multer({
         metadata: (request, file, cb) => {
             cb(null, { fieldname: file.fieldname })
         },
-key: (request: Request, file, cb) => {
-    // Clean and safe endpoint
-    const cleanEndpoint = endPoint.replace(/\/+$/, '').replace(/^\/+/, '');
-    const extension = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${v4()}${extension}`;
+        key: (request: Request, file, cb) => {
+            // Clean and safe endpoint
+            const cleanEndpoint = endPoint.replace(/\/+$/, '').replace(/^\/+/, '');
+            const extension = path.extname(file.originalname);
+            const uniqueName = `${Date.now()}-${v4()}${extension}`;
 
-    switch (endPoint) {
-        case AwsS3AccessEndpoints.USERS:
-            const userID = request.user?.id ?? 'anonymous';
-            cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}-${userID}${extension}`);
-            break;
-        case AwsS3AccessEndpoints.BUSINESS_DOCUMENTS:
-            cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}${extension}`);
-            break;
-        default:
-            cb(null, `${cleanEndpoint}/${uniqueName}`);
-            break;
-    }
-    console.log("🧾 Final S3 Key =>", `${cleanEndpoint}/${uniqueName}`);
+            switch (endPoint) {
+                case AwsS3AccessEndpoints.USERS:
+                    const userID = request.user?.id ?? 'anonymous';
+                    cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}-${userID}${extension}`);
+                    break;
+                case AwsS3AccessEndpoints.BUSINESS_DOCUMENTS:
+                    cb(null, `${cleanEndpoint}/${file.fieldname}/${v4()}${extension}`);
+                    break;
+                default:
+                    cb(null, `${cleanEndpoint}/${uniqueName}`);
+                    break;
+            }
+            console.log("🧾 Final S3 Key =>", `${cleanEndpoint}/${uniqueName}`);
 
-}
+        }
 
     }),
     fileFilter: (request, file, callback) => {
@@ -98,51 +101,83 @@ export const DiskStorage = multer.diskStorage({
 export const diskUpload = multer({ storage: DiskStorage })
 
 
+export const readVideoMetadata = async (filePathOrKey: string): Promise<FFProbeStream | null> => {
+  let localPath = filePathOrKey;
 
+  try {
+    // ✅ If the provided path does not exist locally, assume it's an S3 Key
+    if (!fsSync.existsSync(filePathOrKey)) {
+      console.log("Downloading video temporarily from S3 to read metadata...");
+      const tmpFilePath = path.join(tmpdir(), `${Date.now()}-video.mp4`);
 
-export const readVideoMetadata = async (file_path: string): Promise<FFProbeStream | null> => {
-    try {
-        const metadata: FFProbeResult = await new Promise((resolve, reject) => {
-            ffprobe(file_path, { path: ffprobeStatic.path }, (err, metadata) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(metadata);
-                }
-            });
-        });
-        const videoStream = metadata && metadata.streams && metadata.streams.find(stream => stream.codec_type === 'video');
-        if (metadata.streams.length !== 0 && videoStream) {
-            return videoStream;
-        }
-        return null;
-    } catch (error) {
-        console.error(`Failed to read video metadata ::: ${error}`)
-        return null
+      // Ensure we pass a valid S3 key
+      if (!filePathOrKey || typeof filePathOrKey !== "string") {
+        throw new Error("Invalid S3 key passed to readVideoMetadata");
+      }
+
+      const s3Object = await s3Service.getS3Object(filePathOrKey);
+      if (!s3Object || !s3Object.Body) {
+        throw new Error("S3 object not found or empty body");
+      }
+
+      const buffer = await s3Object.Body.transformToByteArray();
+      //@ts-ignore
+      await fs.writeFile(tmpFilePath, Buffer.from(buffer));
+      localPath = tmpFilePath;
     }
+
+    // ✅ Probe the local file (temporary or real)
+    const metadata: FFProbeResult = await new Promise((resolve, reject) => {
+      ffprobe(localPath, { path: ffprobeStatic.path }, (err, metadata) => {
+        if (err) reject(err);
+        else resolve(metadata);
+      });
+    });
+
+    const videoStream = metadata?.streams?.find((s) => s.codec_type === "video");
+    return videoStream || null;
+  } catch (error) {
+    console.error("Failed to read video metadata :::", error);
+    return null;
+  } finally {
+    // ✅ Clean up temporary file
+    if (localPath.startsWith(tmpdir()) && fsSync.existsSync(localPath)) {
+      await fs.unlink(localPath).catch(() => {});
+    }
+  }
 };
 
-export async function generateScreenshot(videoPath: string, fileName: string, thumbnailExtName: string) {
-    try {
-        const thumbnail = path.parse(fileName);
-        const thumbnailName = `${thumbnail.name}.${thumbnailExtName}` //Thumbnail name same as video name / Public path of thumbnail
-        const thumbnailPath = `${PUBLIC_DIR}/${thumbnailName}` //Public path of thumbnail
-        const url: string = await new Promise((resolve, reject) => {
-            ffmpeg(videoPath).screenshots({
-                count: 1,
-                timemarks: ['00:00:00.002'],
-                filename: thumbnailName,
-                folder: PUBLIC_DIR,
-            }).on('end', () => {
-                resolve(thumbnailPath);//return thumb name and path to the callback
-            }).on('error', function (err, stdout, stderr) {
-                console.error(err);
-                reject(null);
-            });
+
+export async function generateScreenshot(s3Key: string, fileName: string, thumbnailExtName: string) {
+  try {
+    // ✅ Create a temporary local path
+    const tmpVideoPath = path.join(tmpdir(), `${Date.now()}-video.mp4`);
+    const tmpThumbPath = path.join(tmpdir(), `${Date.now()}-thumbnail.${thumbnailExtName}`);
+
+    // ✅ Download the video temporarily from S3
+    const s3Object = await s3Service.getS3Object(s3Key);
+    if (!s3Object || !s3Object.Body) throw new Error("S3 video object not found");
+    const buffer = await s3Object.Body.transformToByteArray();
+    //@ts-ignore
+    await fs.writeFile(tmpVideoPath, Buffer.from(buffer));
+
+    // ✅ Generate a thumbnail image locally
+    await new Promise((resolve, reject) => {
+      ffmpeg(tmpVideoPath)
+        .on("end", resolve)
+        .on("error", reject)
+        .screenshots({
+          count: 1,
+          timemarks: ["00:00:00.002"],
+          filename: path.basename(tmpThumbPath),
+          folder: path.dirname(tmpThumbPath),
         });
-        return url;
-    } catch (error) {
-        console.error(`Failed to read video metadata ::: ${error}`)
-        return null
-    }
+    });
+
+    // ✅ Return the local thumbnail path
+    return tmpThumbPath;
+  } catch (error) {
+    console.error("Failed to generate video thumbnail :::", error);
+    return null;
+  }
 }

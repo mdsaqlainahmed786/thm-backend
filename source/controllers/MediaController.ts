@@ -5,6 +5,8 @@ import { addStringBeforeExtension, isArray } from "../utils/helper/basic";
 import { MongoID } from "../common";
 import Media, { MediaType } from "../database/models/media.model";
 import S3Service from "../services/S3Service";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import { readVideoMetadata } from "../middleware/file-uploading";
 import fs from "fs";
 import { AwsS3AccessEndpoints } from "../config/constants";
@@ -17,6 +19,7 @@ import View from "../database/models/view.model.";
 import { httpInternalServerError, httpOk, httpAcceptedOrUpdated, httpNotFoundOr404, httpCreated, httpNoContent } from "../utils/response";
 import Post, { PostType } from "../database/models/post.model";
 const s3Service = new S3Service();
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
     const s3Image = await s3Service.getS3Object(media.key);
     const cropSetting: {} = { width: width, height: height, fit: "cover" };
@@ -67,130 +70,139 @@ async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "vi
 }
 
 
-async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, businessProfileID: MongoID | null, s3BasePath: string, uploadedFor: 'POST' | 'STORY') {
-    let fileList: any[] = [];
-    if (files) {
-        await Promise.all(files && files.map(async (file) => {
-            const fileObject = {
-                businessProfileID: businessProfileID,
-                userID: userID,
-                fileName: file.originalname,
-                fileSize: file.size,
-                mediaType: '',
-                mimeType: file.mimetype,
-                width: 0,
-                height: 0,
-                duration: 0,
-                sourceUrl: '',
-                s3Key: '',
-                thumbnailUrl: ''
-            }
-            let width = 500;
-            let height = 500;
-            if (uploadedFor === "POST") {
-                width = 640;
-                height = 640;
-            }
-            if (uploadedFor === "STORY") {
-                width = 1080;
-                height = 1980;
-            }
-            //Crop setting from thumbnail 
-            const cropSetting: {} = { width: width, height: height, fit: sharp.fit.inside, withoutEnlargement: true };
-            //Generate thumbnail
-            let thumbnail: Buffer | null = null;
-            if (file && file.mimetype.startsWith('image/')) {
-                Object.assign(fileObject, { mediaType: MediaType.IMAGE });
-                const s3Object = await s3Service.getS3Object(file.key);
-                const rawBuffer = await s3Object.Body?.transformToByteArray();
-                if (!rawBuffer) throw new Error("Could not read image buffer from S3");
-                // const sharpImage = await sharp(file.path);
-                const sharpImage = await sharp(rawBuffer);
-                //Read metadata of video
-                const metadata = await sharpImage.metadata();
-                if (metadata) {
-                    Object.assign(fileObject, { width: metadata.width, height: metadata.height });
-                }
-                thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-            }
-            if (file && file.mimetype.startsWith('video/')) {
-                Object.assign(fileObject, { mediaType: MediaType.VIDEO });
-                //Read metadata of video
-                const metadata = await readVideoMetadata(file.path);
-                if (metadata) {
-                    Object.assign(fileObject, { width: metadata.width, height: metadata.height, duration: metadata.duration });
-                }
-                //Generate thumbnail from video
-                const generatedThumbnailUrl = await generateScreenshot(file.path, file.filename, 'jpeg');
-                // //Resize video thumbnail
-                if (generatedThumbnailUrl) {
-                    const sharpImage = await sharp(generatedThumbnailUrl);
-                    //Generate thumbnail
-                    thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-                    await fileSystem.unlink(generatedThumbnailUrl);
-                }
-            }
-            //             const s3Object = await s3Service.getS3Object(file.key);
-            // const rawBuffer = await s3Object.Body?.transformToByteArray();
-            // if (!rawBuffer) throw new Error("Could not read image buffer from S3");
-            // const sharpImage = await sharp(file.path);
-            const uploadedFile = {
-                Location: file.location,
-                Key: file.key
-            };
+async function storeMedia(
+  files: Express.MulterS3.File[],
+  userID: MongoID,
+  businessProfileID: MongoID | null,
+  s3BasePath: string,
+  uploadedFor: "POST" | "STORY"
+) {
+  const fileList: any[] = [];
 
-            if (uploadedFile && uploadedFile.Key) {
-                Object.assign(fileObject, {
-                    sourceUrl: uploadedFile.Location,
-                    s3Key: uploadedFile.Key
-                });
-                if (thumbnail) {
-                    let thumbnailPath = addStringBeforeExtension(uploadedFile.Key, `-${width}x${height}`);
-                    let thumbnailMimeType = file.mimetype;
+  if (!files || files.length === 0) return [];
 
-                    if (file && file.mimetype.startsWith('video/')) {
-                        await FileQueue.create({
-                            filePath: null,
-                            s3Key: fileObject.s3Key
-                        });
-                    }
+  await Promise.all(
+    files.map(async (file) => {
+      const fileObject = {
+        businessProfileID,
+        userID,
+        fileName: file.originalname,
+        fileSize: file.size,
+        mediaType: "",
+        mimeType: file.mimetype,
+        width: 0,
+        height: 0,
+        duration: 0,
+        sourceUrl: "",
+        s3Key: "",
+        thumbnailUrl: "",
+      };
 
-                    thumbnailPath = thumbnailPath.replace(/\/{2,}/g, '/');
-                    const uploadedThumbnailFile = await s3Service.putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
+      let width = uploadedFor === "STORY" ? 1080 : 640;
+      let height = uploadedFor === "STORY" ? 1980 : 640;
+      const cropSetting = {
+        width,
+        height,
+        fit: sharp.fit.inside,
+        withoutEnlargement: true,
+      };
 
-                    if (uploadedThumbnailFile) {
-                        Object.assign(fileObject, {
-                            thumbnailUrl: uploadedThumbnailFile.Location,
-                        });
-                    }
-                }
-            }
+      let thumbnail: Buffer | null = null;
 
-            if (!fileObject.thumbnailUrl || fileObject.thumbnailUrl.trim() === "") {
-                fileObject.thumbnailUrl = "https://thehotelmedia.com/public/files/thm-logo.png";
-            }
 
-            fileList.push(fileObject);
+      if (file.mimetype.startsWith("image/")) {
+        Object.assign(fileObject, { mediaType: MediaType.IMAGE });
 
-            if (file && file.mimetype === 'application/pdf') {
-                Object.assign(fileObject, {
-                    mediaType: MediaType.PDF,
-                    thumbnailUrl: 'https://png.pngtree.com/png-vector/20220606/ourmid/pngtree-pdf-file-icon-png-png-image_4899509.png',
-                });
-            }
-            if (file && file.mimetype.startsWith('video/')) {
-                await FileQueue.create({
-                    filePath: file.path || null,
-                    s3Key: fileObject.s3Key
-                });
-            } else {
-                // await fileSystem.unlink(file.path);
-            }
-            fileList.push(fileObject)
-        }));
-    }
-    return await Media.create(fileList);
+        const s3Object = await s3Service.getS3Object(file.key);
+        const rawBuffer = await s3Object.Body?.transformToByteArray();
+        if (!rawBuffer) throw new Error("Could not read image buffer from S3");
+
+        const sharpImage = sharp(rawBuffer);
+        const metadata = await sharpImage.metadata();
+        if (metadata)
+          Object.assign(fileObject, {
+            width: metadata.width,
+            height: metadata.height,
+          });
+
+        thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+      }
+
+
+      if (file.mimetype.startsWith("video/")) {
+        Object.assign(fileObject, { mediaType: MediaType.VIDEO });
+
+        // Extract metadata from S3 video
+        const metadata = await readVideoMetadata(file.key);
+        if (metadata) {
+          Object.assign(fileObject, {
+            width: metadata.width,
+            height: metadata.height,
+            duration: metadata.duration,
+          });
+        }
+
+        const generatedThumbnailPath = await generateScreenshot(
+          file.key,
+          file.filename,
+          "jpeg"
+        );
+
+        if (generatedThumbnailPath) {
+          const sharpImage = sharp(generatedThumbnailPath);
+          thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+          await fileSystem.unlink(generatedThumbnailPath).catch(() => {});
+        }
+
+        await FileQueue.create({
+          filePath: null,
+          s3Key: file.key,
+        });
+      }
+
+      if (file.mimetype === "application/pdf") {
+        Object.assign(fileObject, {
+          mediaType: MediaType.PDF,
+          thumbnailUrl:
+            "https://png.pngtree.com/png-vector/20220606/ourmid/pngtree-pdf-file-icon-png-png-image_4899509.png",
+        });
+      }
+
+      Object.assign(fileObject, {
+        sourceUrl: file.location,
+        s3Key: file.key,
+      });
+
+      if (thumbnail) {
+        let thumbnailPath = addStringBeforeExtension(file.key, `-${width}x${height}`);
+        thumbnailPath = thumbnailPath.replace(/\/{2,}/g, "/");
+
+        const uploadedThumbnailFile = await s3Service.putS3Object(
+          thumbnail,
+          file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype,
+          thumbnailPath
+        );
+
+        if (uploadedThumbnailFile) {
+            // @ts-ignore
+          fileObject.thumbnailUrl = uploadedThumbnailFile.Location;
+        }
+      }
+
+      if (!fileObject.thumbnailUrl || fileObject.thumbnailUrl.trim() === "") {
+        fileObject.thumbnailUrl =
+          "https://thehotelmedia.com/public/files/thm-logo.png";
+      }
+
+      // ✅ Push only once per file
+      fileList.push(fileObject);
+    })
+  );
+
+  // ✅ Insert all media at once
+  return await Media.create(fileList);
 }
+
 
 async function deleteUnwantedFiles(files: Express.Multer.File[]) {
     try {
