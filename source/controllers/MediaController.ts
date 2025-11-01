@@ -144,28 +144,18 @@ async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, busin
                     sourceUrl: uploadedFile.Location,
                     s3Key: uploadedFile.Key
                 });
-                //Upload thumbnail
                 if (thumbnail) {
                     let thumbnailPath = addStringBeforeExtension(uploadedFile.Key, `-${width}x${height}`);
                     let thumbnailMimeType = file.mimetype;
 
-                    // if (file && file.mimetype.startsWith('video/')) {
-                    //     const thumbnailExtName = "png";
-                    //     let thumbnailPathT = path.parse(uploadedFile.Key);
-                    //     thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${width}x${height}`);
-                    //     thumbnailMimeType = `image/${thumbnailExtName}`;
-                    // }
                     if (file && file.mimetype.startsWith('video/')) {
                         await FileQueue.create({
-                            filePath: null, // no local file
+                            filePath: null,
                             s3Key: fileObject.s3Key
                         });
                     }
-                    // else {
-                    //   await fileSystem.unlink(file.path);
-                    // }
 
-                    thumbnailPath = thumbnailPath.replace(/\/{2,}/g, '/'); // sanitize BEFORE sending
+                    thumbnailPath = thumbnailPath.replace(/\/{2,}/g, '/');
                     const uploadedThumbnailFile = await s3Service.putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
 
                     if (uploadedThumbnailFile) {
@@ -175,6 +165,13 @@ async function storeMedia(files: Express.MulterS3.File[], userID: MongoID, busin
                     }
                 }
             }
+
+            if (!fileObject.thumbnailUrl || fileObject.thumbnailUrl.trim() === "") {
+                fileObject.thumbnailUrl = "https://thehotelmedia.com/public/files/thm-logo.png";
+            }
+
+            fileList.push(fileObject);
+
             if (file && file.mimetype === 'application/pdf') {
                 Object.assign(fileObject, {
                     mediaType: MediaType.PDF,
