@@ -173,9 +173,36 @@ const getCollaborations = async (req: Request, res: Response, next: NextFunction
     next(httpInternalServerError(error, error.message));
   }
 };
+const getCollaboratorsForPost = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { postID } = req.params;
+
+    const post = await Post.findById(postID);
+    if (!post) {
+      return res.send(httpNotFoundOr404(null, "Post not found"));
+    }
+
+    const collaboratorIDs = post.collaborators || [];
+
+  
+    if (!collaboratorIDs.length) {
+      return res.send(httpOk([], "No collaborators found for this post"));
+    }
+
+    const collaborators = await User.find(
+      { _id: { $in: collaboratorIDs } },
+      { name: 1, profilePic: 1, accountType: 1 }
+    );
+
+    return res.send(httpOk(collaborators, "Collaborators fetched successfully"));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message));
+  }
+};
 
 export default {
   inviteCollaborator,
   respondToInvite,
   getCollaborations,
+  getCollaboratorsForPost
 };
