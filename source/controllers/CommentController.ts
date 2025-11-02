@@ -142,7 +142,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 const update = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        const { commentID, message } = request.body;
+      const { id: commentID } = request.params;
+        const { message } = request.body;
 
         if (!id || !commentID) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("User ID or comment ID missing"), "Invalid request"));
