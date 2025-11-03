@@ -88,45 +88,45 @@ const store = async (request: Request, response: Response, next: NextFunction) =
       ));
     }
 
-    if (authUser.accountType === AccountType.INDIVIDUAL && !haveSubscription) {
-      if (!dailyContentLimit && content && countWords(content) > MAX_CONTENT_LENGTH) {
-        const error = `Content must be a string and cannot exceed ${MAX_CONTENT_LENGTH} words.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
+    // if (authUser.accountType === AccountType.INDIVIDUAL && !haveSubscription) {
+    //   if (!dailyContentLimit && content && countWords(content) > MAX_CONTENT_LENGTH) {
+    //     const error = `Content must be a string and cannot exceed ${MAX_CONTENT_LENGTH} words.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
 
-      if (!dailyContentLimit && images && images.length > MAX_IMAGE_UPLOADS) {
-        await deleteUnwantedFiles(images);
-        await deleteUnwantedFiles(videos);
-        const error = `You cannot upload multiple images because your current plan does not include this feature.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
+    //   if (!dailyContentLimit && images && images.length > MAX_IMAGE_UPLOADS) {
+    //     await deleteUnwantedFiles(images);
+    //     await deleteUnwantedFiles(videos);
+    //     const error = `You cannot upload multiple images because your current plan does not include this feature.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
 
-      if (!dailyContentLimit && videos && videos.length > MAX_VIDEO_UPLOADS) {
-        await deleteUnwantedFiles(images);
-        await deleteUnwantedFiles(videos);
-        const error = `You cannot upload multiple videos because your current plan does not include this feature.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
+    //   if (!dailyContentLimit && videos && videos.length > MAX_VIDEO_UPLOADS) {
+    //     await deleteUnwantedFiles(images);
+    //     await deleteUnwantedFiles(videos);
+    //     const error = `You cannot upload multiple videos because your current plan does not include this feature.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
 
-      if (dailyContentLimit && dailyContentLimit.text >= MAX_CONTENT_UPLOADS && content && content !== "") {
-        const error = `Your daily content upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
+    //   if (dailyContentLimit && dailyContentLimit.text >= MAX_CONTENT_UPLOADS && content && content !== "") {
+    //     const error = `Your daily content upload limit has been exceeded. Please upgrade your account to avoid this error.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
 
-      if (dailyContentLimit && typeof dailyContentLimit.images === 'number' && images && images.length >= dailyContentLimit.images) {
-        await deleteUnwantedFiles(images);
-        await deleteUnwantedFiles(videos);
-        const error = `Your daily image upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
+    //   if (dailyContentLimit && typeof dailyContentLimit.images === 'number' && images && images.length >= dailyContentLimit.images) {
+    //     await deleteUnwantedFiles(images);
+    //     await deleteUnwantedFiles(videos);
+    //     const error = `Your daily image upload limit has been exceeded. Please upgrade your account to avoid this error.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
 
-      if (dailyContentLimit && typeof dailyContentLimit.videos === 'number' && videos && videos.length >= dailyContentLimit.videos) {
-        await deleteUnwantedFiles(images);
-        await deleteUnwantedFiles(videos);
-        const error = `Your daily video upload limit has been exceeded. Please upgrade your account to avoid this error.`;
-        return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
-      }
-    }
+    //   if (dailyContentLimit && typeof dailyContentLimit.videos === 'number' && videos && videos.length >= dailyContentLimit.videos) {
+    //     await deleteUnwantedFiles(images);
+    //     await deleteUnwantedFiles(videos);
+    //     const error = `Your daily video upload limit has been exceeded. Please upgrade your account to avoid this error.`;
+    //     return response.send(httpBadRequest(ErrorMessage.invalidRequest(error), error));
+    //   }
+    // }
 
 
     const newPost = new Post();
