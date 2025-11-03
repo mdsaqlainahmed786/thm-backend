@@ -68,6 +68,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     pageNumber = parseQueryParam(pageNumber, 1);
     documentLimit = parseQueryParam(documentLimit, 20);
 
+    // Fetch all necessary data in parallel
     const [
       likedByMe,
       savedByMe,
@@ -86,7 +87,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       User.findOne({ _id: id }),
     ]);
 
-   
+    // Update user's home location (if provided)
     lat = lat || 0;
     lng = lng || 0;
     const parsedLat = Number(lat);
@@ -100,8 +101,10 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         .catch((error) => console.error("Error updating location:", error));
     }
 
+    // Exclude blocked users' posts
     Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
 
+    // Fetch posts, total count, and suggestions
     const [documents, totalDocument, suggestions] = await Promise.all([
       fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
       countPostDocument(dbQuery),
@@ -117,21 +120,38 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     let data: any[] = [];
     const isTopPage = Number(pageNumber) === 1;
 
+    // -----------------------------
+    // ORIGINAL RANDOMIZED FEED LOGIC (COMMENTED TEMPORARILY)
+    // -----------------------------
+    /*
     if (isTopPage) {
       const cachedFeed = FeedOrderCache.get(id);
       if (cachedFeed) {
         data = cachedFeed;
         FeedOrderCache.decrement(id);
       } else {
-        data = shuffleArray(documents);
+        data = shuffleArray(documents); // Randomized order
         FeedOrderCache.set(id, data);
       }
     } else {
       data = shuffleArray(documents);
     }
-  
-    const recentPost = await UserRecentPostCache.get(id);
+    */
 
+    // -----------------------------
+    // TEMP CHANGE: SORT POSTS BY LATEST FIRST
+    // -----------------------------
+    // This ensures that newly created posts appear at the top of the feed.
+    data = documents.sort((a: any, b: any) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // Descending order => latest first
+    });
+
+    // -----------------------------
+    // RECENT POST PRIORITY LOGIC (UNCHANGED)
+    // -----------------------------
+    const recentPost = await UserRecentPostCache.get(id);
     if (recentPost) {
       const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
       if (!postExists) {
@@ -148,6 +168,10 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       }
       await UserRecentPostCache.decrement(id);
     }
+
+    // -----------------------------
+    // ADD SUGGESTIONS CARD (UNCHANGED)
+    // -----------------------------
     const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
     if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
       data.push({
@@ -157,6 +181,9 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       });
     }
 
+    // -----------------------------
+    // RESPONSE (UNCHANGED)
+    // -----------------------------
     return response.send(
       httpOkExtended(data, "Home feed fetched.", pageNumber, totalPagesCount, totalDocument)
     );
@@ -165,6 +192,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
   }
 };
+
 
 
 
