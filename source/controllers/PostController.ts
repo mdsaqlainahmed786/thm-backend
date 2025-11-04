@@ -220,12 +220,22 @@ const update = async (request: Request, response: Response, next: NextFunction) 
 
     const post = await Post.findOne({ _id: postID });
     if (!post) {
-      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
+      return response.send(
+        httpNotFoundOr404(
+          ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND),
+          ErrorMessage.POST_NOT_FOUND
+        )
+      );
     }
 
     // Only the owner can update
     if (post.userID.toString() !== id.toString()) {
-      return response.send(httpForbidden(ErrorMessage.invalidRequest("You can't update this post"), "You can't update this post"));
+      return response.send(
+        httpForbidden(
+          ErrorMessage.invalidRequest("You can't update this post"),
+          "You can't update this post"
+        )
+      );
     }
 
     // Update simple fields
@@ -237,14 +247,32 @@ const update = async (request: Request, response: Response, next: NextFunction) 
     // Handle uploaded media
     let mediaIDs: MongoID[] = post.media;
     if (mediaFiles?.length) {
-      const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, "POST");
+      const mediaList = await storeMedia(
+        mediaFiles,
+        id,
+        businessProfileID,
+        AwsS3AccessEndpoints.POST,
+        "POST"
+      );
       mediaList?.forEach((media) => mediaIDs.push(media.id));
     }
 
+    // ✅ Safely parse deletedMedia (can come as string or array)
+    let parsedDeletedMedia: string[] = [];
+    if (deletedMedia) {
+      try {
+        parsedDeletedMedia = Array.isArray(deletedMedia)
+          ? deletedMedia
+          : JSON.parse(deletedMedia);
+      } catch (err) {
+        console.error("Invalid deletedMedia format:", deletedMedia);
+      }
+    }
+
     // Handle deleted media
-    if (deletedMedia?.length && mediaIDs?.length) {
+    if (parsedDeletedMedia?.length && mediaIDs?.length) {
       await Promise.all(
-        deletedMedia.map(async (media_id: string) => {
+        parsedDeletedMedia.map(async (media_id: string) => {
           const mediaObject = await Media.findById(media_id);
           if (mediaObject) {
             await Promise.all([
@@ -266,6 +294,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
     next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
   }
 };
+
 
 //FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
