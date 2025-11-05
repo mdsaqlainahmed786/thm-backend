@@ -278,34 +278,60 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
         const userID = request.params.id;
         const { id } = request.user;
         let { pageNumber, documentLimit, query }: any = request.query;
-        const dbQuery = { ...getPostQuery, userID: new ObjectId(userID), postType: { $in: [PostType.POST, PostType.EVENT] } };
+
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [user, inMyFollowing, likedByMe, savedByMe, joiningEvents] = await Promise.all(
-            [
-                User.findOne({ _id: userID }),
-                UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
-                Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-                getSavedPost(id),
-                EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
+
+        const dbQuery = {
+            ...getPostQuery,
+            $and: [
+                { postType: { $in: [PostType.POST, PostType.EVENT] } },
+                {
+                    $or: [
+                        { userID: new ObjectId(userID) }, // user's own posts
+                        { collaborators: new ObjectId(userID) } // collaborated posts
+                    ]
+                }
             ]
-        );
+        };
+
+        const [user, inMyFollowing, likedByMe, savedByMe, joiningEvents] = await Promise.all([
+            User.findOne({ _id: userID }),
+            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
+            Like.distinct("postID", { userID: id, postID: { $ne: null } }),
+            getSavedPost(id),
+            EventJoin.distinct("postID", { userID: id, postID: { $ne: null } }),
+        ]);
+
         if (!id || !user) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND
+                )
+            );
         }
+
         if (userID !== id && !inMyFollowing && user.privateAccount) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
+            return response.send(
+                httpBadRequest(
+                    ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."),
+                    "This account is Private. Follow this account to see their photos and videos."
+                )
+            );
         }
+
         const [documents, totalDocument] = await Promise.all([
             fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
-            Post.find(dbQuery).countDocuments()
+            Post.find(dbQuery).countDocuments(),
         ]);
+
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'User feed fetched.', pageNumber, totalPagesCount, totalDocument));
+        return response.send(httpOkExtended(documents, "User feed fetched.", pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
-}
+};
 
 
 const userPostMedia = async (request: Request, response: Response, next: NextFunction) => {
@@ -315,43 +341,62 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
         let { pageNumber, documentLimit, query }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const [user, inMyFollowing, mediaIDs, propertyPictures] = await Promise.all(
-            [
-                User.findOne({ _id: userID }),
-                UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
-                Post.distinct('media', { ...getPostQuery, userID: new ObjectId(userID), postType: { $in: [PostType.POST] } }),
-                PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) })
-            ]
-        );
+
+        const [user, inMyFollowing, mediaIDs, propertyPictures, collaboratedMediaIDs] = await Promise.all([
+            User.findOne({ _id: userID }),
+            UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
+            // All media from user's own posts
+            Post.distinct('media', { 
+                ...getPostQuery, 
+                userID: new ObjectId(userID), 
+                postType: { $in: [PostType.POST] } 
+            }),
+            // Property media
+            PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) }),
+            // All media from posts where this user is a collaborator
+            Post.distinct('media', { 
+                ...getPostQuery, 
+                collaborators: new ObjectId(userID), 
+                postType: { $in: [PostType.POST] } 
+            })
+        ]);
+
         if (!id || !user) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+            return response.send(
+                httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND)
+            );
         }
+
         if (userID !== id && !inMyFollowing && user.privateAccount) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."))
+            return response.send(
+                httpBadRequest(
+                    ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."),
+                    "This account is Private. Follow this account to see their photos and videos."
+                )
+            );
         }
-        const dbQuery = { _id: { $in: [...mediaIDs, ...propertyPictures] }, };
-        //Return only videos if requested by the user through the videos endpoint
+
+        // Combine all media IDs (own + property + collaborations)
+        const allMediaIDs = [...mediaIDs, ...propertyPictures, ...collaboratedMediaIDs];
+
+        const dbQuery: any = { _id: { $in: allMediaIDs } };
+
+        // Return only videos if requested by the user through the videos endpoint
         if (new RegExp("/user/videos/").test(request.originalUrl)) {
             Object.assign(dbQuery, { mediaType: MediaType.VIDEO });
         }
-        //Return only images if requested by the user through the images endpoint
+
+        // Return only images if requested by the user through the images endpoint
         if (new RegExp("/user/images/").test(request.originalUrl)) {
             Object.assign(dbQuery, { mediaType: MediaType.IMAGE });
         }
+
         const [documents, totalDocument] = await Promise.all([
             Media.aggregate([
-                {
-                    $match: dbQuery
-                },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                },
-                {
-                    $limit: documentLimit
-                },
+                { $match: dbQuery },
+                { $sort: { createdAt: -1, id: 1 } },
+                { $skip: pageNumber > 0 ? (pageNumber - 1) * documentLimit : 0 },
+                { $limit: documentLimit },
                 {
                     $lookup: {
                         from: 'views',
@@ -377,16 +422,17 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
                         views: 1,
                     }
                 }
-
             ]),
             Media.find(dbQuery).countDocuments()
         ]);
+
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
         return response.send(httpOkExtended(documents, 'User media fetched.', pageNumber, totalPagesCount, totalDocument));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
-}
+};
+
 const userReviews = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const userID = request.params.id;
