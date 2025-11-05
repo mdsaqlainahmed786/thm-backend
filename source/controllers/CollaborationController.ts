@@ -142,8 +142,18 @@ const respondToInvite = async (req: Request, res: Response, next: NextFunction) 
         }
       })
       .catch((error) => console.error(" [RESPOND] Notification creation error:", error));
+    const updatedPost = await Post.findById(postID)
+      .populate({
+        path: "collaborators",
+        select: "name email username profileImage" // include whatever fields you need
+      })
+      .populate({
+        path: "collaborationInvites.invitedUserID",
+        select: "name email username profileImage"
+      });
 
-    return res.send(httpOk(post, `Invite ${action}ed successfully`));
+
+    return res.send(httpOk(updatedPost, `Invite ${action}ed successfully`));
   } catch (error: any) {
     console.error(" [RESPOND] Unexpected error:", error.message);
     next(httpInternalServerError(error, error.message));
@@ -184,7 +194,7 @@ const getCollaboratorsForPost = async (req: Request, res: Response, next: NextFu
 
     const collaboratorIDs = post.collaborators || [];
 
-  
+
     if (!collaboratorIDs.length) {
       return res.send(httpOk([], "No collaborators found for this post"));
     }
