@@ -8,7 +8,7 @@ import LikeController from "../../controllers/LikeController";
 import CommentController from "../../controllers/CommentController";
 const StoryEndpoints: Router = express.Router();
 StoryEndpoints.get('/', StoryController.index);
-StoryEndpoints.post('/', diskUpload.fields([{ name: 'images', maxCount: 1, }, { name: 'videos', maxCount: 1, }]), StoryController.store);
+StoryEndpoints.post('/',s3Upload(AwsS3AccessEndpoints.POST).fields([{ name: 'images', maxCount: 1, }, { name: 'videos', maxCount: 1, }]), StoryController.store);
 StoryEndpoints.delete('/:id', [paramIDValidationRule], validateRequest, StoryController.destroy);
 /**
  * 
