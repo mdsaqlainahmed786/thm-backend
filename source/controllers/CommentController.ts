@@ -172,7 +172,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        const { commentID } = request.params;
+        const { id: commentID } = request.params;
 
         const comment = await Comment.findById(commentID);
         if (!comment) {
