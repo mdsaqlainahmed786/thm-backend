@@ -120,10 +120,6 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     let data: any[] = [];
     const isTopPage = Number(pageNumber) === 1;
 
-    // -----------------------------
-    // ORIGINAL RANDOMIZED FEED LOGIC (COMMENTED TEMPORARILY)
-    // -----------------------------
-    /*
     if (isTopPage) {
       const cachedFeed = FeedOrderCache.get(id);
       if (cachedFeed) {
@@ -136,21 +132,21 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     } else {
       data = shuffleArray(documents);
     }
-    */
 
-    // -----------------------------
-    // TEMP CHANGE: SORT POSTS BY LATEST FIRST
-    // -----------------------------
-    // This ensures that newly created posts appear at the top of the feed.
-    data = documents.sort((a: any, b: any) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA; // Descending order => latest first
-    });
 
-    // -----------------------------
-    // RECENT POST PRIORITY LOGIC (UNCHANGED)
-    // -----------------------------
+    // // -----------------------------
+    // // TEMP CHANGE: SORT POSTS BY LATEST FIRST
+    // // -----------------------------
+    // // This ensures that newly created posts appear at the top of the feed.
+    // data = documents.sort((a: any, b: any) => {
+    //   const dateA = new Date(a.createdAt).getTime();
+    //   const dateB = new Date(b.createdAt).getTime();
+    //   return dateB - dateA; // Descending order => latest first
+    // });
+
+    // // -----------------------------
+    // // RECENT POST PRIORITY LOGIC (UNCHANGED)
+    // // -----------------------------
     const recentPost = await UserRecentPostCache.get(id);
     if (recentPost) {
       const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
@@ -169,9 +165,6 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       await UserRecentPostCache.decrement(id);
     }
 
-    // -----------------------------
-    // ADD SUGGESTIONS CARD (UNCHANGED)
-    // -----------------------------
     const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
     if (accountType === AccountType.INDIVIDUAL && suggestions?.length) {
       data.push({
@@ -181,8 +174,6 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       });
     }
 
-    // -----------------------------
-    // RESPONSE (UNCHANGED)
     // -----------------------------
     return response.send(
       httpOkExtended(data, "Home feed fetched.", pageNumber, totalPagesCount, totalDocument)

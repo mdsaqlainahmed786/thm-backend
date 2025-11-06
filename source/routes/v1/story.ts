@@ -28,6 +28,6 @@ StoryEndpoints.post('/views/:id', [paramIDValidationRule], validateRequest, Stor
 StoryEndpoints.post('/comments', CommentController.store);
 StoryEndpoints.get('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.index);
 StoryEndpoints.patch('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.update);
-StoryEndpoints.delete('/comments/:commentID', CommentController.destroy);
+StoryEndpoints.delete('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.destroy);
 
 export default StoryEndpoints;
