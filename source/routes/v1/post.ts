@@ -34,6 +34,7 @@ PostEndpoints.post('/likes/:id', createLikesApiValidator, validateRequest, LikeC
 //@ts-ignore
 PostEndpoints.post('/', s3Upload(AwsS3AccessEndpoints.POST).fields([{ name: 'media', maxCount: 20 }]), PostController.store);
 PostEndpoints.get('/:id', paramIDValidationRule, validateRequest, PostController.show);
+PostEndpoints.post('/:id/publish-as-story', paramIDValidationRule, validateRequest, PostController.publishPostAsStory);
 PostEndpoints.delete('/:id', paramIDValidationRule, validateRequest, PostController.destroy);
 //@ts-ignore
 PostEndpoints.delete('/:id/soft', paramIDValidationRule, validateRequest, PostController.deletePost);
