@@ -1,3 +1,5 @@
+
+import { fetchUserFollowing } from "../database/models/userConnection.model";
 import { GeoCoordinate } from './../database/models/common.model';
 import { ObjectId } from 'mongodb';
 import { UserRecentPostCache } from '../utils/recentPostCache';
@@ -531,41 +533,68 @@ const storeViews = async (request: Request, response: Response, next: NextFuncti
 }
 
 
+
 const publishPostAsStory = async (request: Request, response: Response, next: NextFunction) => {
   try {
     const { id, accountType, businessProfileID } = request.user;
-    const { postID } = request.params;
-
+    const { id: postID } = request.params;
 
     if (!id) {
-      return response.send(httpNotFoundOr404(
-        ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
-        ErrorMessage.USER_NOT_FOUND
-      ));
+      return response.send(
+        httpNotFoundOr404(
+          ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+          ErrorMessage.USER_NOT_FOUND
+        )
+      );
     }
 
-
-    const post = await Post.findOne({ _id: postID, userID: id }).populate("media");
+    const post = await Post.findOne({ _id: new ObjectId(postID) }).populate("media");
     if (!post) {
-      return response.send(httpNotFoundOr404(
-        ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND),
-        ErrorMessage.POST_NOT_FOUND
-      ));
+      return response.send(
+        httpNotFoundOr404(
+          ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND),
+          ErrorMessage.POST_NOT_FOUND
+        )
+      );
     }
 
 
+    if (post.userID.toString() === id.toString()) {
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("You cannot share your own post as a story."),
+          "You cannot share your own post as a story."
+        )
+      );
+    }
+
+    const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
+    const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
+
+    if (!isFollowing) {
+      return response.send(
+        httpForbidden(
+          ErrorMessage.invalidRequest("You can only share media from users you follow."),
+          "You can only share media from users you follow."
+        )
+      );
+    }
+
+  
     if (!post.media || post.media.length === 0) {
-      return response.send(httpBadRequest(
-        ErrorMessage.invalidRequest("This post has no media to publish as a story."),
-        "This post has no media to publish as a story."
-      ));
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("This post has no media to publish as a story."),
+          "This post has no media to publish as a story."
+        )
+      );
     }
 
-
+  
     const existingStories = await Story.find({
       userID: id,
       mediaID: { $in: post.media },
-      timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // stories still active
+      timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     });
 
     const existingMediaIDs = new Set(existingStories.map(s => s.mediaID.toString()));
@@ -575,12 +604,15 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     );
 
     if (newMedia.length === 0) {
-      return response.send(httpBadRequest(
-        ErrorMessage.invalidRequest("This post has already been shared as a story."),
-        "This post has already been shared as a story."
-      ));
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("This post has already been shared as a story."),
+          "This post has already been shared as a story."
+        )
+      );
     }
 
+   
     const storyPromises = newMedia.map(async (mediaID: any) => {
       const media = await Media.findById(mediaID);
       if (!media) return null;
@@ -589,6 +621,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       newStory.userID = id;
       newStory.mediaID = media._id as MongoID;
       newStory.duration = media.duration || 10;
+      (newStory as any).postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
 
       if (accountType === AccountType.BUSINESS && businessProfileID) {
         newStory.businessProfileID = businessProfileID;
@@ -600,10 +633,12 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     const createdStories = (await Promise.all(storyPromises)).filter(Boolean);
 
     if (createdStories.length === 0) {
-      return response.send(httpBadRequest(
-        ErrorMessage.invalidRequest("No valid new media found to publish as story."),
-        "No valid new media found to publish as story."
-      ));
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("No valid new media found to publish as story."),
+          "No valid new media found to publish as story."
+        )
+      );
     }
 
     return response.send(httpCreated(createdStories, "Post published as story successfully."));
