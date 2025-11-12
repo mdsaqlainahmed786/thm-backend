@@ -6,6 +6,7 @@ import { validateRequest } from "../../middleware/api-request-validator";
 import authenticateUser from "../../middleware/authenticate";
 const AuthEndpoint: Router = express.Router();
 AuthEndpoint.post('/signup', signUpApiValidator, validateRequest, AuthController.signUp);
+AuthEndpoint.post('/otp-login', AuthController.verifyOtpLogin);
 AuthEndpoint.post('/login', loginApiValidator, validateRequest, AuthController.login);
 AuthEndpoint.post("/email-verify", verifyEmailApiValidator, validateRequest, AuthController.verifyEmail);
 AuthEndpoint.post("/resend-otp", resendOTPApiValidator, validateRequest, AuthController.resendOTP);

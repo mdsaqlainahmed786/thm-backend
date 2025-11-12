@@ -477,6 +477,137 @@ const resendOTP = async (request: Request, response: Response, next: NextFunctio
 }
 
 
+const verifyOtpLogin = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    const {
+      phoneNumber,
+      dialCode,
+      deviceID,
+      devicePlatform,
+      notificationToken,
+      lat,
+      lng,
+      language
+    } = request.body;
+
+    
+    const user = await User.findOne({ phoneNumber, dialCode });
+    if (!user) {
+      return response.send(
+        httpNotFoundOr404(
+          ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+          ErrorMessage.USER_NOT_FOUND
+        )
+      );
+    }
+
+  
+    if (!user.isVerified) {
+      return response
+        .status(200)
+        .send(httpForbidden({ ...user.hideSensitiveData() }, ErrorMessage.UNVERIFIED_ACCOUNT));
+    }
+
+    if (!user.isActivated) {
+      return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT));
+    }
+
+    if (user.isDeleted) {
+      return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED));
+    }
+
+    if (lat && lng) {
+      user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+    }
+
+    if (language) {
+      user.language = language;
+    }
+
+    let isDocumentUploaded = true;
+    let hasAmenities = true;
+    let hasSubscription = true;
+    let businessProfileRef = null;
+
+    if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+      const [businessDocument, businessProfile, subscription] = await Promise.all([
+        BusinessDocument.find({ businessProfileID: user.businessProfileID }),
+        BusinessProfile.findOne({ _id: user.businessProfileID }),
+        hasBusinessSubscription(user.businessProfileID)
+      ]);
+
+      businessProfileRef = businessProfile;
+
+      if (!businessDocument || businessDocument.length === 0) {
+        isDocumentUploaded = false;
+      }
+
+      if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
+        hasAmenities = false;
+      }
+
+      if (!subscription) {
+        hasSubscription = false;
+      }
+
+      const now = new Date();
+      if (subscription && subscription.expirationDate < now) {
+        hasSubscription = false;
+        return response.send(
+          httpForbidden(
+            { ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription },
+            "Your subscription expired."
+          )
+        );
+      }
+    }
+
+    if (!user.isApproved) {
+      return response
+        .status(200)
+        .send(httpForbidden({ isApproved: user.isApproved, email: user.email }, "Your account is currently under review."));
+    }
+
+    await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+
+    if (deviceID) {
+      response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+    }
+
+    const authenticateUser = {
+      id: user.id,
+      accountType: user.accountType,
+      businessProfileID: user.businessProfileID,
+      role: user.role
+    };
+
+    const accessToken = await generateAccessToken(authenticateUser);
+    const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
+
+    response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+
+    return response.send(
+      httpOk(
+        {
+          ...user.hideSensitiveData(),
+          businessProfileRef,
+          isDocumentUploaded,
+          hasAmenities,
+          hasSubscription,
+          accessToken,
+          refreshToken
+        },
+        SuccessMessage.LOGIN_SUCCESS
+      )
+    );
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
+};
+
+
+
 const logout = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const cookies = request?.cookies;
@@ -567,4 +698,4 @@ export async function generateUsername(email: string, accountType: AccountType):
 }
 
 
-export default { login, resendOTP, verifyEmail, logout, refreshToken, signUp, socialLogin }
+export default { login, resendOTP, verifyEmail, logout, refreshToken, signUp, socialLogin, verifyOtpLogin }
