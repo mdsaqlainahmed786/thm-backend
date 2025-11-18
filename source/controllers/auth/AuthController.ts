@@ -477,7 +477,7 @@ const resendOTP = async (request: Request, response: Response, next: NextFunctio
 }
 
 
-const verifyOtpLogin = async (request: Request, response: Response, next: NextFunction) => {
+ const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       phoneNumber,
@@ -488,34 +488,48 @@ const verifyOtpLogin = async (request: Request, response: Response, next: NextFu
       lat,
       lng,
       language
-    } = request.body;
+    } = req.body;
 
-    
+    // 1️⃣ Find user by phone number and dial code
     const user = await User.findOne({ phoneNumber, dialCode });
     if (!user) {
-      return response.send(
-        httpNotFoundOr404(
-          ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
-          ErrorMessage.USER_NOT_FOUND
-        )
-      );
+      return res.status(404).json({
+        status: false,
+        statusCode: 404,
+        message: "User not found",
+        data: null
+      });
     }
 
-  
+    // 2️⃣ Basic account validations
     if (!user.isVerified) {
-      return response
-        .status(200)
-        .send(httpForbidden({ ...user.hideSensitiveData() }, ErrorMessage.UNVERIFIED_ACCOUNT));
+      return res.status(403).json({
+        status: false,
+        statusCode: 403,
+        message: "Account not verified",
+        data: null
+      });
     }
 
     if (!user.isActivated) {
-      return response.status(200).send(httpForbidden(null, ErrorMessage.INACTIVE_ACCOUNT));
+      return res.status(403).json({
+        status: false,
+        statusCode: 403,
+        message: "Account not activated",
+        data: null
+      });
     }
 
     if (user.isDeleted) {
-      return response.status(200).send(httpForbidden(null, ErrorMessage.ACCOUNT_DISABLED));
+      return res.status(403).json({
+        status: false,
+        statusCode: 403,
+        message: "Account disabled",
+        data: null
+      });
     }
 
+    // 3️⃣ Update optional fields (geo + language)
     if (lat && lng) {
       user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
     }
@@ -524,6 +538,9 @@ const verifyOtpLogin = async (request: Request, response: Response, next: NextFu
       user.language = language;
     }
 
+    await user.save();
+
+    // 4️⃣ Handle business accounts
     let isDocumentUploaded = true;
     let hasAmenities = true;
     let hasSubscription = true;
@@ -538,42 +555,39 @@ const verifyOtpLogin = async (request: Request, response: Response, next: NextFu
 
       businessProfileRef = businessProfile;
 
-      if (!businessDocument || businessDocument.length === 0) {
-        isDocumentUploaded = false;
-      }
-
-      if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
-        hasAmenities = false;
-      }
-
-      if (!subscription) {
-        hasSubscription = false;
-      }
+      if (!businessDocument || businessDocument.length === 0) isDocumentUploaded = false;
+      if (!businessProfileRef?.amenities?.length) hasAmenities = false;
+      if (!subscription) hasSubscription = false;
 
       const now = new Date();
       if (subscription && subscription.expirationDate < now) {
         hasSubscription = false;
-        return response.send(
-          httpForbidden(
-            { ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription },
-            "Your subscription expired."
-          )
-        );
+        return res.status(403).json({
+          status: false,
+          statusCode: 403,
+          message: "Your subscription expired",
+          data: null
+        });
       }
     }
 
     if (!user.isApproved) {
-      return response
-        .status(200)
-        .send(httpForbidden({ isApproved: user.isApproved, email: user.email }, "Your account is currently under review."));
+      return res.status(403).json({
+        status: false,
+        statusCode: 403,
+        message: "Your account is under review",
+        data: null
+      });
     }
 
+    // 5️⃣ Add device info
     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
 
     if (deviceID) {
-      response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+      res.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
     }
 
+    // 6️⃣ Generate tokens
     const authenticateUser = {
       id: user.id,
       accountType: user.accountType,
@@ -584,27 +598,30 @@ const verifyOtpLogin = async (request: Request, response: Response, next: NextFu
     const accessToken = await generateAccessToken(authenticateUser);
     const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
 
-    response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+    res.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+    res.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
 
-    return response.send(
-      httpOk(
-        {
-          ...user.hideSensitiveData(),
-          businessProfileRef,
-          isDocumentUploaded,
-          hasAmenities,
-          hasSubscription,
-          accessToken,
-          refreshToken
-        },
-        SuccessMessage.LOGIN_SUCCESS
-      )
-    );
+    // 7️⃣ Final success response — EXACT format requested
+    return res.status(200).json({
+      status: true,
+      statusCode: 200,
+      message: "Logged-in successfully",
+      data: {
+        ...user.hideSensitiveData(),
+        businessProfileRef,
+        isDocumentUploaded,
+        hasAmenities,
+        hasSubscription,
+        accessToken,
+        refreshToken
+      }
+    });
   } catch (error: any) {
-    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    console.error("Error in verifyOtpLogin:", error);
+    next(error);
   }
 };
+
 
 
 
