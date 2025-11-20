@@ -244,7 +244,7 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 }
                 const [username, user] = await Promise.all([
                     generateUsername(email, AccountType.INDIVIDUAL),
-                    User.findOne({ "socialIDs.socialUId": sub, email: email }),
+                    User.findOne({ email: email }),
                 ]);
                 if (!user) {
                     const profilePic = {
@@ -477,149 +477,149 @@ const resendOTP = async (request: Request, response: Response, next: NextFunctio
 }
 
 
- const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const {
-      phoneNumber,
-      dialCode,
-      deviceID,
-      devicePlatform,
-      notificationToken,
-      lat,
-      lng,
-      language
-    } = req.body;
+const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const {
+            phoneNumber,
+            dialCode,
+            deviceID,
+            devicePlatform,
+            notificationToken,
+            lat,
+            lng,
+            language
+        } = req.body;
 
-    // 1️⃣ Find user by phone number and dial code
-    const user = await User.findOne({ phoneNumber, dialCode });
-    if (!user) {
-      return res.status(404).json({
-        status: false,
-        statusCode: 404,
-        message: "User not found",
-        data: null
-      });
-    }
+        // 1️⃣ Find user by phone number and dial code
+        const user = await User.findOne({ phoneNumber, dialCode });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                statusCode: 404,
+                message: "User not found",
+                data: null
+            });
+        }
 
-    // 2️⃣ Basic account validations
-    if (!user.isVerified) {
-      return res.status(403).json({
-        status: false,
-        statusCode: 403,
-        message: "Account not verified",
-        data: null
-      });
-    }
+        // 2️⃣ Basic account validations
+        if (!user.isVerified) {
+            return res.status(403).json({
+                status: false,
+                statusCode: 403,
+                message: "Account not verified",
+                data: null
+            });
+        }
 
-    if (!user.isActivated) {
-      return res.status(403).json({
-        status: false,
-        statusCode: 403,
-        message: "Account not activated",
-        data: null
-      });
-    }
+        if (!user.isActivated) {
+            return res.status(403).json({
+                status: false,
+                statusCode: 403,
+                message: "Account not activated",
+                data: null
+            });
+        }
 
-    if (user.isDeleted) {
-      return res.status(403).json({
-        status: false,
-        statusCode: 403,
-        message: "Account disabled",
-        data: null
-      });
-    }
+        if (user.isDeleted) {
+            return res.status(403).json({
+                status: false,
+                statusCode: 403,
+                message: "Account disabled",
+                data: null
+            });
+        }
 
-    // 3️⃣ Update optional fields (geo + language)
-    if (lat && lng) {
-      user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
-    }
+        // 3️⃣ Update optional fields (geo + language)
+        if (lat && lng) {
+            user.geoCoordinate = { type: "Point", coordinates: [lng, lat] };
+        }
 
-    if (language) {
-      user.language = language;
-    }
+        if (language) {
+            user.language = language;
+        }
 
-    await user.save();
+        await user.save();
 
-    // 4️⃣ Handle business accounts
-    let isDocumentUploaded = true;
-    let hasAmenities = true;
-    let hasSubscription = true;
-    let businessProfileRef = null;
+        // 4️⃣ Handle business accounts
+        let isDocumentUploaded = true;
+        let hasAmenities = true;
+        let hasSubscription = true;
+        let businessProfileRef = null;
 
-    if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
-      const [businessDocument, businessProfile, subscription] = await Promise.all([
-        BusinessDocument.find({ businessProfileID: user.businessProfileID }),
-        BusinessProfile.findOne({ _id: user.businessProfileID }),
-        hasBusinessSubscription(user.businessProfileID)
-      ]);
+        if (user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+            const [businessDocument, businessProfile, subscription] = await Promise.all([
+                BusinessDocument.find({ businessProfileID: user.businessProfileID }),
+                BusinessProfile.findOne({ _id: user.businessProfileID }),
+                hasBusinessSubscription(user.businessProfileID)
+            ]);
 
-      businessProfileRef = businessProfile;
+            businessProfileRef = businessProfile;
 
-      if (!businessDocument || businessDocument.length === 0) isDocumentUploaded = false;
-      if (!businessProfileRef?.amenities?.length) hasAmenities = false;
-      if (!subscription) hasSubscription = false;
+            if (!businessDocument || businessDocument.length === 0) isDocumentUploaded = false;
+            if (!businessProfileRef?.amenities?.length) hasAmenities = false;
+            if (!subscription) hasSubscription = false;
 
-      const now = new Date();
-      if (subscription && subscription.expirationDate < now) {
-        hasSubscription = false;
-        return res.status(403).json({
-          status: false,
-          statusCode: 403,
-          message: "Your subscription expired",
-          data: null
+            const now = new Date();
+            if (subscription && subscription.expirationDate < now) {
+                hasSubscription = false;
+                return res.status(403).json({
+                    status: false,
+                    statusCode: 403,
+                    message: "Your subscription expired",
+                    data: null
+                });
+            }
+        }
+
+        if (!user.isApproved) {
+            return res.status(403).json({
+                status: false,
+                statusCode: 403,
+                message: "Your account is under review",
+                data: null
+            });
+        }
+
+        // 5️⃣ Add device info
+        await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
+
+        if (deviceID) {
+            res.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
+        }
+
+        // 6️⃣ Generate tokens
+        const authenticateUser = {
+            id: user.id,
+            accountType: user.accountType,
+            businessProfileID: user.businessProfileID,
+            role: user.role
+        };
+
+        const accessToken = await generateAccessToken(authenticateUser);
+        const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
+
+        res.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+        res.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+
+        // 7️⃣ Final success response — EXACT format requested
+        return res.status(200).json({
+            status: true,
+            statusCode: 200,
+            message: "Logged-in successfully",
+            data: {
+                ...user.hideSensitiveData(),
+                businessProfileRef,
+                isDocumentUploaded,
+                hasAmenities,
+                hasSubscription,
+                accessToken,
+                refreshToken
+            }
         });
-      }
+    } catch (error: any) {
+        console.error("Error in verifyOtpLogin:", error);
+        next(error);
     }
-
-    if (!user.isApproved) {
-      return res.status(403).json({
-        status: false,
-        statusCode: 403,
-        message: "Your account is under review",
-        data: null
-      });
-    }
-
-    // 5️⃣ Add device info
-    await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, user.id, user.accountType);
-
-    if (deviceID) {
-      res.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
-    }
-
-    // 6️⃣ Generate tokens
-    const authenticateUser = {
-      id: user.id,
-      accountType: user.accountType,
-      businessProfileID: user.businessProfileID,
-      role: user.role
-    };
-
-    const accessToken = await generateAccessToken(authenticateUser);
-    const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-
-    res.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-    res.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
-
-    // 7️⃣ Final success response — EXACT format requested
-    return res.status(200).json({
-      status: true,
-      statusCode: 200,
-      message: "Logged-in successfully",
-      data: {
-        ...user.hideSensitiveData(),
-        businessProfileRef,
-        isDocumentUploaded,
-        hasAmenities,
-        hasSubscription,
-        accessToken,
-        refreshToken
-      }
-    });
-  } catch (error: any) {
-    console.error("Error in verifyOtpLogin:", error);
-    next(error);
-  }
 };
 
 
