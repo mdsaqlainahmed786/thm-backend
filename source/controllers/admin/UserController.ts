@@ -24,7 +24,9 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
                         { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
                         { email: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } }
+                        { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } },
+                        { followersCount: { $gte: parseInt(query) } },
+                        { followingCount: { $gte: parseInt(query) } },
                     ]
                 }
             )
@@ -82,6 +84,68 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 },
                 addBusinessProfileInUser().lookup,
                 addBusinessProfileInUser().unwindLookup,
+                {
+                    $lookup: {
+                        from: 'userconnections',
+                        let: { userId: '$_id' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ['$following', '$$userId'] },
+                                            { $eq: ['$status', ConnectionStatus.ACCEPTED] }
+                                        ]
+                                    }
+                                }
+                            }
+                        ],
+                        as: 'followersRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        followersCount: {
+                            $cond: [
+                                { $isArray: '$followersRef' },
+                                { $size: '$followersRef' },
+                                0
+                            ]
+                        },
+                        followingCount: {
+                            $cond: [
+                                { $isArray: '$followingRef' },
+                                { $size: '$followingRef' },
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        followersRef: 0,
+                        followingRef: 0
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'userconnections',
+                        let: { userId: '$_id' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ['$follower', '$$userId'] },
+                                            { $eq: ['$status', ConnectionStatus.ACCEPTED] }
+                                        ]
+                                    }
+                                }
+                            }
+                        ],
+                        as: 'followingRef'
+                    }
+                },
                 {
                     $sort: { createdAt: -1, id: 1 }
                 },
