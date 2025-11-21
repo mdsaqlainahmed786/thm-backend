@@ -12,158 +12,134 @@ import { ContentType, Role } from '../../common';
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, accountType, businessTypeID, businessSubTypeID }: any = request.query;
-        pageNumber = parseQueryParam(pageNumber, 1);
-        documentLimit = parseQueryParam(documentLimit, 20);
-        const userQuery = {};
-        const queryArray = [];
-        if (query !== undefined && query !== "") {
-            Object.assign(userQuery,
-                {
-                    $or: [
-                        { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { email: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                        { followersCount: { $gte: parseInt(query) } },
-                        { followingCount: { $gte: parseInt(query) } },
-                    ]
-                }
-            )
-        }
-        if (accountType === AccountType.INDIVIDUAL) {
-            Object.assign(userQuery, { accountType })
-            queryArray.push(userQuery);
+
+        if (!id) {
+            return response.send(
+                httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), 
+                ErrorMessage.USER_NOT_FOUND)
+            );
         }
 
+        let { pageNumber, documentLimit, query, accountType, businessTypeID, businessSubTypeID, sortBy, sortOrder }: any = request.query;
+
+        pageNumber = parseQueryParam(pageNumber, 1);
+        documentLimit = parseQueryParam(documentLimit, 20);
+
+        const matchQuery: any = {};
+
+        if (accountType) matchQuery.accountType = accountType;
+
+        if (query && query.trim() !== "") {
+            matchQuery.$or = [
+                { username: { $regex: query, $options: "i" } },
+                { name: { $regex: query, $options: "i" } },
+                { email: { $regex: query, $options: "i" } },
+                { phoneNumber: { $regex: query, $options: "i" } }
+            ];
+        }
+
+       
         if (accountType === AccountType.BUSINESS) {
-            Object.assign(userQuery, { accountType });
-            const businessQuery = {};
-            if (query !== undefined && query !== "") {
-                Object.assign(businessQuery,
-                    {
-                        $or: [
-                            { username: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { name: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { email: { $regex: new RegExp(query.toLowerCase(), "i") } },
-                            { phoneNumber: { $regex: new RegExp(query.toLowerCase(), "i") } }
-                        ]
-                    }
-                )
+            const businessQuery: any = {};
+
+            if (query && query.trim() !== "") {
+                businessQuery.$or = [
+                    { username: { $regex: query, $options: "i" } },
+                    { name: { $regex: query, $options: "i" } },
+                    { email: { $regex: query, $options: "i" } },
+                    { phoneNumber: { $regex: query, $options: "i" } }
+                ];
             }
-            if (businessTypeID && businessTypeID !== '') {
-                Object.assign(businessQuery, { businessTypeID: { $in: [new ObjectId(businessTypeID)] } })
-            }
-            if (businessSubTypeID && businessSubTypeID !== '') {
-                Object.assign(businessQuery, { businessSubTypeID: { $in: [new ObjectId(businessSubTypeID)] } })
-            }
-            const businessProfileIDs = await BusinessProfile.distinct('_id', businessQuery);
-            //TODO
-            Object.assign(userQuery, { businessProfileID: { $in: businessProfileIDs } })
-            queryArray.push({ businessProfileID: { $in: businessProfileIDs } })
-            queryArray.push(userQuery);
+
+            if (businessTypeID) businessQuery.businessTypeID = new ObjectId(businessTypeID);
+            if (businessSubTypeID) businessQuery.businessSubTypeID = new ObjectId(businessSubTypeID);
+
+            const businessIDs = await BusinessProfile.distinct("_id", businessQuery);
+            matchQuery.businessProfileID = { $in: businessIDs };
         }
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const dbQuery = {
-            $or: queryArray
-        }
-        console.log(dbQuery);
-        const [documents, totalDocument] = await Promise.all([
-            User.aggregate([
-                {
-                    $match: dbQuery
-                },
-                {
-                    $project: {
-                        password: 0,
-                        updatedAt: 0,
-                        __v: 0,
-                    }
-                },
-                addBusinessProfileInUser().lookup,
-                addBusinessProfileInUser().unwindLookup,
-                {
-                    $lookup: {
-                        from: 'userconnections',
-                        let: { userId: '$_id' },
-                        pipeline: [
-                            {
-                                $match: {
-                                    $expr: {
-                                        $and: [
-                                            { $eq: ['$following', '$$userId'] },
-                                            { $eq: ['$status', ConnectionStatus.ACCEPTED] }
-                                        ]
-                                    }
+
+        const isSortFollowers = sortBy === "followers";
+        const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+        const sortObject = isSortFollowers
+            ? { followersCount: sortDirection, createdAt: -1 }
+            : { createdAt: -1 };
+
+        const pipeline: any[] = [
+            { $match: matchQuery },
+
+            
+            addBusinessProfileInUser().lookup,
+            {
+                $unwind: {
+                    path: addBusinessProfileInUser().unwindLookup.$unwind.path,
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            
+            {
+                $lookup: {
+                    from: "userconnections",
+                    let: { userId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$following", "$$userId"] },
+                                        { $eq: ["$status", "accepted"] }
+                                    ]
                                 }
                             }
-                        ],
-                        as: 'followersRef'
-                    }
-                },
-                {
-                    $addFields: {
-                        followersCount: {
-                            $cond: [
-                                { $isArray: '$followersRef' },
-                                { $size: '$followersRef' },
-                                0
-                            ]
-                        },
-                        followingCount: {
-                            $cond: [
-                                { $isArray: '$followingRef' },
-                                { $size: '$followingRef' },
-                                0
-                            ]
                         }
-                    }
-                },
-                {
-                    $project: {
-                        followersRef: 0,
-                        followingRef: 0
-                    }
-                },
-                {
-                    $lookup: {
-                        from: 'userconnections',
-                        let: { userId: '$_id' },
-                        pipeline: [
-                            {
-                                $match: {
-                                    $expr: {
-                                        $and: [
-                                            { $eq: ['$follower', '$$userId'] },
-                                            { $eq: ['$status', ConnectionStatus.ACCEPTED] }
-                                        ]
-                                    }
-                                }
-                            }
-                        ],
-                        as: 'followingRef'
-                    }
-                },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-                },
-                {
-                    $limit: documentLimit
-                },
-            ]),
-            User.find(dbQuery).countDocuments()
+                    ],
+                    as: "followersRef"
+                }
+            },
+
+            
+            {
+                $addFields: {
+                    followersCount: { $size: "$followersRef" }
+                }
+            },
+
+            
+            {
+                $project: {
+                    password: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                    followersRef: 0
+                }
+            },
+
+            
+            { $sort: sortObject },
+
+            
+            { $skip: (pageNumber - 1) * documentLimit },
+            { $limit: documentLimit }
+        ];
+
+            
+        const [documents, total] = await Promise.all([
+            User.aggregate(pipeline),
+            User.countDocuments(matchQuery)
         ]);
-        const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
-        return response.send(httpOkExtended(documents, 'User fetched.', pageNumber, totalPagesCount, totalDocument));
+
+        const totalPages = Math.ceil(total / documentLimit);
+
+        return response.send(
+            httpOkExtended(documents, "User fetched.", pageNumber, totalPages, total)
+        );
+
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
-}
+};
+
 
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
