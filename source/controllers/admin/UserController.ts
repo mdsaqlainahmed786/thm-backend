@@ -64,7 +64,27 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         const sortObject = isSortFollowers
             ? { followersCount: sortDirection, createdAt: -1 }
             : { createdAt: -1 };
-
+            const now = new Date();
+            if (sortBy === "created_last_1_hour") {
+                matchQuery.createdAt = { $gte: new Date(now.getTime() - 1 * 60 * 60 * 1000) };
+            }
+            
+            if (sortBy === "created_last_1_day") {
+                matchQuery.createdAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+            }
+            
+            if (sortBy === "created_last_1_week") {
+                matchQuery.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+            }
+            
+            if (sortBy === "created_last_1_month") {
+                matchQuery.createdAt = { $gte: new Date(now.setMonth(now.getMonth() - 1)) };
+            }
+            
+            if (sortBy === "created_last_1_year") {
+                matchQuery.createdAt = { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) };
+            }
+            
         const pipeline: any[] = [
             { $match: matchQuery },
 
