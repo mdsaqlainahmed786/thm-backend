@@ -12,26 +12,17 @@ const postTypes = Object.values(PostType)
 const index = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id } = request.user;
-        let { pageNumber, documentLimit, query, postType }: any = request.query;
+        let { pageNumber, documentLimit, query, postType, sortBy, sortOrder }: any = request.query;
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const dbQuery = {};
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        if (query !== undefined && query !== "") {
-            Object.assign(dbQuery,
-                {
-                    $or: [
-                        { content: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                        { name: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                        { venue: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                        { streamingLink: { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true },
-                        { 'location.placeName': { $regex: new RegExp(query.toLowerCase(), "i") }, isPublished: true }
-                    ]
-                }
-            )
-        }
+        const sortDirection = (sortOrder === "asc" ? 1 : -1) as 1 | -1;
+        const sortObject: Record<string, 1 | -1> =
+        sortBy === "views" ? { views: sortDirection } :
+        sortBy === "likes" ? { likeCount: sortDirection } :
+        sortBy === "reportCount" ? { reportCount: sortDirection } :
+        { createdAt: -1 };
+        const dbQuery: any = {};
+        
         if (postType && postTypes.includes(postType)) {
             Object.assign(dbQuery, { postType: postType })
         }
@@ -84,6 +75,19 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                             profileBasicProject(),
                         ],
                         'as': 'postedBy'
+                    }
+                },
+                {
+                    '$lookup': {
+                      from: "likes",
+                      localField: "_id",
+                        'foreignField': 'postID',
+                        'as': 'likes'
+                    }
+                },
+                {
+                    '$addFields': {
+                        'likeCount': { '$size': '$likes' }
                     }
                 },
                 {
@@ -152,9 +156,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                         reportCount: { $size: "$reports" }
                     }
                 },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
+                { $sort: sortObject },
                 {
                     $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
                 },
