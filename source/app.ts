@@ -19,6 +19,10 @@ connectDB();
 export const allowedOrigins: Array<string> = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://thehotelmedia.com",
+    "https://www.thehotelmedia.com",
+    "https://admin.thehotelmedia.com",
+    "https://www.admin.thehotelmedia.com",
     "ec2-13-202-52-159.ap-south-1.compute.amazonaws.com",
     "13.202.52.159"
 ];
