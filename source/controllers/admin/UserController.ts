@@ -57,10 +57,22 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             const businessIDs = await BusinessProfile.distinct("_id", businessQuery);
             matchQuery.businessProfileID = { $in: businessIDs };
         }
-
-        const isSortFollowers = sortBy === "followers";
+        // Filters
+        if (sortBy === "inActive") {
+            matchQuery.isActivated = false;
+        }
+        
+        if (sortBy === "unVerified") {
+            matchQuery.isVerified = false;
+        }
+        
+        if (sortBy === "disapproved") {
+            matchQuery.isApproved = false;
+        }
+        
+        // Sorting
         const sortDirection = sortOrder === "asc" ? 1 : -1;
-
+        const isSortFollowers = sortBy === "followers";
         const sortObject = isSortFollowers
             ? { followersCount: sortDirection, createdAt: -1 }
             : { createdAt: -1 };
