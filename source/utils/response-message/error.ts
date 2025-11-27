@@ -11,6 +11,7 @@ export class ErrorMessage {
     static readonly INACTIVE_ACCOUNT = "Sorry! Your account is inactive. Please contact support";
     static readonly ACCOUNT_DISABLED = "Account Not Found! This account has been deleted and cannot be accessed. If you need assistance, please reach out to support.";
     static readonly EMAIL_IN_USE = "An account with this email address already exists. Please use a different email address or reset your password.";
+    static readonly PHONE_NUMBER_IN_USE = "An account with this phone number already exists. Please use a different phone number.";
     static readonly OTP_NOT_MATCH = "Sorry! The OTP didn\'t match. Please try again";
     static readonly TOKEN_REQUIRED = 'Access denied! A token is required for authentication.';
     static readonly INVALID_OR_EXPIRED_TOKEN = "Access denied! Invalid or expired session, please try again";

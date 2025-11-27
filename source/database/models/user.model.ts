@@ -87,7 +87,7 @@ const UserSchema: Schema = new Schema<IUser>(
             select: true,
         },
         bio: { type: String, default: '' },
-        phoneNumber: { type: String },
+        phoneNumber: { type: String, unique: true },
         dialCode: { type: String },
         accountType: {
             type: String,

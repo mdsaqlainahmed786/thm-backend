@@ -139,10 +139,14 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 if (!email || !name) {
                     return response.send(httpBadRequest(null, 'Email cannot be null or empty.'))
                 }
-                const [username, user] = await Promise.all([
+                const [username, user, isPhoneNumberExist] = await Promise.all([
                     generateUsername(email, AccountType.INDIVIDUAL),
                     User.findOne({ email: email }),
+                    phoneNumber ? User.findOne({ phoneNumber: phoneNumber }) : null,
                 ]);
+                if (phoneNumber && isPhoneNumberExist) {
+                    return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+                }
                 if (!user) {
                     const profilePic = {
                         small: picture ?? getDefaultProfilePic(request, 'small'),
@@ -233,6 +237,10 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
             } catch (error: any) {
+                // Handle MongoDB duplicate key error for phoneNumber
+                if (error.code === 11000 && error.keyPattern && error.keyPattern.phoneNumber) {
+                    return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+                }
                 next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
             }
         }
@@ -242,10 +250,14 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 if (!email) {
                     return response.send(httpBadRequest(null, 'Email cannot be null or empty.'))
                 }
-                const [username, user] = await Promise.all([
+                const [username, user, isPhoneNumberExist] = await Promise.all([
                     generateUsername(email, AccountType.INDIVIDUAL),
                     User.findOne({ email: email }),
+                    phoneNumber ? User.findOne({ phoneNumber: phoneNumber }) : null,
                 ]);
+                if (phoneNumber && isPhoneNumberExist) {
+                    return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+                }
                 if (!user) {
                     const profilePic = {
                         small: getDefaultProfilePic(request, 'small'),
@@ -334,11 +346,19 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
             } catch (error: any) {
+                // Handle MongoDB duplicate key error for phoneNumber
+                if (error.code === 11000 && error.keyPattern && error.keyPattern.phoneNumber) {
+                    return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+                }
                 next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
             }
             // return response.send(httpOk({ 'data': payload }))
         }
     } catch (error: any) {
+        // Handle MongoDB duplicate key error for phoneNumber
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.phoneNumber) {
+            return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+        }
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
@@ -346,12 +366,16 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
 const signUp = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession, language } = request.body;
-        const [username, isUserExist] = await Promise.all([
+        const [username, isUserExist, isPhoneNumberExist] = await Promise.all([
             generateUsername(email, accountType),
             User.findOne({ email: email }),
+            phoneNumber ? User.findOne({ phoneNumber: phoneNumber }) : null,
         ]);
         if (isUserExist) {
             return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.EMAIL_IN_USE), ErrorMessage.EMAIL_IN_USE));
+        }
+        if (isPhoneNumberExist) {
+            return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
         }
         let geoCoordinate = { type: "Point", coordinates: [78.9629, 20.5937] };
         if (lat && lng) {
@@ -405,6 +429,10 @@ const signUp = async (request: Request, response: Response, next: NextFunction) 
         }, true);
         return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.REGISTRATION_SUCCESSFUL));
     } catch (error: any) {
+        // Handle MongoDB duplicate key error for phoneNumber
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.phoneNumber) {
+            return response.send(httpConflict(ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE), ErrorMessage.PHONE_NUMBER_IN_USE));
+        }
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
