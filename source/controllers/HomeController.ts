@@ -120,18 +120,20 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     let data: any[] = [];
     const isTopPage = Number(pageNumber) === 1;
 
-    if (isTopPage) {
-      const cachedFeed = FeedOrderCache.get(id);
-      if (cachedFeed) {
-        data = cachedFeed;
-        FeedOrderCache.decrement(id);
-      } else {
-        data = shuffleArray(documents); // Randomized order
-        FeedOrderCache.set(id, data);
-      }
-    } else {
-      data = shuffleArray(documents);
-    }
+    // if (isTopPage) {
+    //   const cachedFeed = FeedOrderCache.get(id);
+    //   if (cachedFeed) {
+    //     data = cachedFeed;
+    //     FeedOrderCache.decrement(id);
+    //   } else {
+    //     data = shuffleArray(documents); // Randomized order
+    //     FeedOrderCache.set(id, data);
+    //   }
+    // } else {
+    //   data = shuffleArray(documents);
+    // }
+
+    data = shuffleArray(documents);
 
 
     // // -----------------------------
