@@ -1,0 +1,14 @@
+import express, { Router } from "express";
+import RoomController from "../../../controllers/booking/RoomController";
+import { createRoomApiValidator, paramIDValidationRule } from "../../../validation/rules/api-validation";
+import { validateRequest } from "../../../middleware/api-request-validator";
+import { s3Upload } from "../../../middleware/file-uploading";
+import { AwsS3AccessEndpoints } from "../../../config/constants";
+import { isBusinessUser } from "../../../middleware/authenticate";
+const RoomEndpoints: Router = express.Router();
+RoomEndpoints.get('/', RoomController.index);
+RoomEndpoints.get('/:id', [paramIDValidationRule], validateRequest, RoomController.show);
+RoomEndpoints.post('/', isBusinessUser, s3Upload(AwsS3AccessEndpoints.ROOMS).fields([{ name: 'images', maxCount: 5 }]), createRoomApiValidator, validateRequest, RoomController.store);
+RoomEndpoints.delete('/:id', isBusinessUser, [paramIDValidationRule], validateRequest, RoomController.destroy);
+RoomEndpoints.put('/:id', isBusinessUser, s3Upload(AwsS3AccessEndpoints.ROOMS).fields([{ name: 'images', maxCount: 5 }]), [paramIDValidationRule], validateRequest, RoomController.update);
+export default RoomEndpoints;

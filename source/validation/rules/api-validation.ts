@@ -1,8 +1,10 @@
-import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule, codeValidationRule, cartValueValidationRule, valueValidationRule, typeValidationRule, priceTypeValidationRule, validToValidationRule, quantityValidationRule, validFromValidationRule, maxDiscountValidationRule, redeemedCountValidationRule, socialTypeValidationRule } from './../common-validation';
-import { ContentType, InsightType } from '../../common';
+import { questionValidationRule, questionTypeValidationRule, answerValidationRule, descriptionValidationRule, priceValidationRule, levelValidationRule, durationValidationRule, currencyValidationRule, subscriptionTypeValidationRule, usernameValidationRule, messageTypeValidationRule, codeValidationRule, cartValueValidationRule, valueValidationRule, typeValidationRule, priceTypeValidationRule, validToValidationRule, quantityValidationRule, validFromValidationRule, maxDiscountValidationRule, redeemedCountValidationRule, socialTypeValidationRule, bedTypeValidationRule, roomTypeValidationRule, mealPlanValidationRule, childrenValidationRule, adultsValidationRule, roomIDValidationRule, accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule, bookingIDValidationRule, businessProfileIDValidationRule, numberOfGuestsValidationRule, titleValidationRule, designationValidationRule, jobTypeValidationRule, salaryValidationRule, joiningDateValidationRule, numberOfVacanciesValidationRule, experienceValidationRule, totalRoomsValidationRule } from './../common-validation';
+import { BookedFor, ContentType, InsightType } from '../../common';
+import { BookingStatus } from '../../database/models/booking.model';
 import { body, param } from "express-validator";
-import { accountTypeValidationRule, businessSubtypeIDValidationRule, businessTypeIDValidationRule, cityValidationRule, countryValidationRule, deviceIDValidationRule, devicePlatformValidationRule, dialCodeValidationRule, emailValidationRule, nameValidationRule, latValidationRule, lngValidationRule, notificationTokenValidationRule, otpValidationRule, passwordValidationRule, phoneNumberValidationRule, questionsIDsValidationRule, stateValidationRule, streetValidationRule, strongPasswordValidationRule, subscriptionPlanIDValidationRule, zipCodeValidationRule } from "../common-validation";
+
 import { AccountType } from "../../database/models/user.model";
+import { PricePresetType } from '../../database/models/pricePreset.model';
 
 export const businessTypeValidationRule = body('businessType', 'Business type is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid business type');
 export const businessSubTypeValidationRule = body('businessSubType', 'Business sub type is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid business subtype');
@@ -16,6 +18,11 @@ export const placeIDValidationRule = body('placeID', 'Place ID is a required fie
 
 
 export const paramIDValidationRule = param("id", 'ID is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
+
+
+const BookingStatusValue = Object.values(BookingStatus);
+export const bookingStatusValidationRule = body("status", 'Status is a required field.').exists().bail().notEmpty().bail().isIn(BookingStatusValue).withMessage(`Status must be in ${BookingStatusValue.join(' | ')}`);
+
 export const postIDValidationRule = body("postID", 'Post ID is required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
 export const mediaIDValidationRule = body("mediaID", 'Media ID is required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid ID');
 
@@ -177,12 +184,21 @@ export enum Types {
 const TypesValue = Object.values(Types);
 export const resendOTPApiValidator = [
     emailValidationRule,
-    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypesValue).withMessage(`Type must be in  ${TypesValue.join(' | ')}`)
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypesValue).withMessage(`Type must be in ${TypesValue.join(' | ')}`)
 ];
 
 export const forgotPasswordApiValidator = [
     emailValidationRule,
 ];
+export const mobileRequestOTPApiValidator = [
+    dialCodeValidationRule,
+    phoneNumberValidationRule,
+]
+export const mobileVerifyOTPApiValidator = [
+    dialCodeValidationRule,
+    phoneNumberValidationRule,
+    otpValidationRule,
+]
 export const verifyOTPApiValidator = [
     emailValidationRule,
     otpValidationRule,
@@ -234,7 +250,7 @@ export const createEventApiValidator = [
     body("endTime", "End time is required field.").exists().bail().notEmpty().bail().isTime({
         hourFormat: 'hour24',
     }).withMessage("Invalid time. Please use HH:MM:SS format"),
-    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(EventTypeValue).withMessage(`Type must be in  ${EventTypeValue.join(' | ')}`),
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(EventTypeValue).withMessage(`Type must be in ${EventTypeValue.join(' | ')}`),
     body('type').custom((value, { req }) => {
         if (value === EventType.OFFLINE) {
             return body("venue", "Event venue is required field.").exists().bail().notEmpty().bail().run(req);
@@ -273,7 +289,7 @@ export const buySubscriptionApiValidator = [
 
 const TypeValue = Object.values(InsightType);
 export const collectInsightsDataApiValidator = [
-    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypeValue).withMessage(`Type must be in  ${TypeValue.join(' | ')}`),
+    body("type", "Type is required field.").exists().bail().notEmpty().bail().isIn(TypeValue).withMessage(`Type must be in ${TypeValue.join(' | ')}`),
     body('type').custom((value, { req }) => {
         if (value === InsightType.WEBSITE_REDIRECTION) {
             return body("businessProfileID", "Business profile is required for website redirection.").exists().bail().notEmpty().bail().run(req);
@@ -307,6 +323,84 @@ export const createSubscriptionPlanApiValidator = [
     subscriptionTypeValidationRule,
 
 
+]
+export const createAmenityApiValidator = [
+    nameValidationRule,
+]
+
+export const checkInApiValidator = [
+    businessProfileIDValidationRule
+]
+
+const PricePresetTypeValue = Object.values(PricePresetType);
+export const createPricePresetApiValidator = [
+    body('type', 'Price preset type is required field').exists().bail().notEmpty().bail().isIn(PricePresetTypeValue).withMessage(`Type must be in ${PricePresetTypeValue.join(' | ')}`),
+    body('price', 'Price percentage is required field').exists().bail().notEmpty().bail().isDecimal({ decimal_digits: '2', force_decimal: true, }).withMessage('Price percentage is integer field.'),
+    body('weekendPrice', 'Weekend price percentage is required field').exists().bail().notEmpty().bail().isDecimal({ decimal_digits: '2', force_decimal: true }).withMessage('Price percentage is integer field.'),
+    body('type').custom((value, { req }) => {
+        if (req.body.type === PricePresetType.QUARTERLY || value === PricePresetType.MONTHLY) {
+            return body("months", "Start Month is required field.").isArray({ min: 1 }) // Must be an array with at least one item
+                .withMessage('Tags must be an array with at least one item')
+            // .exists().bail().notEmpty().bail().isInt({ min: 0, max: 11 }).withMessage('Month value should be between 1 and 12.').run(req)
+        }
+        // if (req.body.type === PricePresetType.CUSTOM) {
+        //     return body("startDate", "Start date is required field.").exists().bail().notEmpty().bail()
+        //         .isDate({ format: 'YYYY/MM/DD' }).withMessage("Start date must be in 'YYYY/MM/DD' format.").run(req)
+        // }
+        // if (req.body.type === PricePresetType.CUSTOM) {
+        //     return body("endDate", "End date is required field.").exists().bail().notEmpty().bail()
+        //         .isDate({ format: 'YYYY/MM/DD' }).withMessage("End date must be in 'YYYY/MM/DD' format.").run(req)
+        // }
+
+        // if (req.body.type === PricePresetType.QUARTERLY || value === PricePresetType.MONTHLY) {
+        //     return body("endMonth", "End Month is required field.").exists().bail().notEmpty().bail().isInt({ min: 0, max: 11 }).withMessage('Month value should be between 1 and 12.').run(req)
+        // }
+        return true;
+    }),
+]
+
+
+const BookedForValues = Object.values(BookedFor)
+export const checkoutApiValidator = [
+    roomIDValidationRule,
+    bookingIDValidationRule,
+    body('bookedFor', 'Booking for is required field').exists().bail().notEmpty().bail().isIn(BookedForValues).withMessage(`Type must be in ${BookedForValues.join(' | ')}`),
+    quantityValidationRule,
+]
+export const confirmCheckoutApiValidator = [
+    bookingIDValidationRule,
+    body("paymentID", "Payment ID is required field.").exists().bail().notEmpty().bail(),
+    body("signature", "Payment Signature is required field.").exists().bail().notEmpty().bail(),
+];
+export const bookTableApiValidator = [
+    businessProfileIDValidationRule,
+    numberOfGuestsValidationRule,
+    body("date", "Booking date is required field.").exists().bail().notEmpty().bail().isDate({
+        format: 'YYYY-MM-DD',
+        delimiters: ['-'],
+    }).withMessage("Invalid date. Please use YYYY-MM-DD format"),
+    body("time", "Time is required field.").exists().bail().notEmpty().bail().isTime({
+        hourFormat: 'hour24',
+    }).withMessage("Invalid time. Please use HH:MM:SS format"),
+];
+export const bookBanquetApiValidator = [
+    businessProfileIDValidationRule,
+    numberOfGuestsValidationRule,
+    body("checkIn", "Check In date is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Check In date must be in 'YYYY/MM/DD' format."),
+    body("checkOut", "Check In date is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Check In date must be in 'YYYY/MM/DD' format."),
+    body("typeOfEvent", "Type of Event is required field.").exists().bail().notEmpty().bail(),
+];
+
+
+export const createRoomApiValidator = [
+    priceValidationRule,
+    currencyValidationRule,
+    childrenValidationRule,
+    adultsValidationRule,
+    bedTypeValidationRule,
+    roomTypeValidationRule,
+    mealPlanValidationRule,
+    totalRoomsValidationRule
 ]
 
 export const createPromoCodeApiValidator = [
@@ -342,3 +436,14 @@ export const createMediaViewsApiValidator = [
     postIDValidationRule,
     mediaIDValidationRule,
 ]
+
+export const createJobApiValidator = [
+    titleValidationRule,
+    descriptionValidationRule,
+    designationValidationRule,
+    jobTypeValidationRule,
+    salaryValidationRule,
+    joiningDateValidationRule,
+    numberOfVacanciesValidationRule,
+    experienceValidationRule,
+];

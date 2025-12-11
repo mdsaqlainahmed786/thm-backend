@@ -6,7 +6,7 @@ export enum NotificationType {
     LIKE_COMMENT = "like-comment",
     FOLLOW_REQUEST = "follow-request",
     ACCEPT_FOLLOW_REQUEST = "accept-follow-request",
-    COLLABORATION_INVITE = "collaboration-invite", 
+    COLLABORATION_INVITE = "collaboration-invite",
     COLLABORATION_ACCEPTED = "collaboration-accepted",
     COLLABORATION_REJECTED = "collaboration-rejected",
     FOLLOWING = "following",
@@ -15,7 +15,9 @@ export enum NotificationType {
     REVIEW = 'review',
     TAGGED = 'tagged',
     MESSAGING = 'messaging',
-    EVENT_JOIN = "event-join"
+    EVENT_JOIN = "event-join",
+    BOOKING = "booking",
+    JOB = "job"
 }
 
 export interface INotification extends Document {

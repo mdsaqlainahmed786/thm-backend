@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { verify, sign, } from "jsonwebtoken";
+import { verify, sign, SignOptions } from "jsonwebtoken";
+import type { StringValue } from "ms";
 import { httpForbidden, httpUnauthorized } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AppConfig } from "../config/constants";
@@ -26,7 +27,7 @@ export default async function authenticateUser(request: Request, response: Respo
             if (auth_user && auth_user.isActivated && !auth_user.isDeleted) {
                 console.log(request.path);
                 //FIXME improve endpoint check
-                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture'];
+                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
                 const now = new Date();
                 if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
                     console.error("ErrorMessage.NO_SUBSCRIPTION");
@@ -59,9 +60,31 @@ export async function isAdministrator(request: Request, response: Response, next
     return next();
 }
 
+export async function isBusinessUser(request: Request, response: Response, next: NextFunction) {
+    const hasRole = request.user?.role || undefined;
+    const accountType = request.user?.accountType || undefined;
+    const businessProfileID = request.user?.businessProfileID || undefined;
+
+    const isBusinessUser = (accountType && businessProfileID && accountType === AccountType.BUSINESS);
+    const isAdministrator = (hasRole && hasRole === Role.ADMINISTRATOR);
+    //Admin and Business user allowed
+    console.log({ isBusinessUser, isAdministrator })
+    if (isAdministrator || isBusinessUser) {
+        return next();
+    }
+    return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
+
+}
 
 export async function generateRefreshToken(user: AuthenticateUser, deviceID: string) {
-    const refreshToken = sign(user, AppConfig.APP_REFRESH_TOKEN_SECRET, { expiresIn: AppConfig.REFRESH_TOKEN_EXPIRES_IN });
+    const payload = {
+        id: String(user.id),
+        accountType: user.accountType,
+        businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+        role: user.role
+    };
+    const options: SignOptions = { expiresIn: AppConfig.REFRESH_TOKEN_EXPIRES_IN as StringValue };
+    const refreshToken = sign(payload, AppConfig.APP_REFRESH_TOKEN_SECRET, options);
     const sameDevice = await AuthToken.findOne({ deviceID: deviceID });
     if (!sameDevice) {
         const storeAuthToken = new AuthToken();
@@ -79,5 +102,12 @@ export async function generateRefreshToken(user: AuthenticateUser, deviceID: str
 
 
 export async function generateAccessToken(user: AuthenticateUser, expiresIn?: string) {
-    return sign(user, AppConfig.APP_ACCESS_TOKEN_SECRET, { expiresIn: expiresIn ?? AppConfig.ACCESS_TOKEN_EXPIRES_IN });
+    const payload = {
+        id: String(user.id),
+        accountType: user.accountType,
+        businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+        role: user.role
+    };
+    const options: SignOptions = { expiresIn: (expiresIn ?? AppConfig.ACCESS_TOKEN_EXPIRES_IN) as StringValue };
+    return sign(payload, AppConfig.APP_ACCESS_TOKEN_SECRET, options);
 }

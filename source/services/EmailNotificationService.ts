@@ -187,6 +187,45 @@ class EmailNotificationService {
     return '';
   }
 
+  async sendBookingEmail(data: any) {
+    try {
+      // Placeholder implementation - email sending logic can be added later
+      if (AppConfig.APP_ENV !== "dev") {
+        console.log("SES (prod) sendBookingEmail", data);
+      } else {
+        console.log("SES (dev) sendBookingEmail", data);
+      }
+    } catch (err) {
+      console.error("EmailNotificationService sendBookingEmail (SES)", err);
+    }
+  }
+
+  async sendBookingConfirmationEmail(data: any) {
+    try {
+      // Placeholder implementation - email sending logic can be added later
+      if (AppConfig.APP_ENV !== "dev") {
+        console.log("SES (prod) sendBookingConfirmationEmail", data);
+      } else {
+        console.log("SES (dev) sendBookingConfirmationEmail", data);
+      }
+    } catch (err) {
+      console.error("EmailNotificationService sendBookingConfirmationEmail (SES)", err);
+    }
+  }
+
+  async sendBookingCancellationEmail(data: any) {
+    try {
+      // Placeholder implementation - email sending logic can be added later
+      if (AppConfig.APP_ENV !== "dev") {
+        console.log("SES (prod) sendBookingCancellationEmail", data);
+      } else {
+        console.log("SES (dev) sendBookingCancellationEmail", data);
+      }
+    } catch (err) {
+      console.error("EmailNotificationService sendBookingCancellationEmail (SES)", err);
+    }
+  }
+
 }
 
 export default EmailNotificationService;

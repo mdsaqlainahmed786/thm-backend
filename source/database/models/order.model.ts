@@ -10,7 +10,8 @@ export interface DeliveryInstruction {
 export enum OrderStatus {
     CREATED = "order-created",
     COMPLETED = "order-completed",
-    FAILED = "order-failed"
+    FAILED = "order-failed",
+    PAYMENT_PENDING = "order-payment-pending"
 }
 
 // Active – The subscription is live, and the customer is receiving the service or product.
@@ -59,6 +60,7 @@ export interface IBillingAddress {
 
 
 export interface IOrder extends Document {
+    originalTransactionID: string;
     orderID: string;
     userID: MongoID;
     subscriptionPlanID: MongoID;
@@ -74,7 +76,7 @@ export interface IOrder extends Document {
     discount: number;
 }
 
-const PaymentDetailSchema: Schema = new Schema<PaymentDetail>(
+export const PaymentDetailSchema: Schema = new Schema<PaymentDetail>(
     {
         transactionID: {
             type: String,
@@ -124,6 +126,9 @@ const OrderSchema: Schema = new Schema<IOrder>(
             required: true,
             unique: true,
         },
+        originalTransactionID: {
+            type: String,
+        },
         razorPayOrderID: {
             type: String,
             required: true,
@@ -132,7 +137,6 @@ const OrderSchema: Schema = new Schema<IOrder>(
         billingAddress: DeliveryAddressSchema,
         promoCode: {
             type: String,
-            ref: "Coupon"
         },
         promoCodeID: {
             type: Schema.Types.ObjectId,

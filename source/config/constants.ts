@@ -6,6 +6,7 @@ export abstract class AppConfig {
     static readonly PORT: any = process.env.PORT ?? 3000;
     static readonly DB_CONNECTION: string = process.env.DB_CONNECTION!;
     static readonly APP_ENV: string = process.env.APP_ENV!;
+    static readonly OPEN_WEATHER_API = process.env.OPEN_WEATHER_API!;
     //API Version
     static readonly API_VERSION: string = "/api/v1";
 
@@ -124,6 +125,7 @@ export const CookiePolicy: CookieOptions = { httpOnly: true, sameSite: "none" };
 
 export abstract class AwsS3AccessEndpoints {
     static readonly USERS: string = AwsS3AccessEndpoints.getEndpoint("users/");
+    static readonly ROOMS: string = AwsS3AccessEndpoints.getEndpoint("bookings/rooms")
     static readonly BUSINESS_DOCUMENTS: string = AwsS3AccessEndpoints.getEndpoint("business-documents/");
     static readonly POST: string = AwsS3AccessEndpoints.getEndpoint("posts/");
     static readonly REVIEW: string = AwsS3AccessEndpoints.getEndpoint("reviews/");

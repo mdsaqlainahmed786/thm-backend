@@ -13,6 +13,9 @@ import BlockedUser from "./blockedUser.model";
 import { ObjectId } from "mongodb";
 import { generateOTP } from "../../utils/helper/basic";
 import EmailNotificationService from "../../services/EmailNotificationService";
+import BusinessType from "./businessType.model";
+import WeatherService from "../../services/WeatherService";
+import { RedisClient } from "../../server";
 const emailNotificationService = new EmailNotificationService();
 export enum SocialAccount {
     FACEBOOK = "facebook",
@@ -59,6 +62,7 @@ export interface Individual {
     profession: string;
     geoCoordinate: GeoCoordinate;
     language: string;
+    mobileVerified: boolean;
 }
 
 export interface Business {
@@ -87,7 +91,11 @@ const UserSchema: Schema = new Schema<IUser>(
             select: true,
         },
         bio: { type: String, default: '' },
-        phoneNumber: { type: String, unique: true },
+        mobileVerified: {
+            type: Boolean,
+            default: false // False by default, indicating the phone number is not verified
+        },
+        phoneNumber: { type: String },
         dialCode: { type: String },
         accountType: {
             type: String,
@@ -147,7 +155,8 @@ const UserSchema: Schema = new Schema<IUser>(
             coordinates: {
                 type: [Number],
             }
-        }
+        },
+
     },
     {
         timestamps: true
@@ -368,7 +377,6 @@ export function addBusinessSubTypeInBusinessProfile() {
  * @returns 
  */
 export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: MongoID[] | null) {
-    console.log(likeIDs);
     const lookup = {
         '$lookup': {
             'from': 'stories',
@@ -439,7 +447,7 @@ export async function calculateProfileCompletion(userID: MongoID): Promise<numbe
         const topLevelNestedFields = getTopLevelNestedFields(BusinessProfile.schema);
         // Remove top-level nested fields from the schemaKeys
         const filteredSchemaFields = schemaKeys.filter(field => !topLevelNestedFields.includes(field))
-            .filter(field => !removeField.includes(field));
+            .filter(field => ![...removeField, "profession"].includes(field));
         const filledKeys = filteredSchemaFields.filter((key) => {
             const value = businessProfile?.get(key);
             if (isArray(value)) {
@@ -571,6 +579,48 @@ export async function getUserPublicProfile(userID: MongoID, id: MongoID) {
         UserConnection.findOne({ following: userID, follower: id, }),
         BlockedUser.findOne({ blockedUserID: userID, userID: id })
     ]);
+}
+export async function getBusinessType(businessProfileID: MongoID,) {
+    const businessProfile = await BusinessProfile.findOne({ _id: businessProfileID });
+    if (businessProfile) {
+        const businessType = await BusinessType.findOne({ _id: businessProfile.businessTypeID });
+        if (businessType) {
+            return businessType.name;
+        }
+    }
+    return null;
+}
+
+export async function fetchWeatherAndAirPollutionReport(businessProfileID: MongoID,) {
+    const businessProfile = await BusinessProfile.findOne({ _id: businessProfileID });
+    if (businessProfile) {
+        const lat = Number(businessProfile?.address?.lat ?? 0);
+        const lng = Number(businessProfile?.address?.lng ?? 0);
+        try {
+            const weatherReportKey = `weather::${businessProfileID}`;
+            const weatherReport = await RedisClient.get(weatherReportKey);
+            if (weatherReport) {
+                console.log("no api call return cache");
+                return JSON.parse(weatherReport);
+            }
+            console.log("api call");
+            const [airPollution, weather] = await Promise.all([
+                WeatherService.airPollution(lat, lng),
+                WeatherService.weather(lat, lng)
+            ]);
+            const data = {
+                ...weather,
+                airPollution: airPollution
+            };
+            await RedisClient.set(weatherReportKey, JSON.stringify(data), {
+                EX: (60 * 60 * 24 * 15)//second * minutes * hour * day = seconds 
+            });
+            return data;
+        } catch {
+            return null;
+        }
+    }
+    return null;
 }
 
 export const activeUserQuery = { isVerified: true, isApproved: true, isActivated: true, isDeleted: false, };
