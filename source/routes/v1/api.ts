@@ -21,6 +21,8 @@ import CollaborationEndpoints from "./collaboration";
 import BookingEndpoints from "./booking";
 import BookingRoutes from "./booking/booking";
 import HotelEndpoints from "./hotel";
+import AmenityEndpoints from "./booking/amenity";
+import RoomEndpoints from "./booking/room";
 import { isBusinessUser } from "../../middleware/authenticate";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
@@ -43,6 +45,8 @@ ApiEndpoints.use('/collaboration', authenticateUser, CollaborationEndpoints);
 ApiEndpoints.use('/bookings', authenticateUser, BookingRoutes);
 ApiEndpoints.use('/booking', BookingEndpoints);
 ApiEndpoints.use('/hotels', authenticateUser, isBusinessUser, HotelEndpoints);
+ApiEndpoints.use('/amenities', authenticateUser, isBusinessUser, AmenityEndpoints);
+ApiEndpoints.use('/rooms', authenticateUser, RoomEndpoints);
 
 //Admin Routes
 ApiEndpoints.use('/admin', AdminApiEndpoints)
