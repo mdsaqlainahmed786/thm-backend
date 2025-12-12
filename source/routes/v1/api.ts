@@ -18,6 +18,10 @@ import FileQueueEndpoints from "./filequeues";
 import BusinessEndpoints from "./business";
 import SubscriptionEndpoints from "./subscription";
 import CollaborationEndpoints from "./collaboration";
+import BookingEndpoints from "./booking";
+import BookingRoutes from "./booking/booking";
+import HotelEndpoints from "./hotel";
+import { isBusinessUser } from "../../middleware/authenticate";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
 ApiEndpoints.use('', SubscriptionEndpoints);
@@ -36,6 +40,9 @@ ApiEndpoints.use('/search', authenticateUser, SearchEndpoints);
 ApiEndpoints.use('/share', ShareEndpoints);
 ApiEndpoints.use('/files-queue', FileQueueEndpoints);
 ApiEndpoints.use('/collaboration', authenticateUser, CollaborationEndpoints);
+ApiEndpoints.use('/bookings', authenticateUser, BookingRoutes);
+ApiEndpoints.use('/booking', BookingEndpoints);
+ApiEndpoints.use('/hotels', authenticateUser, isBusinessUser, HotelEndpoints);
 
 //Admin Routes
 ApiEndpoints.use('/admin', AdminApiEndpoints)

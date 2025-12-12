@@ -135,6 +135,7 @@ export function getAllKeysFromSchema(schema: Schema, prefix: string = ''): strin
         keys.push(path);
         if (schema.paths[key].schema) {
             // Recursively get keys for nested schema
+            //@ts-ignore
             keys = keys.concat(getAllKeysFromSchema(schema.paths[key].schema, path));
         }
     }
