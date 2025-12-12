@@ -389,6 +389,25 @@ const getBusinessProfileByID = (request, response, next) => __awaiter(void 0, vo
         next((0, response_1.httpInternalServerError)(error, (_v = error.message) !== null && _v !== void 0 ? _v : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
+//Fetch business profile by direct business profile id (not encrypted)
+const getBusinessProfileByDirectID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _w;
+    try {
+        const { id } = request.params;
+        const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: id }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
+        if (!businessProfileRef) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const reviewQuestions = yield businessReviewQuestion_model_1.default.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
+        return response.send((0, response_1.httpOk)({
+            businessProfileRef,
+            reviewQuestions
+        }, "Business profile fetched"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_w = error.message) !== null && _w !== void 0 ? _w : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
 function createChartLabels(filter) {
     const currentDate = (0, moment_1.default)();
     let startDate;
@@ -846,4 +865,4 @@ function fetchEngagedData(businessProfileID, userID, groupFormat, labels, labelF
         return { engagementsData, engagements };
     });
 }
-exports.default = { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID };
+exports.default = { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID, getBusinessProfileByDirectID };

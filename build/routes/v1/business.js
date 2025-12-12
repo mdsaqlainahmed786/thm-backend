@@ -19,4 +19,5 @@ BusinessEndpoints.post('/questions/answers', authenticate_1.default,
 BusinessController_1.default.businessQuestionAnswer);
 BusinessEndpoints.get('/insights', authenticate_1.default, BusinessController_1.default.insights);
 BusinessEndpoints.post('/insights', authenticate_1.default, api_validation_1.collectInsightsDataApiValidator, api_request_validator_1.validateRequest, BusinessController_1.default.collectInsightsData);
+BusinessEndpoints.get('/:id', BusinessController_1.default.getBusinessProfileByDirectID);
 exports.default = BusinessEndpoints;
