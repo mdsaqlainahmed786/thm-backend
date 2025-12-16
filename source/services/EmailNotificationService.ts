@@ -227,11 +227,22 @@ class EmailNotificationService {
     const cleaned = templatePath.startsWith('/') ? templatePath.slice(1) : templatePath;
 
     const candidates = [
+      // Try relative to current file location (works when compiled)
       path.join(__dirname, cleaned),                      // e.g. build/services/template/verify-email.html
-      path.join(process.cwd(), 'build', cleaned),         // e.g. CWD/build/services/template/verify-email.html
+      // Try in build directory with services path
+      path.join(process.cwd(), 'build', 'services', cleaned),  // e.g. CWD/build/services/template/verify-email.html
+      // Try in build directory directly
+      path.join(process.cwd(), 'build', cleaned),         // e.g. CWD/build/template/verify-email.html
+      // Try in source directory with services path (for development)
+      path.join(process.cwd(), 'source', 'services', cleaned), // e.g. CWD/source/services/template/verify-email.html
+      // Try in source directory (alternative naming)
+      path.join(process.cwd(), 'src', 'services', cleaned),    // e.g. CWD/src/services/template/verify-email.html
+      // Try in current working directory
       path.join(process.cwd(), cleaned),                  // e.g. CWD/services/template/verify-email.html
+      // Try in source/src directory
       path.join(process.cwd(), 'src', cleaned),           // e.g. CWD/src/services/template/verify-email.html
-      path.join(process.cwd(), 'src', 'services', cleaned.replace(/^template[\\/]/, '')), // fallback
+      // Fallback: try removing template prefix if present
+      path.join(__dirname, cleaned.replace(/^template[\\/]/, '')), // fallback
       path.join(process.cwd(), 'template', cleaned),      // e.g. CWD/template/verify-email.html
     ].map(p => path.normalize(p));
 
@@ -272,21 +283,21 @@ class EmailNotificationService {
 
   async sendBookingEmail(data: any) {
     try {
-      const { 
-        type, 
-        toAddress, 
-        cc, 
-        businessName, 
-        businessType, 
-        customerName, 
-        customerEmail, 
-        customerPhone, 
-        checkIn, 
-        checkOut, 
-        nights, 
-        roomType, 
-        bookingID, 
-        adults, 
+      const {
+        type,
+        toAddress,
+        cc,
+        businessName,
+        businessType,
+        customerName,
+        customerEmail,
+        customerPhone,
+        checkIn,
+        checkOut,
+        nights,
+        roomType,
+        bookingID,
+        adults,
         children,
         transactionAmount,
         transactionID,
@@ -304,7 +315,7 @@ class EmailNotificationService {
       // Determine template based on booking type
       let templateName = "";
       let subject = "";
-      
+
       if (type === BookingType.BOOK_TABLE) {
         templateName = "new-table-booking.html";
         subject = `New Table Booking Request - ${businessName}`;
@@ -350,7 +361,7 @@ class EmailNotificationService {
 
       const params: SendEmailCommandInput = {
         Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
-        Destination: { 
+        Destination: {
           ToAddresses: [toAddress],
           CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
         },
@@ -374,23 +385,23 @@ class EmailNotificationService {
 
   async sendBookingConfirmationEmail(data: any) {
     try {
-      const { 
-        type, 
-        toAddress, 
-        cc, 
-        businessName, 
-        businessType, 
+      const {
+        type,
+        toAddress,
+        cc,
+        businessName,
+        businessType,
         businessPhone,
         businessEmail,
-        customerName, 
-        customerEmail, 
-        customerPhone, 
-        checkIn, 
-        checkOut, 
-        nights, 
-        roomType, 
-        bookingID, 
-        adults, 
+        customerName,
+        customerEmail,
+        customerPhone,
+        checkIn,
+        checkOut,
+        nights,
+        roomType,
+        bookingID,
+        adults,
         children,
         transactionAmount,
         transactionID,
@@ -408,7 +419,7 @@ class EmailNotificationService {
       // Determine template based on booking type
       let templateName = "";
       let subject = "";
-      
+
       if (type === BookingType.BOOK_TABLE) {
         templateName = "confirm-table-booking.html";
         subject = `Table Booking Confirmed - ${businessName}`;
@@ -457,7 +468,7 @@ class EmailNotificationService {
 
       const params: SendEmailCommandInput = {
         Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
-        Destination: { 
+        Destination: {
           ToAddresses: [toAddress],
           CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
         },
@@ -481,22 +492,22 @@ class EmailNotificationService {
 
   async sendBookingCancellationEmail(data: any) {
     try {
-      const { 
-        type, 
-        toAddress, 
-        cc, 
-        businessName, 
+      const {
+        type,
+        toAddress,
+        cc,
+        businessName,
         businessPhone,
         businessEmail,
-        customerName, 
-        customerEmail, 
-        customerPhone, 
-        checkIn, 
-        checkOut, 
-        nights, 
-        roomType, 
-        bookingID, 
-        adults, 
+        customerName,
+        customerEmail,
+        customerPhone,
+        checkIn,
+        checkOut,
+        nights,
+        roomType,
+        bookingID,
+        adults,
         children,
         metadata
       } = data;
@@ -509,7 +520,7 @@ class EmailNotificationService {
       // Determine template based on booking type
       let templateName = "";
       let subject = "";
-      
+
       if (type === BookingType.BOOK_TABLE) {
         templateName = "cancel-table-booking.html";
         subject = `Table Booking Cancelled - ${businessName}`;
@@ -550,7 +561,7 @@ class EmailNotificationService {
 
       const params: SendEmailCommandInput = {
         Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
-        Destination: { 
+        Destination: {
           ToAddresses: [toAddress],
           CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
         },
