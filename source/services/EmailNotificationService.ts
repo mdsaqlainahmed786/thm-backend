@@ -3,6 +3,8 @@ import path from "path";
 import fs from "fs/promises";
 import { PUBLIC_DIR } from "../middleware/file-uploading";
 import { SESClient, SendEmailCommand, SendEmailCommandInput } from "@aws-sdk/client-ses";
+import moment from "moment";
+import { BookingType } from "../database/models/booking.model";
 
 interface SubscriptionEmail {
   name: string;
@@ -130,6 +132,87 @@ class EmailNotificationService {
     return fileData.replace(/{{OTP}}/g, otp.toString()).replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`).replace(/{{AppName}}/g, AppConfig.APP_NAME);
   }
 
+  async newBookingEmailTemplate(templateName: string, data: any) {
+    const fileData = await this.readTemplate(`/template/${templateName}`);
+    return fileData
+      .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
+      .replace(/{{BusinessName}}/g, data.businessName || "")
+      .replace(/{{BusinessType}}/g, data.businessType || "")
+      .replace(/{{CustomerName}}/g, data.customerName || "")
+      .replace(/{{CustomerEmail}}/g, data.customerEmail || "")
+      .replace(/{{CustomerPhone}}/g, data.customerPhone || "")
+      .replace(/{{CheckInDate}}/g, data.checkInDate || "")
+      .replace(/{{CheckOutDate}}/g, data.checkOutDate || "")
+      .replace(/{{NumberOfGuests}}/g, data.numberOfGuests || "0")
+      .replace(/{{BookingID}}/g, data.bookingID || "")
+      .replace(/{{Nights}}/g, data.nights || "0")
+      .replace(/{{RoomType}}/g, data.roomType || "")
+      .replace(/{{TransactionAmount}}/g, data.transactionAmount || "$0.00")
+      .replace(/{{TransactionID}}/g, data.transactionID || "")
+      .replace(/{{PaymentMethod}}/g, data.paymentMethod || "")
+      .replace(/{{TransactionDate}}/g, data.transactionDate || "")
+      .replace(/{{EventType}}/g, data.eventType || "")
+      .replace(/{{PhoneNumber}}/g, data.customerPhone || "")
+      .replace(/{{EmailAddress}}/g, data.customerEmail || "")
+      .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+      .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
+      .replace(/{{AppName}}/g, AppConfig.APP_NAME);
+  }
+
+  async confirmBookingEmailTemplate(templateName: string, data: any) {
+    const fileData = await this.readTemplate(`/template/${templateName}`);
+    return fileData
+      .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
+      .replace(/{{BusinessName}}/g, data.businessName || "")
+      .replace(/{{BusinessType}}/g, data.businessType || "")
+      .replace(/{{BusinessPhone}}/g, data.businessPhone || "")
+      .replace(/{{BusinessEmail}}/g, data.businessEmail || "")
+      .replace(/{{CustomerName}}/g, data.customerName || "")
+      .replace(/{{CustomerEmail}}/g, data.customerEmail || "")
+      .replace(/{{CustomerPhone}}/g, data.customerPhone || "")
+      .replace(/{{CheckInDate}}/g, data.checkInDate || "")
+      .replace(/{{CheckOutDate}}/g, data.checkOutDate || "")
+      .replace(/{{NumberOfGuests}}/g, data.numberOfGuests || "0")
+      .replace(/{{BookingID}}/g, data.bookingID || "")
+      .replace(/{{Nights}}/g, data.nights || "0")
+      .replace(/{{RoomType}}/g, data.roomType || "")
+      .replace(/{{TransactionAmount}}/g, data.transactionAmount || "$0.00")
+      .replace(/{{TransactionID}}/g, data.transactionID || "")
+      .replace(/{{PaymentMethod}}/g, data.paymentMethod || "")
+      .replace(/{{TransactionDate}}/g, data.transactionDate || "")
+      .replace(/{{EventType}}/g, data.eventType || "")
+      .replace(/{{HotelAddressLine1}}/g, data.address?.street || "")
+      .replace(/{{City}}/g, data.address?.city || "")
+      .replace(/{{State}}/g, data.address?.state || "")
+      .replace(/{{ZIPCode}}/g, data.address?.zipCode || "")
+      .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+      .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
+      .replace(/{{AppName}}/g, AppConfig.APP_NAME);
+  }
+
+  async cancelBookingEmailTemplate(templateName: string, data: any) {
+    const fileData = await this.readTemplate(`/template/${templateName}`);
+    return fileData
+      .replace(/{{Logo}}/g, `https://thehotelmedia.com/public/files/thm-logo-md.png`)
+      .replace(/{{BusinessName}}/g, data.businessName || "")
+      .replace(/{{BusinessPhone}}/g, data.businessPhone || "")
+      .replace(/{{BusinessEmail}}/g, data.businessEmail || "")
+      .replace(/{{CustomerName}}/g, data.customerName || "")
+      .replace(/{{CustomerEmail}}/g, data.customerEmail || "")
+      .replace(/{{CustomerPhone}}/g, data.customerPhone || "")
+      .replace(/{{CheckInDate}}/g, data.checkInDate || "")
+      .replace(/{{NumberOfGuests}}/g, data.numberOfGuests || "0")
+      .replace(/{{BookingID}}/g, data.bookingID || "")
+      .replace(/{{Nights}}/g, data.nights || "0")
+      .replace(/{{RoomType}}/g, data.roomType || "")
+      .replace(/{{EventType}}/g, data.eventType || "")
+      .replace(/{{PrivacyPolicyLink}}/g, this.privacyPolicyLink)
+      .replace(/{{TermsAndConditions}}/g, this.termsAndConditions)
+      .replace(/{{AppName}}/g, AppConfig.APP_NAME);
+  }
+
+
+
   private async fileExists(filePath: string): Promise<boolean> {
     try {
       await fs.access(filePath);
@@ -189,11 +272,100 @@ class EmailNotificationService {
 
   async sendBookingEmail(data: any) {
     try {
-      // Placeholder implementation - email sending logic can be added later
-      if (AppConfig.APP_ENV !== "dev") {
-        console.log("SES (prod) sendBookingEmail", data);
+      const { 
+        type, 
+        toAddress, 
+        cc, 
+        businessName, 
+        businessType, 
+        customerName, 
+        customerEmail, 
+        customerPhone, 
+        checkIn, 
+        checkOut, 
+        nights, 
+        roomType, 
+        bookingID, 
+        adults, 
+        children,
+        transactionAmount,
+        transactionID,
+        paymentMethod,
+        transactionDate,
+        metadata,
+        address
+      } = data;
+
+      if (!toAddress) {
+        console.warn("EmailNotificationService sendBookingEmail: No toAddress provided");
+        return;
+      }
+
+      // Determine template based on booking type
+      let templateName = "";
+      let subject = "";
+      
+      if (type === BookingType.BOOK_TABLE) {
+        templateName = "new-table-booking.html";
+        subject = `New Table Booking Request - ${businessName}`;
+      } else if (type === BookingType.BOOK_BANQUET) {
+        templateName = "new-banquet-booking.html";
+        subject = `New Banquet Booking Request - ${businessName}`;
+      } else if (type === BookingType.BOOKING) {
+        templateName = "new-hotel-booking.html";
+        subject = `New Hotel Booking Request - ${businessName}`;
       } else {
-        console.log("SES (dev) sendBookingEmail", data);
+        console.warn(`EmailNotificationService sendBookingEmail: Unknown booking type: ${type}`);
+        return;
+      }
+
+      // Format dates
+      const checkInDate = checkIn ? moment(checkIn).format('ddd DD, MMM YYYY hh:mm A') : "";
+      const checkOutDate = checkOut ? moment(checkOut).format('ddd DD, MMM YYYY hh:mm A') : "";
+      const numberOfGuests = (adults || 0) + (children || 0);
+
+      // Generate HTML body
+      const htmlBody = await this.newBookingEmailTemplate(templateName, {
+        businessName: businessName || "",
+        businessType: businessType || "",
+        customerName: customerName || "",
+        customerEmail: customerEmail || "",
+        customerPhone: customerPhone || "",
+        checkInDate,
+        checkOutDate,
+        numberOfGuests: numberOfGuests.toString(),
+        bookingID: bookingID || "",
+        nights: nights?.toString() || "0",
+        roomType: roomType || "",
+        transactionAmount: transactionAmount ? `$${transactionAmount.toFixed(2)}` : "$0.00",
+        transactionID: transactionID || "",
+        paymentMethod: paymentMethod || "",
+        transactionDate: transactionDate || "",
+        eventType: metadata?.typeOfEvent || ""
+      });
+
+      const textBody = `New booking request: ${customerName} has requested a booking at ${businessName} for ${checkInDate}. Booking ID: ${bookingID}`;
+
+      const ccUnique = (cc || []).filter((e: string) => e && e !== toAddress && e.trim() !== "");
+
+      const params: SendEmailCommandInput = {
+        Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
+        Destination: { 
+          ToAddresses: [toAddress],
+          CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
+        },
+        Message: {
+          Subject: { Data: subject },
+          Body: { Text: { Data: textBody }, Html: { Data: htmlBody } }
+        }
+      };
+
+      if (AppConfig.APP_ENV !== "dev") {
+        const command = new SendEmailCommand(params);
+        await this.sesClient.send(command);
+        console.log(`EmailNotificationService sendBookingEmail: Email sent to ${toAddress} for booking ${bookingID}`);
+      } else {
+        console.log("SES (dev) sendBookingEmail", params);
       }
     } catch (err) {
       console.error("EmailNotificationService sendBookingEmail (SES)", err);
@@ -202,11 +374,105 @@ class EmailNotificationService {
 
   async sendBookingConfirmationEmail(data: any) {
     try {
-      // Placeholder implementation - email sending logic can be added later
-      if (AppConfig.APP_ENV !== "dev") {
-        console.log("SES (prod) sendBookingConfirmationEmail", data);
+      const { 
+        type, 
+        toAddress, 
+        cc, 
+        businessName, 
+        businessType, 
+        businessPhone,
+        businessEmail,
+        customerName, 
+        customerEmail, 
+        customerPhone, 
+        checkIn, 
+        checkOut, 
+        nights, 
+        roomType, 
+        bookingID, 
+        adults, 
+        children,
+        transactionAmount,
+        transactionID,
+        paymentMethod,
+        transactionDate,
+        metadata,
+        address
+      } = data;
+
+      if (!toAddress) {
+        console.warn("EmailNotificationService sendBookingConfirmationEmail: No toAddress provided");
+        return;
+      }
+
+      // Determine template based on booking type
+      let templateName = "";
+      let subject = "";
+      
+      if (type === BookingType.BOOK_TABLE) {
+        templateName = "confirm-table-booking.html";
+        subject = `Table Booking Confirmed - ${businessName}`;
+      } else if (type === BookingType.BOOK_BANQUET) {
+        templateName = "confirm-banquet-booking.html";
+        subject = `Banquet Booking Confirmed - ${businessName}`;
+      } else if (type === BookingType.BOOKING) {
+        templateName = "confirm-hotel-booking.html";
+        subject = `Hotel Booking Confirmed - ${businessName}`;
       } else {
-        console.log("SES (dev) sendBookingConfirmationEmail", data);
+        console.warn(`EmailNotificationService sendBookingConfirmationEmail: Unknown booking type: ${type}`);
+        return;
+      }
+
+      // Format dates
+      const checkInDate = checkIn ? moment(checkIn).format('ddd DD, MMM YYYY hh:mm A') : "";
+      const checkOutDate = checkOut ? moment(checkOut).format('ddd DD, MMM YYYY hh:mm A') : "";
+      const numberOfGuests = (adults || 0) + (children || 0);
+
+      // Generate HTML body
+      const htmlBody = await this.confirmBookingEmailTemplate(templateName, {
+        businessName: businessName || "",
+        businessType: businessType || "",
+        businessPhone: businessPhone || "",
+        businessEmail: businessEmail || "",
+        customerName: customerName || "",
+        customerEmail: customerEmail || "",
+        customerPhone: customerPhone || "",
+        checkInDate,
+        checkOutDate,
+        numberOfGuests: numberOfGuests.toString(),
+        bookingID: bookingID || "",
+        nights: nights?.toString() || "0",
+        roomType: roomType || "",
+        transactionAmount: transactionAmount ? `$${transactionAmount.toFixed(2)}` : "$0.00",
+        transactionID: transactionID || "",
+        paymentMethod: paymentMethod || "",
+        transactionDate: transactionDate || "",
+        eventType: metadata?.typeOfEvent || "",
+        address: address || {}
+      });
+
+      const textBody = `Booking Confirmed: Your booking at ${businessName} is confirmed for ${checkInDate}. Booking ID: ${bookingID}`;
+
+      const ccUnique = (cc || []).filter((e: string) => e && e !== toAddress && e.trim() !== "");
+
+      const params: SendEmailCommandInput = {
+        Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
+        Destination: { 
+          ToAddresses: [toAddress],
+          CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
+        },
+        Message: {
+          Subject: { Data: subject },
+          Body: { Text: { Data: textBody }, Html: { Data: htmlBody } }
+        }
+      };
+
+      if (AppConfig.APP_ENV !== "dev") {
+        const command = new SendEmailCommand(params);
+        await this.sesClient.send(command);
+        console.log(`EmailNotificationService sendBookingConfirmationEmail: Email sent to ${toAddress} for booking ${bookingID}`);
+      } else {
+        console.log("SES (dev) sendBookingConfirmationEmail", params);
       }
     } catch (err) {
       console.error("EmailNotificationService sendBookingConfirmationEmail (SES)", err);
@@ -215,11 +481,91 @@ class EmailNotificationService {
 
   async sendBookingCancellationEmail(data: any) {
     try {
-      // Placeholder implementation - email sending logic can be added later
-      if (AppConfig.APP_ENV !== "dev") {
-        console.log("SES (prod) sendBookingCancellationEmail", data);
+      const { 
+        type, 
+        toAddress, 
+        cc, 
+        businessName, 
+        businessPhone,
+        businessEmail,
+        customerName, 
+        customerEmail, 
+        customerPhone, 
+        checkIn, 
+        checkOut, 
+        nights, 
+        roomType, 
+        bookingID, 
+        adults, 
+        children,
+        metadata
+      } = data;
+
+      if (!toAddress) {
+        console.warn("EmailNotificationService sendBookingCancellationEmail: No toAddress provided");
+        return;
+      }
+
+      // Determine template based on booking type
+      let templateName = "";
+      let subject = "";
+      
+      if (type === BookingType.BOOK_TABLE) {
+        templateName = "cancel-table-booking.html";
+        subject = `Table Booking Cancelled - ${businessName}`;
+      } else if (type === BookingType.BOOK_BANQUET) {
+        templateName = "cancel-banquet-booking.html";
+        subject = `Banquet Booking Cancelled - ${businessName}`;
+      } else if (type === BookingType.BOOKING) {
+        templateName = "cancel-hotel-booking.html";
+        subject = `Hotel Booking Cancelled - ${businessName}`;
       } else {
-        console.log("SES (dev) sendBookingCancellationEmail", data);
+        console.warn(`EmailNotificationService sendBookingCancellationEmail: Unknown booking type: ${type}`);
+        return;
+      }
+
+      // Format dates
+      const checkInDate = checkIn ? moment(checkIn).format('ddd DD, MMM YYYY hh:mm A') : "";
+      const numberOfGuests = (adults || 0) + (children || 0);
+
+      // Generate HTML body
+      const htmlBody = await this.cancelBookingEmailTemplate(templateName, {
+        businessName: businessName || "",
+        businessPhone: businessPhone || "",
+        businessEmail: businessEmail || "",
+        customerName: customerName || "",
+        customerEmail: customerEmail || "",
+        customerPhone: customerPhone || "",
+        checkInDate,
+        numberOfGuests: numberOfGuests.toString(),
+        bookingID: bookingID || "",
+        nights: nights?.toString() || "0",
+        roomType: roomType || "",
+        eventType: metadata?.typeOfEvent || ""
+      });
+
+      const textBody = `Booking Cancelled: We regret to inform you that your booking at ${businessName} for ${checkInDate} has been cancelled. Booking ID: ${bookingID}`;
+
+      const ccUnique = (cc || []).filter((e: string) => e && e !== toAddress && e.trim() !== "");
+
+      const params: SendEmailCommandInput = {
+        Source: `${AppConfig.APP_NAME} <${this.fromAddress}>`,
+        Destination: { 
+          ToAddresses: [toAddress],
+          CcAddresses: ccUnique.length > 0 ? ccUnique : undefined
+        },
+        Message: {
+          Subject: { Data: subject },
+          Body: { Text: { Data: textBody }, Html: { Data: htmlBody } }
+        }
+      };
+
+      if (AppConfig.APP_ENV !== "dev") {
+        const command = new SendEmailCommand(params);
+        await this.sesClient.send(command);
+        console.log(`EmailNotificationService sendBookingCancellationEmail: Email sent to ${toAddress} for booking ${bookingID}`);
+      } else {
+        console.log("SES (dev) sendBookingCancellationEmail", params);
       }
     } catch (err) {
       console.error("EmailNotificationService sendBookingCancellationEmail (SES)", err);
