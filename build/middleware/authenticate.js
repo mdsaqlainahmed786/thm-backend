@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,7 +45,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateAccessToken = exports.generateRefreshToken = exports.isBusinessUser = exports.isAdministrator = void 0;
+exports.default = authenticateUser;
+exports.isAdministrator = isAdministrator;
+exports.isBusinessUser = isBusinessUser;
+exports.generateRefreshToken = generateRefreshToken;
+exports.generateAccessToken = generateAccessToken;
 const jsonwebtoken_1 = require("jsonwebtoken");
 const response_1 = require("../utils/response");
 const error_1 = require("../utils/response-message/error");
@@ -92,7 +106,6 @@ function authenticateUser(request, response, next) {
         return next();
     });
 }
-exports.default = authenticateUser;
 function isAdministrator(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
@@ -103,7 +116,6 @@ function isAdministrator(request, response, next) {
         return next();
     });
 }
-exports.isAdministrator = isAdministrator;
 function isBusinessUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;
@@ -120,7 +132,6 @@ function isBusinessUser(request, response, next) {
         return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
     });
 }
-exports.isBusinessUser = isBusinessUser;
 function generateRefreshToken(user, deviceID) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
@@ -147,7 +158,6 @@ function generateRefreshToken(user, deviceID) {
         return refreshToken;
     });
 }
-exports.generateRefreshToken = generateRefreshToken;
 function generateAccessToken(user, expiresIn) {
     return __awaiter(this, void 0, void 0, function* () {
         const payload = {
@@ -160,4 +170,3 @@ function generateAccessToken(user, expiresIn) {
         return (0, jsonwebtoken_1.sign)(payload, constants_1.AppConfig.APP_ACCESS_TOKEN_SECRET, options);
     });
 }
-exports.generateAccessToken = generateAccessToken;

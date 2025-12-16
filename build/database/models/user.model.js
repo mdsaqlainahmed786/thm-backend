@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35,7 +45,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createBusinessProfile = exports.createUserAccount = exports.activeUserQuery = exports.fetchWeatherAndAirPollutionReport = exports.getBusinessType = exports.getUserPublicProfile = exports.getBlockedByUsers = exports.getBlockedUsers = exports.profileBasicProject = exports.profileProject = exports.getUserProfile = exports.calculateProfileCompletion = exports.addStoriesInUser = exports.addBusinessSubTypeInBusinessProfile = exports.addBusinessTypeInBusinessProfile = exports.addAmenitiesInBusinessProfile = exports.addBusinessProfileInUser = exports.AccountType = exports.SocialAccount = void 0;
+exports.activeUserQuery = exports.AccountType = exports.SocialAccount = void 0;
+exports.addBusinessProfileInUser = addBusinessProfileInUser;
+exports.addAmenitiesInBusinessProfile = addAmenitiesInBusinessProfile;
+exports.addBusinessTypeInBusinessProfile = addBusinessTypeInBusinessProfile;
+exports.addBusinessSubTypeInBusinessProfile = addBusinessSubTypeInBusinessProfile;
+exports.addStoriesInUser = addStoriesInUser;
+exports.calculateProfileCompletion = calculateProfileCompletion;
+exports.getUserProfile = getUserProfile;
+exports.profileProject = profileProject;
+exports.profileBasicProject = profileBasicProject;
+exports.getBlockedUsers = getBlockedUsers;
+exports.getBlockedByUsers = getBlockedByUsers;
+exports.getUserPublicProfile = getUserPublicProfile;
+exports.getBusinessType = getBusinessType;
+exports.fetchWeatherAndAirPollutionReport = fetchWeatherAndAirPollutionReport;
+exports.createUserAccount = createUserAccount;
+exports.createBusinessProfile = createBusinessProfile;
 const mongoose_1 = require("mongoose");
 const bcrypt_1 = require("bcrypt");
 const basic_1 = require("../../utils/helper/basic");
@@ -253,7 +279,6 @@ function addBusinessProfileInUser() {
     };
     return { lookup, unwindLookup, mergeObject };
 }
-exports.addBusinessProfileInUser = addBusinessProfileInUser;
 /**
  *
  * @returns Returns business profile's amenities lookup
@@ -282,7 +307,6 @@ function addAmenitiesInBusinessProfile() {
     };
     return { lookup };
 }
-exports.addAmenitiesInBusinessProfile = addAmenitiesInBusinessProfile;
 /**
  *
  * @returns Returns business type for business profile's
@@ -313,7 +337,6 @@ function addBusinessTypeInBusinessProfile() {
     };
     return { lookup, unwindLookup };
 }
-exports.addBusinessTypeInBusinessProfile = addBusinessTypeInBusinessProfile;
 /**
  *
  * @returns Returns business subtype for business profile's
@@ -345,7 +368,6 @@ function addBusinessSubTypeInBusinessProfile() {
     };
     return { lookup, unwindLookup };
 }
-exports.addBusinessSubTypeInBusinessProfile = addBusinessSubTypeInBusinessProfile;
 /**
  *
  * @param likeIDs Those IDs which are liked by the requested user will determine whether the current post was liked by them or not.
@@ -394,7 +416,6 @@ function addStoriesInUser(likeIDs, viewedStories) {
     };
     return { lookup };
 }
-exports.addStoriesInUser = addStoriesInUser;
 function calculateProfileCompletion(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         const removeField = ['profilePic.small', 'profilePic.medium', 'businessProfileID', 'otp', 'socialIDs.socialUId', 'socialIDs.socialType', 'socialIDs._id', 'password', '_id', "__v", "password", "createdAt", "updatedAt", "geoCoordinate.type", "geoCoordinate.coordinates", "lastSeen"];
@@ -441,7 +462,6 @@ function calculateProfileCompletion(userID) {
         return 0;
     });
 }
-exports.calculateProfileCompletion = calculateProfileCompletion;
 function getTopLevelNestedFields(schema) {
     return Object.keys(schema.paths)
         .filter((key) => {
@@ -476,7 +496,6 @@ function getUserProfile(match, pageNumber, documentLimit) {
         profileProject(),
     ]).exec();
 }
-exports.getUserProfile = getUserProfile;
 function profileProject() {
     return {
         "$project": {
@@ -493,7 +512,6 @@ function profileProject() {
         }
     };
 }
-exports.profileProject = profileProject;
 function profileBasicProject() {
     return {
         "$project": {
@@ -508,19 +526,16 @@ function profileBasicProject() {
         }
     };
 }
-exports.profileBasicProject = profileBasicProject;
 function getBlockedUsers(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         return yield blockedUser_model_1.default.distinct('blockedUserID', { userID: userID });
     });
 }
-exports.getBlockedUsers = getBlockedUsers;
 function getBlockedByUsers(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         return yield blockedUser_model_1.default.distinct('userID', { blockedUserID: userID });
     });
 }
-exports.getBlockedByUsers = getBlockedByUsers;
 function getUserPublicProfile(userID, id) {
     return __awaiter(this, void 0, void 0, function* () {
         return yield Promise.all([
@@ -564,7 +579,6 @@ function getUserPublicProfile(userID, id) {
         ]);
     });
 }
-exports.getUserPublicProfile = getUserPublicProfile;
 function getBusinessType(businessProfileID) {
     return __awaiter(this, void 0, void 0, function* () {
         const businessProfile = yield businessProfile_model_1.default.findOne({ _id: businessProfileID });
@@ -577,7 +591,6 @@ function getBusinessType(businessProfileID) {
         return null;
     });
 }
-exports.getBusinessType = getBusinessType;
 function fetchWeatherAndAirPollutionReport(businessProfileID) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d;
@@ -610,7 +623,6 @@ function fetchWeatherAndAirPollutionReport(businessProfileID) {
         return null;
     });
 }
-exports.fetchWeatherAndAirPollutionReport = fetchWeatherAndAirPollutionReport;
 exports.activeUserQuery = { isVerified: true, isApproved: true, isActivated: true, isDeleted: false, };
 /**
  *
@@ -665,7 +677,6 @@ function createUserAccount(data, sendOTP) {
         return yield newUser.save();
     });
 }
-exports.createUserAccount = createUserAccount;
 /**
  *
  * @param data
@@ -693,4 +704,3 @@ function createBusinessProfile(data) {
         return yield newBusinessProfile.save();
     });
 }
-exports.createBusinessProfile = createBusinessProfile;

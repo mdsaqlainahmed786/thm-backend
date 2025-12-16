@@ -38,7 +38,7 @@ const forgotPasswordRequest = (request, response, next) => __awaiter(void 0, voi
     }
 });
 const verifyOTP = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _a;
     try {
         const { email, otp } = request.body;
         const account = yield user_model_1.default.findOne({ email: email }, '+otp');
@@ -70,7 +70,7 @@ const verifyOTP = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.json((0, response_1.httpOk)({ email: email, resetToken: resetToken }, `OTP verified successfully.`));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const resetPassword = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {

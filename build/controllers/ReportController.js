@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -93,7 +103,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const reportContent = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _a;
     try {
         let contentID = request.params.id;
         const { id, accountType, businessProfileID, role } = request.user;
@@ -131,11 +141,11 @@ const reportContent = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpNoContent)(isReportedBefore, 'Content already reported'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const reportUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c;
+    var _a;
     try {
         const { id, accountType, businessProfileID } = request.user;
         let contentID = request.params.id;
@@ -169,11 +179,11 @@ const reportUser = (request, response, next) => __awaiter(void 0, void 0, void 0
         return response.send((0, response_1.httpNoContent)(isReportedBefore, 'User already reported'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const reportComment = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _d;
+    var _a;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
         let contentID = request.params.id;
@@ -214,13 +224,13 @@ const reportComment = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpNoContent)(isReportedBefore, 'Comment already reported'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f;
+    var _a, _b;
     try {
-        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const report = yield reportedUser_model_1.default.findOne({ _id: ID });
         if (!report) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Record not found"), "Record not found"));
@@ -229,7 +239,7 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, 'Report deleted'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, destroy, reportContent, reportUser, reportComment };
