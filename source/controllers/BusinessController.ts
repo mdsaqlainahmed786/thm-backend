@@ -344,6 +344,24 @@ const getBusinessProfileByID = async (request: Request, response: Response, next
     }
 }
 
+//Fetch business profile by direct business profile id (not encrypted)
+const getBusinessProfileByDirectID = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id } = request.params;
+        const businessProfileRef = await BusinessProfile.findOne({ _id: id }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
+        if (!businessProfileRef) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
+        }
+        const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        return response.send(httpOk({
+            businessProfileRef,
+            reviewQuestions
+        }, "Business profile fetched"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
 
 function createChartLabels(filter: string) {
     const currentDate = moment();
@@ -826,4 +844,4 @@ async function fetchEngagedData(businessProfileID: string, userID: string, group
     return { engagementsData, engagements };
 }
 
-export default { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID };
+export default { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID, getBusinessProfileByDirectID };

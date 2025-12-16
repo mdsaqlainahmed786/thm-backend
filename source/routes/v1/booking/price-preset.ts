@@ -1,0 +1,11 @@
+import express, { Router } from "express";
+import { createPricePresetApiValidator, paramIDValidationRule } from "../../../validation/rules/api-validation";
+import { validateRequest } from "../../../middleware/api-request-validator";
+import PricePresetController from "../../../controllers/booking/PricePresetController";
+const PricePresetEndpoints: Router = express.Router();
+PricePresetEndpoints.get('/', PricePresetController.index);
+// PricePresetEndpoints.get('/:id', PricePresetController.show);
+PricePresetEndpoints.post('/', createPricePresetApiValidator, validateRequest, PricePresetController.store);
+PricePresetEndpoints.put('/:id', [paramIDValidationRule], validateRequest, PricePresetController.update);
+PricePresetEndpoints.delete("/:id", [paramIDValidationRule], validateRequest, PricePresetController.destroy);
+export default PricePresetEndpoints;

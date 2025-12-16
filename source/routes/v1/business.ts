@@ -14,5 +14,6 @@ BusinessEndpoints.post('/questions/answers', authenticateUser,
     //businessQuestionAnswerApiValidator, validateRequest,
     BusinessController.businessQuestionAnswer);
 BusinessEndpoints.get('/insights', authenticateUser, BusinessController.insights);
-BusinessEndpoints.post('/insights', authenticateUser, collectInsightsDataApiValidator, validateRequest, BusinessController.collectInsightsData)
+BusinessEndpoints.post('/insights', authenticateUser, collectInsightsDataApiValidator, validateRequest, BusinessController.collectInsightsData);
+BusinessEndpoints.get('/:id', BusinessController.getBusinessProfileByDirectID);
 export default BusinessEndpoints;

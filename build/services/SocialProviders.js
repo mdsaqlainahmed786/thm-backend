@@ -1,0 +1,112 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const google_auth_library_1 = require("google-auth-library");
+const apple_signin_auth_1 = __importDefault(require("apple-signin-auth"));
+const constants_1 = require("../config/constants");
+const googleOAuth2Client = new google_auth_library_1.OAuth2Client();
+const currentUnixTime = Math.floor(Date.now() / 1000);
+const expirationDurationInSeconds = 600; // 10 minutes 
+const expAfter = currentUnixTime + expirationDurationInSeconds;
+const clientSecret = apple_signin_auth_1.default.getClientSecret({
+    clientID: constants_1.AppConfig.APPLE.CLIENT_ID,
+    teamID: constants_1.AppConfig.APPLE.TEAM_ID,
+    privateKey: constants_1.AppConfig.APPLE.PRIVATE_KEY,
+    keyIdentifier: constants_1.AppConfig.APPLE.KEY_IDENTIFIER,
+    // OPTIONAL
+    // expAfter: expAfter, // Unix time in seconds after which to expire the clientSecret JWT. Default is now+5 minutes.
+});
+class SocialProviders {
+    /**
+       * Verifies the ID token and returns user data from the payload.
+       * @param token - The ID token that needs to be verified
+       * @param clientId - The CLIENT_ID of your app to validate against
+       * @returns The user data extracted from the payload
+       */
+    static verifyGoogleToken(token) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const ticket = yield googleOAuth2Client.verifyIdToken({
+                idToken: token,
+                audience: [
+                    '863883177284-fo7lcn907hhfntd7t31k14o7omhkg93h.apps.googleusercontent.com',
+                    '156125638721-h1m1s5c074frscov5be4j38q22bm50r0.apps.googleusercontent.com',
+                    '156125638721-8pgj2054svmllf7301tk85vau993ujkb.apps.googleusercontent.com',
+                    '156125638721-eeh3s3mk2te4g38d3emuif6mqnlb7e15.apps.googleusercontent.com'
+                ], // CLIENT_ID of the app that accesses the backend
+            });
+            // Extract the payload from the verified ticket
+            const payload = ticket.getPayload();
+            if (!payload) {
+                throw new Error('No payload returned from the token.');
+            }
+            return payload;
+        });
+    }
+    static getAppleAuthorizationToken(code) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const options = {
+                    clientID: constants_1.AppConfig.APPLE.CLIENT_ID, // Apple Client ID
+                    redirectUri: '/auth/apple/callback', // use the same value which you passed to authorisation URL.
+                    clientSecret: clientSecret
+                };
+                const tokenResponse = yield apple_signin_auth_1.default.getAuthorizationToken(code, options);
+                if (tokenResponse.id_token) {
+                    const payload = yield this.verifyAppleToken(tokenResponse.id_token);
+                    return payload;
+                }
+                throw new Error(tokenResponse.error_description);
+            }
+            catch (error) {
+                throw error;
+            }
+        });
+    }
+    static verifyAppleToken(token) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const payload = yield apple_signin_auth_1.default.verifyIdToken(token, {
+                    // Optional Options for further verification - Full list can be found here https://github.com/auth0/node-jsonwebtoken#jwtverifytoken-secretorpublickey-options-callback
+                    clientID: constants_1.AppConfig.APPLE.CLIENT_ID, // client id - can also be an array
+                    // nonce: 'NONCE', // Check this note if coming from React Native AS RN automatically SHA256-hashes the nonce https://github.com/invertase/react-native-apple-authentication#nonce
+                    // If you want to handle expiration on your own, or if you want the expired tokens decoded
+                    ignoreExpiration: true, // default is false
+                });
+                this.validateTokenProperties(payload);
+                return payload;
+            }
+            catch (error) {
+                throw error;
+            }
+        });
+    }
+    static validateTokenProperties(payload) {
+        if (!payload.iss.includes('https://appleid.apple.com')) {
+            throw new Error('Token issuer is invalid.');
+        }
+        if (payload.aud !== constants_1.AppConfig.APPLE.CLIENT_ID) {
+            throw new Error('Token audience is invalid.');
+        }
+        if (!payload.sub) {
+            throw new Error('Token subject is invalid.');
+        }
+        if (!payload.email_verified) {
+            throw new Error('Email not verified.');
+        }
+        // if (payload.nonce && payload.nonce !== clientNonce) {
+        //     throw new AppleAuthError('Nonce is invalid.');
+        // }
+    }
+}
+exports.default = SocialProviders;

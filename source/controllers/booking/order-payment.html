@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>My HTML Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+</head>
+
+<body>
+    <div class="container px-30 py-40">
+        <h1 class="text-3xl font-bold underline">
+            Pay Now
+        </h1>
+        <button id="rzp-button1">Pay</button>
+    </div>
+    <article class="text-token-text-primary w-full" dir="auto" data-scroll-anchor="false"
+        data-testid="conversation-turn-1">
+        <div
+            class="text-base my-auto mx-auto py-5 [--thread-content-margin:--spacing(4)] @[37rem]:[--thread-content-margin:--spacing(6)] @[70rem]:[--thread-content-margin:--spacing(12)] px-(--thread-content-margin)">
+            <div class="[--thread-content-max-width:32rem] @[34rem]:[--thread-content-max-width:40rem] @[64rem]:[--thread-content-max-width:48rem] mx-auto flex max-w-(--thread-content-max-width) flex-1 text-base gap-4 md:gap-5 lg:gap-6 group/turn-messages focus-visible:outline-hidden"
+                tabindex="-1">
+                <div class="group/conversation-turn relative flex w-full min-w-0 flex-col">
+                    <div class="relative flex-col gap-1 md:gap-3">
+                        <div class="flex max-w-full flex-col grow">
+                            <div class="min-h-8 text-message relative flex w-full flex-col items-end gap-2 text-start break-words whitespace-normal [.text-message+&amp;]:mt-5"
+                                dir="auto" data-message-id="abf0c405-c3d9-426a-a364-efc4e0388964"
+                                data-message-author-role="user">
+                                <div class="flex w-full flex-col gap-1 empty:hidden items-end rtl:items-start">
+                                    <div
+                                        class="relative max-w-[var(--user-chat-width,70%)] bg-token-message-surface rounded-3xl px-5 py-2.5">
+                                        <div class="whitespace-pre-wrap">Give me full and fully felxyable hotel room
+                                            inventory backend logic</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex absolute start-0 end-0 flex justify-end">
+                            <div
+                                class="touch:-me-2 touch:-ms-3.5 -ms-2.5 -me-1 flex items-center p-1 select-none focus-within:transition-none hover:transition-none duration-300 group-hover/turn-messages:delay-300 pointer-events-none opacity-0 motion-safe:transition-opacity group-hover/turn-messages:pointer-events-auto group-hover/turn-messages:opacity-100 group-focus-within/turn-messages:pointer-events-auto group-focus-within/turn-messages:opacity-100 has-data-[state=open]:pointer-events-auto has-data-[state=open]:opacity-100">
+                                &nbsp;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+    <article class="text-token-text-primary w-full" dir="auto" data-scroll-anchor="false"
+        data-testid="conversation-turn-2">
+        <h6 class="sr-only">ChatGPT said:</h6>
+        <div
+            class="text-base my-auto mx-auto py-5 [--thread-content-margin:--spacing(4)] @[37rem]:[--thread-content-margin:--spacing(6)] @[70rem]:[--thread-content-margin:--spacing(12)] px-(--thread-content-margin)">
+            <div class="[--thread-content-max-width:32rem] @[34rem]:[--thread-content-max-width:40rem] @[64rem]:[--thread-content-max-width:48rem] mx-auto flex max-w-(--thread-content-max-width) flex-1 text-base gap-4 md:gap-5 lg:gap-6 group/turn-messages focus-visible:outline-hidden"
+                tabindex="-1">
+                <div class="group/conversation-turn relative flex w-full min-w-0 flex-col agent-turn">
+                    <div class="relative flex-col gap-1 md:gap-3">
+                        <div class="flex max-w-full flex-col grow">
+                            <div class="min-h-8 text-message relative flex w-full flex-col items-end gap-2 text-start break-words whitespace-normal [.text-message+&amp;]:mt-5"
+                                dir="auto" data-message-model-slug="gpt-4o"
+                                data-message-id="3851654d-df69-4126-be51-8d339cd8dcb5"
+                                data-message-author-role="assistant">
+                                <div class="flex w-full flex-col gap-1 empty:hidden first:pt-[3px]">
+                                    <div class="markdown prose dark:prose-invert w-full break-words dark">
+                                        <p data-end="364" data-start="0">Designing a <strong data-end="65"
+                                                data-start="12">fully flexible hotel room inventory backend
+                                                logic</strong> requires handling dynamic room availability, bookings,
+                                            cancellations, pricing, room types, and seasonal constraints. Below is a
+                                            <strong data-end="234" data-start="194">modular and extensible backend
+                                                logic</strong> in Python (with a basic SQLite database schema), which
+                                            you can scale or plug into other systems (like Django, Flask, or FastAPI).
+                                        </p>
+                                        <hr data-end="369" data-start="366">
+                                        <h3 data-end="396" data-start="371">🔧 Technologies Used:</h3>
+                                        <ul data-end="520" data-start="397">
+                                            <li data-end="411" data-start="397">
+                                                <p data-end="411" data-start="399"><strong data-end="411"
+                                                        data-start="399">Python 3</strong></p>
+                                            </li>
+                                            <li data-end="475" data-start="412">
+                                                <p data-end="475" data-start="414"><strong data-end="475"
+                                                        data-start="414">SQLite (for demonstration; can swap for
+                                                        PostgreSQL/MySQL)</strong></p>
+                                            </li>
+                                            <li data-end="520" data-start="476">
+                                                <p data-end="520" data-start="478"><strong data-end="520"
+                                                        data-start="478">SQLAlchemy (ORM layer for flexibility)</strong>
+                                                </p>
+                                            </li>
+                                        </ul>
+                                        <hr data-end="525" data-start="522">
+                                        <h2 data-end="568" data-start="527">🧱 1. Database Schema (SQLAlchemy ORM)</h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> create_engine, Column, Integer, String, Date, Float, ForeignKey, Boolean <span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> sessionmaker, relationship, declarative_base <span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> date Base = declarative_base() <span class="hljs-keyword">class</span> <span class="hljs-title class_">RoomType</span>(<span class="hljs-title class_ inherited__">Base</span>): __tablename__ = <span class="hljs-string">'room_types'</span>
+                              <span class="hljs-built_in">id</span> = Column(Integer, primary_key=<span class="hljs-literal">True</span>) name = Column(String, unique=<span class="hljs-literal">True</span>) description = Column(String) base_price = Column(Float) <span class="hljs-keyword">class</span> <span class="hljs-title class_">Room</span>(<span class="hljs-title class_ inherited__">Base</span>): __tablename__ = <span class="hljs-string">'rooms'</span>
+                              <span class="hljs-built_in">id</span> = Column(Integer, primary_key=<span class="hljs-literal">True</span>) room_number = Column(String, unique=<span class="hljs-literal">True</span>) room_type_id = Column(Integer, ForeignKey(<span class="hljs-string">'room_types.id'</span>)) status = Column(String, default=<span class="hljs-string">'available'</span>) <span class="hljs-comment"># available, out_of_service</span> room_type = relationship(<span class="hljs-string">"RoomType"</span>) <span class="hljs-keyword">class</span> <span class="hljs-title class_">Inventory</span>(<span class="hljs-title class_ inherited__">Base</span>): __tablename__ = <span class="hljs-string">'inventory'</span>
+                              <span class="hljs-built_in">id</span> = Column(Integer, primary_key=<span class="hljs-literal">True</span>) room_id = Column(Integer, ForeignKey(<span class="hljs-string">'rooms.id'</span>)) date = Column(Date) is_booked = Column(Boolean, default=<span class="hljs-literal">False</span>) <span class="hljs-keyword">class</span> <span class="hljs-title class_">Booking</span>(<span class="hljs-title class_ inherited__">Base</span>): __tablename__ = <span class="hljs-string">'bookings'</span>
+                              <span class="hljs-built_in">id</span> = Column(Integer, primary_key=<span class="hljs-literal">True</span>) guest_name = Column(String) room_id = Column(Integer, ForeignKey(<span class="hljs-string">'rooms.id'</span>)) check_in = Column(Date) check_out = Column(Date) total_price = Column(Float) room = relationship(<span class="hljs-string">"Room"</span>) </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="1857" data-start="1854">
+                                        <h2 data-end="1885" data-start="1859">⚙️ 2. Setup and Session</h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python">engine = create_engine(<span class="hljs-string">"sqlite:///hotel_inventory.db"</span>) Base.metadata.create_all(engine) Session = sessionmaker(bind=engine) session = Session() </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="2049" data-start="2046">
+                                        <h2 data-end="2080" data-start="2051">📦 3. Core Inventory Logic</h2>
+                                        <h3 data-end="2112" data-start="2082">A. Check Room Availability</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">check_availability</span>(<span class="hljs-params">room_type_id, check_in, check_out</span>): available_rooms = session.query(Room).filter_by(room_type_id=room_type_id, status=<span class="hljs-string">'available'</span>).<span class="hljs-built_in">all</span>() available_room_ids = [] <span class="hljs-keyword">for</span> room <span class="hljs-keyword">in</span> available_rooms: dates = session.query(Inventory).<span class="hljs-built_in">filter</span>( Inventory.room_id == room.<span class="hljs-built_in">id</span>, Inventory.date &gt;= check_in, Inventory.date &lt; check_out, Inventory.is_booked == <span class="hljs-literal">False</span> ).<span class="hljs-built_in">all</span>() <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(dates) == (check_out - check_in).days: available_room_ids.append(room.<span class="hljs-built_in">id</span>) <span class="hljs-keyword">return</span> available_room_ids </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="2718" data-start="2715">
+                                        <h3 data-end="2738" data-start="2720">B. Book a Room</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">book_room</span>(<span class="hljs-params">guest_name, room_id, check_in, check_out</span>): <span class="hljs-comment"># Calculate price</span> room = session.query(Room).get(room_id) base_price = room.room_type.base_price nights = (check_out - check_in).days total_price = base_price * nights <span class="hljs-comment"># Mark inventory as booked</span>
+                              <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(nights): session.add(Inventory( room_id=room_id, date=check_in + timedelta(days=i), is_booked=<span class="hljs-literal">True</span> )) <span class="hljs-comment"># Create booking</span> booking = Booking( guest_name=guest_name, room_id=room_id, check_in=check_in, check_out=check_out, total_price=total_price ) session.add(booking) session.commit() <span class="hljs-keyword">return</span> booking.<span class="hljs-built_in">id</span>
+                            </code></div>
+                                        </div>
+                                        <hr data-end="3471" data-start="3468">
+                                        <h3 data-end="3494" data-start="3473">C. Cancel Booking</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">cancel_booking</span>(<span class="hljs-params">booking_id</span>): booking = session.query(Booking).get(booking_id) <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> booking: <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span> session.query(Inventory).<span class="hljs-built_in">filter</span>( Inventory.room_id == booking.room_id, Inventory.date &gt;= booking.check_in, Inventory.date &lt; booking.check_out ).update({Inventory.is_booked: <span class="hljs-literal">False</span>}, synchronize_session=<span class="hljs-literal">False</span>) session.delete(booking) session.commit() <span class="hljs-keyword">return</span> <span class="hljs-literal">True</span>
+                            </code></div>
+                                        </div>
+                                        <hr data-end="3946" data-start="3943">
+                                        <h3 data-end="3988" data-start="3948">D. Dynamic Pricing (Optional Add-on)</h3>
+                                        <p data-end="4099" data-start="3990">You can implement seasonal or demand-based
+                                            pricing by creating a <code data-end="4070"
+                                                data-start="4055">PriceOverride</code> table or rules engine, like:</p>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                python</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">PriceOverride</span>(<span class="hljs-title class_ inherited__">Base</span>): __tablename__ = <span class="hljs-string">'price_overrides'</span>
+                              <span class="hljs-built_in">id</span> = Column(Integer, primary_key=<span class="hljs-literal">True</span>) room_type_id = Column(Integer, ForeignKey(<span class="hljs-string">'room_types.id'</span>)) date = Column(Date) price = Column(Float) </code>
+                                            </div>
+                                        </div>
+                                        <p data-end="4429" data-start="4338">Then in your <code data-end="4362"
+                                                data-start="4351">book_room</code> logic, override base price if a
+                                            custom price exists for that date.</p>
+                                        <hr data-end="4434" data-start="4431">
+                                        <h3 data-end="4470" data-start="4436">🧠 Features You Can Easily Add</h3>
+                                        <ul data-end="4662" data-start="4471">
+                                            <li data-end="4509" data-start="4471">
+                                                <p data-end="4509" data-start="4473">Support for multiple
+                                                    hotels/branches</p>
+                                            </li>
+                                            <li data-end="4526" data-start="4510">
+                                                <p data-end="4526" data-start="4512">Room amenities</p>
+                                            </li>
+                                            <li data-end="4557" data-start="4527">
+                                                <p data-end="4557" data-start="4529">Hold/reserve without payment</p>
+                                            </li>
+                                            <li data-end="4593" data-start="4558">
+                                                <p data-end="4593" data-start="4560">Integration with payment gateways
+                                                </p>
+                                            </li>
+                                            <li data-end="4625" data-start="4594">
+                                                <p data-end="4625" data-start="4596">GraphQL or REST API endpoints</p>
+                                            </li>
+                                            <li data-end="4662" data-start="4626">
+                                                <p data-end="4662" data-start="4628">Admin panel for updating inventory
+                                                </p>
+                                            </li>
+                                        </ul>
+                                        <hr data-end="4667" data-start="4664">
+                                        <p data-end="4747" data-start="4669">Would you like this as a complete
+                                            Flask/FastAPI backend scaffold or in Django?</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex absolute start-0 end-0 flex justify-start">
+                            <div
+                                class="touch:-me-2 touch:-ms-3.5 -ms-2.5 -me-1 flex items-center p-1 select-none -mt-1 focus-within:transition-none hover:transition-none duration-500 group-hover/turn-messages:delay-300 pointer-events-none [mask-image:linear-gradient(to_right,black_33%,transparent_66%)] [mask-position:100%_0%] [mask-size:300%_100%] motion-safe:transition-[mask-position] group-hover/turn-messages:pointer-events-auto group-hover/turn-messages:[mask-position:0_0] group-focus-within/turn-messages:pointer-events-auto group-focus-within/turn-messages:[mask-position:0_0] has-data-[state=open]:pointer-events-auto has-data-[state=open]:[mask-position:0_0]">
+                                &nbsp;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+    <article class="text-token-text-primary w-full" dir="auto" data-scroll-anchor="false"
+        data-testid="conversation-turn-3">
+        <h5 class="sr-only">You said:</h5>
+        <div
+            class="text-base my-auto mx-auto py-5 [--thread-content-margin:--spacing(4)] @[37rem]:[--thread-content-margin:--spacing(6)] @[70rem]:[--thread-content-margin:--spacing(12)] px-(--thread-content-margin)">
+            <div class="[--thread-content-max-width:32rem] @[34rem]:[--thread-content-max-width:40rem] @[64rem]:[--thread-content-max-width:48rem] mx-auto flex max-w-(--thread-content-max-width) flex-1 text-base gap-4 md:gap-5 lg:gap-6 group/turn-messages focus-visible:outline-hidden"
+                tabindex="-1">
+                <div class="group/conversation-turn relative flex w-full min-w-0 flex-col">
+                    <div class="relative flex-col gap-1 md:gap-3">
+                        <div class="flex max-w-full flex-col grow">
+                            <div class="min-h-8 text-message relative flex w-full flex-col items-end gap-2 text-start break-words whitespace-normal [.text-message+&amp;]:mt-5"
+                                dir="auto" data-message-id="ae1d04a4-b65a-4c4d-8f7c-e9fd0ee37dc2"
+                                data-message-author-role="user">
+                                <div class="flex w-full flex-col gap-1 empty:hidden items-end rtl:items-start">
+                                    <div
+                                        class="relative max-w-[var(--user-chat-width,70%)] bg-token-message-surface rounded-3xl px-5 py-2.5">
+                                        <div class="whitespace-pre-wrap">do same for node and mongod</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex absolute start-0 end-0 flex justify-end">
+                            <div
+                                class="touch:-me-2 touch:-ms-3.5 -ms-2.5 -me-1 flex items-center p-1 select-none focus-within:transition-none hover:transition-none duration-300 group-hover/turn-messages:delay-300 pointer-events-none opacity-0 motion-safe:transition-opacity group-hover/turn-messages:pointer-events-auto group-hover/turn-messages:opacity-100 group-focus-within/turn-messages:pointer-events-auto group-focus-within/turn-messages:opacity-100 has-data-[state=open]:pointer-events-auto has-data-[state=open]:opacity-100">
+                                &nbsp;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+    <article class="text-token-text-primary w-full" dir="auto" data-scroll-anchor="true"
+        data-testid="conversation-turn-4">
+        <h6 class="sr-only">ChatGPT said:</h6>
+        <div
+            class="text-base my-auto mx-auto py-5 [--thread-content-margin:--spacing(4)] @[37rem]:[--thread-content-margin:--spacing(6)] @[70rem]:[--thread-content-margin:--spacing(12)] px-(--thread-content-margin)">
+            <div class="[--thread-content-max-width:32rem] @[34rem]:[--thread-content-max-width:40rem] @[64rem]:[--thread-content-max-width:48rem] mx-auto flex max-w-(--thread-content-max-width) flex-1 text-base gap-4 md:gap-5 lg:gap-6 group/turn-messages focus-visible:outline-hidden"
+                tabindex="-1">
+                <div class="group/conversation-turn relative flex w-full min-w-0 flex-col agent-turn">
+                    <div class="relative flex-col gap-1 md:gap-3">
+                        <div class="flex max-w-full flex-col grow">
+                            <div class="min-h-8 text-message relative flex w-full flex-col items-end gap-2 text-start break-words whitespace-normal [.text-message+&amp;]:mt-5"
+                                dir="auto" data-message-model-slug="gpt-4o"
+                                data-message-id="77625467-83e5-4b81-a4b0-1d6168c879d8"
+                                data-message-author-role="assistant">
+                                <div class="flex w-full flex-col gap-1 empty:hidden first:pt-[3px]">
+                                    <div class="markdown prose dark:prose-invert w-full break-words dark">
+                                        <p data-end="332" data-start="0">Great! Below is a <strong data-end="71"
+                                                data-start="18">fully flexible hotel room inventory backend
+                                                logic</strong> built with <strong data-end="94"
+                                                data-start="83">Node.js</strong> and <strong data-end="110"
+                                                data-start="99">MongoDB</strong>, using <strong data-end="129"
+                                                data-start="118">Express</strong> and <strong data-end="146"
+                                                data-start="134">Mongoose</strong>. This setup covers room types, rooms,
+                                            inventory management, bookings, and cancellation, with flexibility for
+                                            extensions like pricing rules, seasonal overrides, and dynamic availability.
+                                        </p>
+                                        <hr data-end="337" data-start="334">
+                                        <h2 data-end="355" data-start="339">🛠 Tech Stack</h2>
+                                        <ul data-end="458" data-start="356">
+                                            <li data-end="382" data-start="356">
+                                                <p data-end="382" data-start="358"><strong data-end="369"
+                                                        data-start="358">Node.js</strong> (Express.js)</p>
+                                            </li>
+                                            <li data-end="415" data-start="383">
+                                                <p data-end="415" data-start="385"><strong data-end="396"
+                                                        data-start="385">MongoDB</strong> (via Mongoose ODM)</p>
+                                            </li>
+                                            <li data-end="458" data-start="416">
+                                                <p data-end="458" data-start="418"><strong data-end="442"
+                                                        data-start="418">Modular architecture</strong>, RESTful design
+                                                </p>
+                                            </li>
+                                        </ul>
+                                        <hr data-end="463" data-start="460">
+                                        <h2 data-end="488" data-start="465">📁 Project Structure</h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                bash</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!">hotel-inventory/ │ ├── models/ │ ├── RoomType.js │ ├── Room.js │ ├── Inventory.js │ └── Booking.js │ ├── routes/ │ └── bookings.js │ ├── controllers/ │ └── bookingController.js │ ├── app.js └── .<span class="hljs-built_in">env</span>
+                            </code></div>
+                                        </div>
+                                        <hr data-end="713" data-start="710">
+                                        <h2 data-end="739" data-start="715">📦 1. Mongoose Models</h2>
+                                        <h3 data-end="765" data-start="741"><code data-end="765"
+                                                data-start="745">models/RoomType.js</code></h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>); <span class="hljs-keyword">const</span> roomTypeSchema = <span class="hljs-keyword">new</span> mongoose.<span class="hljs-title class_">Schema</span>({ <span class="hljs-attr">name</span>: { <span class="hljs-attr">type</span>: <span class="hljs-title class_">String</span>, <span class="hljs-attr">unique</span>: <span class="hljs-literal">true</span> }, <span class="hljs-attr">description</span>: <span class="hljs-title class_">String</span>, <span class="hljs-attr">basePrice</span>: <span class="hljs-title class_">Number</span> }); <span class="hljs-variable language_">module</span>.<span class="hljs-property">exports</span> = mongoose.<span class="hljs-title function_">model</span>(<span class="hljs-string">'RoomType'</span>, roomTypeSchema); </code>
+                                            </div>
+                                        </div>
+                                        <h3 data-end="1030" data-start="1010"><code data-end="1030"
+                                                data-start="1014">models/Room.js</code></h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>); <span class="hljs-keyword">const</span> roomSchema = <span class="hljs-keyword">new</span> mongoose.<span class="hljs-title class_">Schema</span>({ <span class="hljs-attr">roomNumber</span>: { <span class="hljs-attr">type</span>: <span class="hljs-title class_">String</span>, <span class="hljs-attr">unique</span>: <span class="hljs-literal">true</span> }, <span class="hljs-attr">roomType</span>: { <span class="hljs-attr">type</span>: mongoose.<span class="hljs-property">Schema</span>.<span class="hljs-property">Types</span>.<span class="hljs-property">ObjectId</span>, <span class="hljs-attr">ref</span>: <span class="hljs-string">'RoomType'</span> }, <span class="hljs-attr">status</span>: { <span class="hljs-attr">type</span>: <span class="hljs-title class_">String</span>, <span class="hljs-attr">default</span>: <span class="hljs-string">'available'</span> } <span class="hljs-comment">// available, out_of_service</span> }); <span class="hljs-variable language_">module</span>.<span class="hljs-property">exports</span> = mongoose.<span class="hljs-title function_">model</span>(<span class="hljs-string">'Room'</span>, roomSchema); </code>
+                                            </div>
+                                        </div>
+                                        <h3 data-end="1401" data-start="1376"><code data-end="1401"
+                                                data-start="1380">models/Inventory.js</code></h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>); <span class="hljs-keyword">const</span> inventorySchema = <span class="hljs-keyword">new</span> mongoose.<span class="hljs-title class_">Schema</span>({ <span class="hljs-attr">room</span>: { <span class="hljs-attr">type</span>: mongoose.<span class="hljs-property">Schema</span>.<span class="hljs-property">Types</span>.<span class="hljs-property">ObjectId</span>, <span class="hljs-attr">ref</span>: <span class="hljs-string">'Room'</span> }, <span class="hljs-attr">date</span>: <span class="hljs-title class_">Date</span>, <span class="hljs-attr">isBooked</span>: { <span class="hljs-attr">type</span>: <span class="hljs-title class_">Boolean</span>, <span class="hljs-attr">default</span>: <span class="hljs-literal">false</span> } }); inventorySchema.<span class="hljs-title function_">index</span>({ <span class="hljs-attr">room</span>: <span class="hljs-number">1</span>, <span class="hljs-attr">date</span>: <span class="hljs-number">1</span> }, { <span class="hljs-attr">unique</span>: <span class="hljs-literal">true</span> }); <span class="hljs-variable language_">module</span>.<span class="hljs-property">exports</span> = mongoose.<span class="hljs-title function_">model</span>(<span class="hljs-string">'Inventory'</span>, inventorySchema); </code>
+                                            </div>
+                                        </div>
+                                        <h3 data-end="1776" data-start="1753"><code data-end="1776"
+                                                data-start="1757">models/Booking.js</code></h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>); <span class="hljs-keyword">const</span> bookingSchema = <span class="hljs-keyword">new</span> mongoose.<span class="hljs-title class_">Schema</span>({ <span class="hljs-attr">guestName</span>: <span class="hljs-title class_">String</span>, <span class="hljs-attr">room</span>: { <span class="hljs-attr">type</span>: mongoose.<span class="hljs-property">Schema</span>.<span class="hljs-property">Types</span>.<span class="hljs-property">ObjectId</span>, <span class="hljs-attr">ref</span>: <span class="hljs-string">'Room'</span> }, <span class="hljs-attr">checkIn</span>: <span class="hljs-title class_">Date</span>, <span class="hljs-attr">checkOut</span>: <span class="hljs-title class_">Date</span>, <span class="hljs-attr">totalPrice</span>: <span class="hljs-title class_">Number</span> }); <span class="hljs-variable language_">module</span>.<span class="hljs-property">exports</span> = mongoose.<span class="hljs-title function_">model</span>(<span class="hljs-string">'Booking'</span>, bookingSchema); </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="2078" data-start="2075">
+                                        <h2 data-end="2141" data-start="2080">🧠 2. Controller Logic: <code
+                                                data-end="2141"
+                                                data-start="2107">controllers/bookingController.js</code></h2>
+                                        <h3 data-end="2168" data-start="2143">A. Check Availability</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> <span class="hljs-title class_">Inventory</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/Inventory'</span>); <span class="hljs-keyword">const</span> <span class="hljs-title class_">Room</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/Room'</span>); <span class="hljs-built_in">exports</span>.<span class="hljs-property">checkAvailability</span> = <span class="hljs-keyword">async</span> (roomTypeId, checkIn, checkOut) =&gt; { <span class="hljs-keyword">const</span> rooms = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Room</span>.<span class="hljs-title function_">find</span>({ <span class="hljs-attr">roomType</span>: roomTypeId, <span class="hljs-attr">status</span>: <span class="hljs-string">'available'</span> }); <span class="hljs-keyword">const</span> availableRoomIds = []; <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> room <span class="hljs-keyword">of</span> rooms) { <span class="hljs-keyword">const</span> dates = []; <span class="hljs-keyword">let</span> isAvailable = <span class="hljs-literal">true</span>; <span class="hljs-keyword">for</span> ( <span class="hljs-keyword">let</span> d = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(checkIn); d &lt; <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(checkOut); d.<span class="hljs-title function_">setDate</span>(d.<span class="hljs-title function_">getDate</span>() + <span class="hljs-number">1</span>) ) { <span class="hljs-keyword">const</span> existing = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Inventory</span>.<span class="hljs-title function_">findOne</span>({ <span class="hljs-attr">room</span>: room.<span class="hljs-property">_id</span>, <span class="hljs-attr">date</span>: <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(d), <span class="hljs-attr">isBooked</span>: <span class="hljs-literal">true</span> }); <span class="hljs-keyword">if</span> (existing) { isAvailable = <span class="hljs-literal">false</span>; <span class="hljs-keyword">break</span>; } dates.<span class="hljs-title function_">push</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(d)); } <span class="hljs-keyword">if</span> (isAvailable) { availableRoomIds.<span class="hljs-title function_">push</span>(room.<span class="hljs-property">_id</span>); } } <span class="hljs-keyword">return</span> availableRoomIds; }; </code>
+                                            </div>
+                                        </div>
+                                        <h3 data-end="3014" data-start="2998">B. Book Room</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> <span class="hljs-title class_">Booking</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/Booking'</span>); <span class="hljs-keyword">const</span> <span class="hljs-title class_">Room</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/Room'</span>); <span class="hljs-keyword">const</span> <span class="hljs-title class_">RoomType</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../models/RoomType'</span>); <span class="hljs-built_in">exports</span>.<span class="hljs-property">bookRoom</span> = <span class="hljs-keyword">async</span> (guestName, roomId, checkIn, checkOut) =&gt; { <span class="hljs-keyword">const</span> room = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Room</span>.<span class="hljs-title function_">findById</span>(roomId).<span class="hljs-title function_">populate</span>(<span class="hljs-string">'roomType'</span>); <span class="hljs-keyword">const</span> nights = (<span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(checkOut) - <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(checkIn)) / (<span class="hljs-number">1000</span> * <span class="hljs-number">3600</span> * <span class="hljs-number">24</span>); <span class="hljs-keyword">const</span> totalPrice = nights * room.<span class="hljs-property">roomType</span>.<span class="hljs-property">basePrice</span>; <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i &lt; nights; i++) { <span class="hljs-keyword">const</span> date = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(checkIn); date.<span class="hljs-title function_">setDate</span>(date.<span class="hljs-title function_">getDate</span>() + i); <span class="hljs-keyword">await</span> <span class="hljs-title class_">Inventory</span>.<span class="hljs-title function_">findOneAndUpdate</span>( { <span class="hljs-attr">room</span>: roomId, date }, { <span class="hljs-attr">$set</span>: { <span class="hljs-attr">isBooked</span>: <span class="hljs-literal">true</span> } }, { <span class="hljs-attr">upsert</span>: <span class="hljs-literal">true</span> } ); } <span class="hljs-keyword">const</span> booking = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Booking</span>({ guestName, <span class="hljs-attr">room</span>: roomId, checkIn, checkOut, totalPrice }); <span class="hljs-keyword">await</span> booking.<span class="hljs-title function_">save</span>(); <span class="hljs-keyword">return</span> booking; }; </code>
+                                            </div>
+                                        </div>
+                                        <h3 data-end="3861" data-start="3840">C. Cancel Booking</h3>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-built_in">exports</span>.<span class="hljs-property">cancelBooking</span> = <span class="hljs-keyword">async</span> (bookingId) =&gt; { <span class="hljs-keyword">const</span> booking = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Booking</span>.<span class="hljs-title function_">findById</span>(bookingId); <span class="hljs-keyword">if</span> (!booking) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-keyword">for</span> ( <span class="hljs-keyword">let</span> d = <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(booking.<span class="hljs-property">checkIn</span>); d &lt; <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(booking.<span class="hljs-property">checkOut</span>); d.<span class="hljs-title function_">setDate</span>(d.<span class="hljs-title function_">getDate</span>() + <span class="hljs-number">1</span>) ) { <span class="hljs-keyword">await</span> <span class="hljs-title class_">Inventory</span>.<span class="hljs-title function_">findOneAndUpdate</span>( { <span class="hljs-attr">room</span>: booking.<span class="hljs-property">room</span>, <span class="hljs-attr">date</span>: <span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>(d) }, { <span class="hljs-attr">isBooked</span>: <span class="hljs-literal">false</span> } ); } <span class="hljs-keyword">await</span> <span class="hljs-title class_">Booking</span>.<span class="hljs-title function_">deleteOne</span>({ <span class="hljs-attr">_id</span>: bookingId }); <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>; }; </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="4317" data-start="4314">
+                                        <h2 data-end="4363" data-start="4319">🌐 3. Express Route: <code data-end="4363"
+                                                data-start="4343">routes/bookings.js</code></h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>); <span class="hljs-keyword">const</span> router = express.<span class="hljs-title class_">Router</span>(); <span class="hljs-keyword">const</span> controller = <span class="hljs-built_in">require</span>(<span class="hljs-string">'../controllers/bookingController'</span>); router.<span class="hljs-title function_">get</span>(<span class="hljs-string">'/availability'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; { <span class="hljs-keyword">const</span> { roomTypeId, checkIn, checkOut } = req.<span class="hljs-property">query</span>; <span class="hljs-keyword">const</span> availableRooms = <span class="hljs-keyword">await</span> controller.<span class="hljs-title function_">checkAvailability</span>(roomTypeId, checkIn, checkOut); res.<span class="hljs-title function_">json</span>({ availableRooms }); }); router.<span class="hljs-title function_">post</span>(<span class="hljs-string">'/book'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; { <span class="hljs-keyword">const</span> { guestName, roomId, checkIn, checkOut } = req.<span class="hljs-property">body</span>; <span class="hljs-keyword">const</span> booking = <span class="hljs-keyword">await</span> controller.<span class="hljs-title function_">bookRoom</span>(guestName, roomId, checkIn, checkOut); res.<span class="hljs-title function_">json</span>({ booking }); }); router.<span class="hljs-title function_">delete</span>(<span class="hljs-string">'/cancel/:id'</span>, <span class="hljs-keyword">async</span> (req, res) =&gt; { <span class="hljs-keyword">const</span> success = <span class="hljs-keyword">await</span> controller.<span class="hljs-title function_">cancelBooking</span>(req.<span class="hljs-property">params</span>.<span class="hljs-property">id</span>); res.<span class="hljs-title function_">json</span>({ success }); }); <span class="hljs-variable language_">module</span>.<span class="hljs-property">exports</span> = router; </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="5135" data-start="5132">
+                                        <h2 data-end="5173" data-start="5137">🚀 4. <code data-end="5154"
+                                                data-start="5146">app.js</code> (Main Server File)</h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                js</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code
+                                                    class="whitespace-pre! language-js"><span class="hljs-built_in">require</span>(<span class="hljs-string">'dotenv'</span>).<span class="hljs-title function_">config</span>(); <span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>); <span class="hljs-keyword">const</span> mongoose = <span class="hljs-built_in">require</span>(<span class="hljs-string">'mongoose'</span>); <span class="hljs-keyword">const</span> bookingRoutes = <span class="hljs-built_in">require</span>(<span class="hljs-string">'./routes/bookings'</span>); <span class="hljs-keyword">const</span> app = <span class="hljs-title function_">express</span>(); app.<span class="hljs-title function_">use</span>(express.<span class="hljs-title function_">json</span>()); mongoose.<span class="hljs-title function_">connect</span>(process.<span class="hljs-property">env</span>.<span class="hljs-property">MONGO_URI</span>, { <span class="hljs-attr">useNewUrlParser</span>: <span class="hljs-literal">true</span>, <span class="hljs-attr">useUnifiedTopology</span>: <span class="hljs-literal">true</span> }); app.<span class="hljs-title function_">use</span>(<span class="hljs-string">'/api/bookings'</span>, bookingRoutes); app.<span class="hljs-title function_">listen</span>(<span class="hljs-number">3000</span>, <span class="hljs-function">() =&gt;</span> <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Server started on port 3000'</span>)); </code>
+                                            </div>
+                                        </div>
+                                        <hr data-end="5598" data-start="5595">
+                                        <h2 data-end="5610" data-start="5600">📌 .env</h2>
+                                        <div
+                                            class="contain-inline-size rounded-md border-[0.5px] border-token-border-medium relative bg-token-sidebar-surface-primary">
+                                            <div
+                                                class="flex items-center text-token-text-secondary px-4 py-2 text-xs font-sans justify-between h-9 bg-token-sidebar-surface-primary dark:bg-token-main-surface-secondary select-none rounded-t-[5px]">
+                                                bash</div>
+                                            <div class="sticky top-9">
+                                                <div class="absolute end-0 bottom-0 flex h-9 items-center pe-2">
+                                                    <div
+                                                        class="bg-token-sidebar-surface-primary text-token-text-secondary dark:bg-token-main-surface-secondary flex items-center rounded-sm px-2 font-sans text-xs">
+                                                        <span data-state="closed"><button
+                                                                class="flex gap-1 items-center select-none px-4 py-1"
+                                                                aria-label="Copy">Copy</button></span><span
+                                                            data-state="closed"><button
+                                                                class="flex items-center gap-1 px-4 py-1 select-none">Edit</button></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre!">MONGO_URI=<a href="mongodb://localhost:27017/hotel">mongodb://localhost:27017/hotel</a>
+                            </code></div>
+                                        </div>
+                                        <hr data-end="5666" data-start="5663">
+                                        <h2 data-end="5693" data-start="5668">🧩 Optional Extensions</h2>
+                                        <ul data-end="5886" data-start="5694">
+                                            <li data-end="5726" data-start="5694">
+                                                <p data-end="5726" data-start="5696"><strong data-end="5726"
+                                                        data-start="5696">Pricing overrides per date</strong></p>
+                                            </li>
+                                            <li data-end="5756" data-start="5727">
+                                                <p data-end="5756" data-start="5729"><strong data-end="5756"
+                                                        data-start="5729">Room holds/reservations</strong></p>
+                                            </li>
+                                            <li data-end="5789" data-start="5757">
+                                                <p data-end="5789" data-start="5759"><strong data-end="5789"
+                                                        data-start="5759">User accounts &amp; auth (JWT)</strong></p>
+                                            </li>
+                                            <li data-end="5815" data-start="5790">
+                                                <p data-end="5815" data-start="5792"><strong data-end="5815"
+                                                        data-start="5792">Payment integration</strong></p>
+                                            </li>
+                                            <li data-end="5848" data-start="5816">
+                                                <p data-end="5848" data-start="5818"><strong data-end="5848"
+                                                        data-start="5818">Availability calendar view</strong></p>
+                                            </li>
+                                            <li data-end="5886" data-start="5849">
+                                                <p data-end="5886" data-start="5851"><strong data-end="5886"
+                                                        data-start="5851">Admin panel (React/Vue/Next.js)</strong></p>
+                                            </li>
+                                        </ul>
+                                        <hr data-end="5891" data-start="5888">
+                                        <p data-end="6006" data-start="5893">Would you like me to zip this into a
+                                            GitHub-ready boilerplate or extend it with a real-time room availability UI?
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-start">
+                            <div
+                                class="touch:-me-2 touch:-ms-3.5 -ms-2.5 -me-1 flex items-center p-1 select-none -mt-1 duration-[1.5s] focus-within:transition-none hover:transition-none pointer-events-none [mask-image:linear-gradient(to_right,black_33%,transparent_66%)] [mask-position:100%_0%] [mask-size:300%_100%] motion-safe:transition-[mask-position] group-hover/turn-messages:pointer-events-auto group-hover/turn-messages:[mask-position:0_0] group-focus-within/turn-messages:pointer-events-auto group-focus-within/turn-messages:[mask-position:0_0] has-data-[state=open]:pointer-events-auto has-data-[state=open]:[mask-position:0_0]">
+                                &nbsp;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+    <div class="pointer-events-none h-px w-px" data-edge="true" aria-hidden="true">&nbsp;</div>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+        console.log(window.location.href);
+        const urlObj = new URL(window.location.href);
+        const params = new URLSearchParams(urlObj.search);
+        const contact = params.get('contact'); // "John"
+        const order_id = params.get('order_id');
+
+        console.log(contact);
+        console.log(order_id);
+        var options = {
+            "key": "rzp_test_IXF6sTTP8dPZXN", // Enter the Key ID generated from the Dashboard
+            // "amount": amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+            "currency": "INR",
+            // "name": "Acme Corp", //your business name
+            // "description": "Test Transaction",
+            // "image": "https://example.com/your_logo",
+            "order_id": order_id, //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
+            // "callback_url": "https://eneqd3r9zrjok.x.pipedream.net/",
+            "prefill": { //We recommend using the prefill parameter to auto-fill customer's contact information especially their phone number
+                // "name": "Gaurav Kumar", //your customer's name
+                // "email": "gaurav.kumar@example.com",
+                "contact": contact //Provide the customer's phone number for better conversion rates 
+            },
+            // "notes": {
+            //     "address": "Razorpay Corporate Office"
+            // },
+            "theme": {
+                "color": "#3399cc"
+            },
+            "handler": function (response) {
+                console.log("razorpay_payment_id", response.razorpay_payment_id)
+                console.log("razorpay_order_id", response.razorpay_order_id);
+                console.log("razorpay_signature", response.razorpay_signature);
+            },
+        };
+        var rzp1 = new Razorpay(options);
+
+        rzp1.on('payment.failed', function (response) {
+            // alert(response.error.code);
+            // alert(response.error.description);
+            // alert(response.error.source);
+            // alert(response.error.step);
+            // alert(response.error.reason);
+            // alert(response.error.metadata.order_id);
+            // alert(response.error.metadata.payment_id);
+        });
+        document.getElementById('rzp-button1').onclick = function (e) {
+            rzp1.open();
+            e.preventDefault();
+        }
+
+
+    </script>
+
+</body>
+
+</html>

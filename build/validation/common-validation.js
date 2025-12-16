@@ -1,0 +1,120 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.maxDiscountValidationRule = exports.quantityValidationRule = exports.validFromValidationRule = exports.validToValidationRule = exports.cartValueValidationRule = exports.valueValidationRule = exports.priceTypeValidationRule = exports.typeValidationRule = exports.codeValidationRule = exports.usernameValidationRule = exports.messageTypeValidationRule = exports.subscriptionTypeValidationRule = exports.questionTypeValidationRule = exports.answerValidationRule = exports.questionValidationRule = exports.subscriptionPlanIDValidationRule = exports.questionsIDsValidationRule = exports.businessTypeIDValidationRule = exports.businessSubtypeIDValidationRule = exports.businessProfileIDValidationRule = exports.lngValidationRule = exports.latValidationRule = exports.countryValidationRule = exports.zipCodeValidationRule = exports.stateValidationRule = exports.cityValidationRule = exports.streetValidationRule = exports.socialTypeValidationRule = exports.socialUIdValidationRule = exports.loginWithValidationRule = exports.notificationTokenValidationRule = exports.devicePlatformValidationRule = exports.deviceIDValidationRule = exports.otpValidationRule = exports.strongPasswordValidationRule = exports.passwordValidationRule = exports.contentTypeValidationRule = exports.totalRoomsValidationRule = exports.currencyValidationRule = exports.durationValidationRule = exports.levelValidationRule = exports.priceValidationRule = exports.descriptionValidationRule = exports.nameValidationRule = exports.dialCodeValidationRule = exports.phoneNumberValidationRule = exports.emailValidationRule = exports.accountTypeValidationRule = exports.DevicePlatform = exports.LogInWith = void 0;
+exports.experienceValidationRule = exports.numberOfVacanciesValidationRule = exports.joiningDateValidationRule = exports.salaryValidationRule = exports.jobTypeValidationRule = exports.designationValidationRule = exports.titleValidationRule = exports.numberOfGuestsValidationRule = exports.bookingIDValidationRule = exports.roomIDValidationRule = exports.mealPlanValidationRule = exports.roomTypeValidationRule = exports.bedTypeValidationRule = exports.childrenValidationRule = exports.adultsValidationRule = exports.redeemedCountValidationRule = void 0;
+const index_1 = require("./../common/index");
+const user_model_1 = require("./../database/models/user.model");
+const express_validator_1 = require("express-validator");
+const user_model_2 = require("../database/models/user.model");
+const faq_model_1 = require("../database/models/faq.model");
+const subscriptionPlan_model_1 = require("../database/models/subscriptionPlan.model");
+const common_1 = require("../common");
+const message_model_1 = require("../database/models/message.model");
+const promoCode_model_1 = require("../database/models/promoCode.model");
+const job_model_1 = require("../database/models/job.model");
+var LogInWith;
+(function (LogInWith) {
+    LogInWith["EMAIL"] = "email";
+    LogInWith["PHONE"] = "phone";
+    LogInWith["SOCIAL"] = "social";
+})(LogInWith || (exports.LogInWith = LogInWith = {}));
+var DevicePlatform;
+(function (DevicePlatform) {
+    DevicePlatform["IOS"] = "ios";
+    DevicePlatform["ANDROID"] = "android";
+    DevicePlatform["WEB"] = "web";
+})(DevicePlatform || (exports.DevicePlatform = DevicePlatform = {}));
+const SubscriptionLevelValues = Object.values(subscriptionPlan_model_1.SubscriptionLevel);
+const AccountTypeValues = Object.values(user_model_2.AccountType);
+const DevicePlatformValues = Object.values(DevicePlatform);
+const SubscriptionDurationValues = Object.values(subscriptionPlan_model_1.SubscriptionDuration);
+const CurrencyCodeValues = Object.values(common_1.CurrencyCode);
+const SocialAccountValues = Object.values(user_model_1.SocialAccount);
+exports.accountTypeValidationRule = (0, express_validator_1.body)("accountType", "Account type is required field.").exists().bail().notEmpty().bail().isIn(AccountTypeValues).withMessage(`Account type must be in ${AccountTypeValues.join(' | ')}`);
+exports.emailValidationRule = (0, express_validator_1.body)("email", "Email is a required field.").exists().bail().notEmpty().bail().isEmail().withMessage("Please enter valid email address.");
+exports.phoneNumberValidationRule = (0, express_validator_1.body)("phoneNumber", "Phone number is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Phone number must be an integer value.");
+exports.dialCodeValidationRule = (0, express_validator_1.body)("dialCode", "Dial code is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Dial code must be an integer with + sign, like +1.");
+exports.nameValidationRule = (0, express_validator_1.body)("name", "Name is a required field.").exists().bail().notEmpty().bail();
+exports.descriptionValidationRule = (0, express_validator_1.body)("description", "Description is required field.").exists().bail().notEmpty().bail();
+exports.priceValidationRule = (0, express_validator_1.body)("price", "Price is required field.").exists().bail().notEmpty().bail().isDecimal({ decimal_digits: '2', force_decimal: true }).withMessage('Price must be a decimal number with two decimal digits');
+exports.levelValidationRule = (0, express_validator_1.body)("level", "Subscription type is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionLevelValues).withMessage(`Subscription type must be in ${SubscriptionLevelValues.join(' | ')}`);
+exports.durationValidationRule = (0, express_validator_1.body)("duration", "Duration is required field.").exists().bail().notEmpty().bail().isIn(SubscriptionDurationValues).withMessage(`Subscription type must be in ${SubscriptionDurationValues.join(' | ')}`);
+;
+exports.currencyValidationRule = (0, express_validator_1.body)("currency", "Currency is required field.").exists().bail().notEmpty().bail().isIn(CurrencyCodeValues).withMessage(`Currency must be in ${CurrencyCodeValues.join(' | ')}`);
+exports.totalRoomsValidationRule = (0, express_validator_1.body)("totalRooms", "Total rooms is required field.").exists().bail().notEmpty().bail().isInt().withMessage('Total rooms must be a integer value');
+const ContentTypeValue = Object.values(common_1.ContentType);
+exports.contentTypeValidationRule = (0, express_validator_1.body)("contentType", "Content Type is required field.").exists().bail().notEmpty().bail().isIn(ContentTypeValue).withMessage(`Content Type must be in ${ContentTypeValue.join(' | ')}`);
+const isStrongPassword = (value) => {
+    // Implement your password strength criteria using a regular expression
+    // Example: Require at least 8 characters, at least one uppercase letter, one lowercase letter, one digit, and one special symbol
+    // const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[a-zA-Z\d!@#$%^&*]{8,}$/;
+    const passwordRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{8,}$/;
+    return passwordRegex.test(value);
+};
+exports.passwordValidationRule = (0, express_validator_1.body)('password', 'Password is a required field.').exists().bail().notEmpty().bail();
+exports.strongPasswordValidationRule = (0, express_validator_1.body)('password', 'Password is a required field.').exists().bail().notEmpty().bail().custom(isStrongPassword).withMessage('Require at least 8 characters, one uppercase, one lowercase letter, and symbol and one digit.');
+exports.otpValidationRule = (0, express_validator_1.body)("otp", "OTP is a required field.").exists().bail().notEmpty().bail().withMessage("OTP must be a an integer value.").bail();
+exports.deviceIDValidationRule = (0, express_validator_1.body)("deviceID", `Device ID is a required field.`).exists().bail().notEmpty().bail();
+exports.devicePlatformValidationRule = (0, express_validator_1.body)("devicePlatform", `Device Platform is a required field.`).exists().bail().notEmpty().bail().isIn(DevicePlatformValues).withMessage(`Social Type must ${DevicePlatformValues.join(' | ')}.`);
+exports.notificationTokenValidationRule = (0, express_validator_1.body)("notificationToken", `Notification Token is a required field.`).exists().bail().notEmpty().bail();
+exports.loginWithValidationRule = (0, express_validator_1.body)("loginWith", "Login With is required field.").exists().bail().notEmpty().bail().isIn([LogInWith.EMAIL, LogInWith.PHONE, LogInWith.SOCIAL]).withMessage(`Login With must be in type of ${LogInWith.EMAIL} | ${LogInWith.PHONE} | ${LogInWith.SOCIAL}`);
+exports.socialUIdValidationRule = (0, express_validator_1.body)("socialUID", `Social UID is a required field.`).exists().bail().notEmpty().bail();
+exports.socialTypeValidationRule = (0, express_validator_1.body)("socialType", "Social Type is required field.").exists().bail().notEmpty().bail().isIn(SocialAccountValues).withMessage(`Social Type must ${SocialAccountValues.join(' | ')}.`);
+/**
+ * Address Validation Rules for API's
+ */
+exports.streetValidationRule = (0, express_validator_1.body)("street", "Street is a required field.").exists().bail().notEmpty().bail();
+exports.cityValidationRule = (0, express_validator_1.body)("city", "City is a required field.").exists().bail().notEmpty().bail();
+exports.stateValidationRule = (0, express_validator_1.body)("state", "State is a required field.").exists().bail().notEmpty().bail();
+exports.zipCodeValidationRule = (0, express_validator_1.body)("zipCode", "Postal Code is a required field.").exists().bail().notEmpty().bail();
+exports.countryValidationRule = (0, express_validator_1.body)("country", "Country is a required field.").exists().bail().notEmpty().bail();
+exports.latValidationRule = (0, express_validator_1.body)("lat", `Location data (lat) is a required field.`).exists().bail().notEmpty().bail();
+exports.lngValidationRule = (0, express_validator_1.body)("lng", `Location data (lng) is a required field.`).exists().bail().notEmpty().bail();
+exports.businessProfileIDValidationRule = (0, express_validator_1.body)('businessProfileID', 'Business ID is a required field.').exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business ID');
+exports.businessSubtypeIDValidationRule = (0, express_validator_1.body)("businessSubtypeID", `Business Subtype ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Subtype ID');
+exports.businessTypeIDValidationRule = (0, express_validator_1.body)("businessTypeID", `Business Type ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Type ID');
+exports.questionsIDsValidationRule = (0, express_validator_1.body)("questionsIDs", `Question id's is a required field.`).exists().bail().notEmpty().bail().isArray().withMessage('Question id\'s is a array field like ["66d8543e96535f73da1498de","66d8543e96535f73da1498de"]');
+exports.subscriptionPlanIDValidationRule = (0, express_validator_1.body)("subscriptionPlanID", `Subscription Plan ID is a required field.`).exists().bail().notEmpty().bail().isMongoId().withMessage('Invalid Business Type ID');
+const QuestionTypeValues = Object.values(faq_model_1.QuestionType);
+const SubscriptionTypeValues = Object.values(user_model_2.AccountType);
+exports.questionValidationRule = (0, express_validator_1.body)("question", "Question is a required field.").exists().bail().notEmpty().bail();
+exports.answerValidationRule = (0, express_validator_1.body)("answer", "Answer is a required field.").exists().bail().notEmpty().bail();
+exports.questionTypeValidationRule = (0, express_validator_1.body)("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(QuestionTypeValues).withMessage(`Question type must ${QuestionTypeValues.join(' | ')}.`);
+exports.subscriptionTypeValidationRule = (0, express_validator_1.body)("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(SubscriptionTypeValues).withMessage(`Type must ${SubscriptionTypeValues.join(' | ')}.`);
+const MessageTypeValues = Object.values(message_model_1.MessageType);
+exports.messageTypeValidationRule = (0, express_validator_1.body)("messageType", "Message type is required field.").exists().bail().notEmpty().isIn(MessageTypeValues).withMessage(`Message type must be in ${MessageTypeValues.join(' | ')}`);
+exports.usernameValidationRule = (0, express_validator_1.body)("username", "Username is required field.").exists().bail().notEmpty().bail();
+const typeValues = Object.values(promoCode_model_1.PromoType);
+const priceTypeValues = Object.values(promoCode_model_1.PriceType);
+const bedTypeValues = Object.values(index_1.BedType);
+const roomTypeValues = Object.values(index_1.RoomType);
+const mealPlanValues = Object.values(index_1.MealPlan);
+const jobTypeValues = Object.values(job_model_1.JobType);
+exports.codeValidationRule = (0, express_validator_1.body)("code", "Coupon code is a required field.").exists().bail().notEmpty().bail();
+exports.typeValidationRule = (0, express_validator_1.body)("type", "Type is a required field.").exists().bail().notEmpty().bail().isIn(typeValues).withMessage(`Type must be in ${typeValues.join(' | ')}.}`);
+exports.priceTypeValidationRule = (0, express_validator_1.body)("priceType", "Price Type is a required field.").exists().bail().notEmpty().bail().isIn(priceTypeValues).withMessage(`Price Type must be in ${priceTypeValues.join(' | ')}`);
+exports.valueValidationRule = (0, express_validator_1.body)("value", "Discount value is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Discount value must be integer or float value.");
+exports.cartValueValidationRule = (0, express_validator_1.body)("cartValue", "Cart Value is a required field.").exists().bail().notEmpty().bail().isNumeric().withMessage("Cart Value must be integer value.");
+exports.validToValidationRule = (0, express_validator_1.body)("validTo", "Valid to is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Valid to must be in 'YYYY/MM/DD' format.");
+exports.validFromValidationRule = (0, express_validator_1.body)("validFrom", "Valid from is a required field.").exists().bail().notEmpty().bail().isDate({ format: 'YYYY/MM/DD' }).withMessage("Valid from must be in 'YYYY/MM/DD' format.");
+exports.quantityValidationRule = (0, express_validator_1.body)("quantity", "Quantity is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Quantity must be integer value.");
+exports.maxDiscountValidationRule = (0, express_validator_1.body)("maxDiscount", "Max discount is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Max discount must be integer value.");
+exports.redeemedCountValidationRule = (0, express_validator_1.body)("redeemedCount", "Redeemed count is a required field.").exists().bail().notEmpty().bail().isInt().withMessage("Redeemed count must be integer value.");
+exports.adultsValidationRule = (0, express_validator_1.body)("adults", "Adults capacity is a required field.").isInt({ min: 1, max: 4 }).withMessage("Adults capacity must be integer value between 1 - 4.");
+exports.childrenValidationRule = (0, express_validator_1.body)("children", "Max occupancy is a required field.").isInt({ min: 0, max: 2 }).withMessage("Max occupancy must be integer value between 1 - 2.");
+exports.bedTypeValidationRule = (0, express_validator_1.body)("bedType", "Bed type is a required field.").isIn(bedTypeValues).optional({ nullable: false }).withMessage(`Bed type must be in ${bedTypeValues.join(' | ')}.}`);
+exports.roomTypeValidationRule = (0, express_validator_1.body)("roomType", "Room type is a required field.").isIn(roomTypeValues).optional({ nullable: false }).withMessage(`Room type must be in ${roomTypeValues.join(' | ')}.}`);
+exports.mealPlanValidationRule = (0, express_validator_1.body)("mealType", "Meal type is a required field.").isIn(mealPlanValues).optional({ nullable: false }).withMessage(`Meal type must be in ${mealPlanValues.join(' | ')}.}`);
+exports.roomIDValidationRule = (0, express_validator_1.body)("roomID", "Room ID is a required field.").isMongoId().withMessage(`Invalid Room ID.`);
+exports.bookingIDValidationRule = (0, express_validator_1.body)('bookingID', 'Booking ID is required field').exists().bail().notEmpty().bail().withMessage('Invalid Booking ID');
+exports.numberOfGuestsValidationRule = (0, express_validator_1.body)("numberOfGuests", "Number of Guests is required field.").exists().bail().notEmpty().bail().isInt().withMessage("Number of Guests must be an integer value.");
+exports.titleValidationRule = (0, express_validator_1.body)("title", "Title is required field.").exists().bail().notEmpty().bail();
+exports.designationValidationRule = (0, express_validator_1.body)("designation", "Designation is required field.").exists().bail().notEmpty().bail();
+exports.jobTypeValidationRule = (0, express_validator_1.body)("jobType", "Job Type is required field.").exists().bail().notEmpty().bail().isIn(jobTypeValues).withMessage(`Type must ${jobTypeValues.join(' | ')}.`);
+exports.salaryValidationRule = (0, express_validator_1.body)("salary", "Salary is required field.").exists().bail().notEmpty().bail();
+exports.joiningDateValidationRule = (0, express_validator_1.body)("joiningDate", "Joining date is required field.").exists().bail().notEmpty().bail().isDate({
+    format: 'YYYY-MM-DD',
+    delimiters: ['-'],
+}).withMessage("Invalid date. Please use YYYY-MM-DD format");
+exports.numberOfVacanciesValidationRule = (0, express_validator_1.body)("numberOfVacancies", "Joining date is required field.").exists().bail().notEmpty().bail();
+exports.experienceValidationRule = (0, express_validator_1.body)("experience", "Experience is required field.").exists().bail().notEmpty().bail();

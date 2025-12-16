@@ -95,7 +95,8 @@ const buySubscription = async (request: Request, response: Response, next: NextF
                     newSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
                     break;
                 case SubscriptionDuration.QUARTERLY:
-                    newSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    newSubscription.expirationDate = new Date(moment().add(12, 'months').toString());
                     break;
                 default:
                     newSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
@@ -124,7 +125,8 @@ const buySubscription = async (request: Request, response: Response, next: NextF
                 hasSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
                 break;
             case SubscriptionDuration.QUARTERLY:
-                hasSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                // Treat quarterly coupon as a 12-month free period
+                hasSubscription.expirationDate = new Date(moment().add(12, 'months').toString());
                 break;
             default:
                 hasSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
@@ -242,7 +244,8 @@ const verifyGooglePurchase = async (request: Request, response: Response, next: 
                         newSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
                         break;
                     case SubscriptionDuration.QUARTERLY:
-                        newSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                        // Treat quarterly coupon as a 12-month free period
+                        newSubscription.expirationDate = new Date(moment().add(12, 'months').toString());
                         break;
                     default:
                         newSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
@@ -272,7 +275,8 @@ const verifyGooglePurchase = async (request: Request, response: Response, next: 
                     hasSubscription.expirationDate = new Date(moment().add(182, 'days').toString());
                     break;
                 case SubscriptionDuration.QUARTERLY:
-                    hasSubscription.expirationDate = new Date(moment().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    hasSubscription.expirationDate = new Date(moment().add(12, 'months').toString());
                     break;
                 default:
                     hasSubscription.expirationDate = new Date(moment().add(30, 'days').toString());
