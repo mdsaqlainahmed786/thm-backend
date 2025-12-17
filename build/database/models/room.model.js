@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addAmenitiesInRoom = exports.addRoomImagesInRoom = void 0;
+exports.addRoomImagesInRoom = addRoomImagesInRoom;
+exports.addAmenitiesInRoom = addAmenitiesInRoom;
 const mongoose_1 = require("mongoose");
 const common_1 = require("../../common");
 const RoomSchema = new mongoose_1.Schema({
@@ -121,7 +122,6 @@ function addRoomImagesInRoom() {
     };
     return { lookup, addRoomCoverAndThumbnailImage };
 }
-exports.addRoomImagesInRoom = addRoomImagesInRoom;
 function addAmenitiesInRoom() {
     const lookup = {
         '$lookup': {
@@ -142,4 +142,3 @@ function addAmenitiesInRoom() {
     };
     return { lookup };
 }
-exports.addAmenitiesInRoom = addAmenitiesInRoom;

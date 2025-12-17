@@ -12,7 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addPromoCodeInBooking = exports.addBusinessProfileInBooking = exports.addUserInBooking = exports.addRoomInBooking = exports.generateNextBookingID = exports.BookedRoomSchema = exports.GuestDetailsSchema = exports.BookingType = exports.BookingStatus = void 0;
+exports.BookedRoomSchema = exports.GuestDetailsSchema = exports.BookingType = exports.BookingStatus = void 0;
+exports.generateNextBookingID = generateNextBookingID;
+exports.addRoomInBooking = addRoomInBooking;
+exports.addUserInBooking = addUserInBooking;
+exports.addBusinessProfileInBooking = addBusinessProfileInBooking;
+exports.addPromoCodeInBooking = addPromoCodeInBooking;
 const mongoose_1 = require("mongoose");
 const common_1 = require("../../common");
 const moment_1 = __importDefault(require("moment"));
@@ -138,7 +143,6 @@ function generateNextBookingID() {
         }
     });
 }
-exports.generateNextBookingID = generateNextBookingID;
 function addRoomInBooking(fullProject) {
     let Project = {
         '$project': {
@@ -180,7 +184,6 @@ function addRoomInBooking(fullProject) {
     };
     return { lookup, unwindLookup };
 }
-exports.addRoomInBooking = addRoomInBooking;
 function addUserInBooking() {
     const lookup = {
         '$lookup': {
@@ -235,7 +238,6 @@ function addUserInBooking() {
     };
     return { lookup, unwindLookup };
 }
-exports.addUserInBooking = addUserInBooking;
 function addBusinessProfileInBooking() {
     const lookup = {
         '$lookup': {
@@ -278,7 +280,6 @@ function addBusinessProfileInBooking() {
     };
     return { lookup, unwindLookup, mergeObject };
 }
-exports.addBusinessProfileInBooking = addBusinessProfileInBooking;
 function addPromoCodeInBooking() {
     const lookup = {
         '$lookup': {
@@ -304,4 +305,3 @@ function addPromoCodeInBooking() {
     };
     return { lookup, unwindLookup };
 }
-exports.addPromoCodeInBooking = addPromoCodeInBooking;

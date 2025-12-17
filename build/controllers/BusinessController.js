@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -75,29 +85,29 @@ const businessTypes = (request, response, next) => __awaiter(void 0, void 0, voi
     }
 });
 const businessSubTypes = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _a;
     try {
         const ID = request.params.id;
         const businessTypes = yield businessSubType_model_1.default.find({ businessTypeID: ID });
         return response.send((0, response_1.httpOk)(businessTypes, "Business subtype fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const businessQuestions = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c;
+    var _a;
     try {
         const { businessSubtypeID, businessTypeID } = request.body;
         const businessQuestions = yield businessQuestion_model_1.default.find({ businessTypeID: { $in: [businessTypeID] }, businessSubtypeID: { $in: [businessSubtypeID] } }, '_id question answer').sort({ order: 1 }).limit(6);
         return response.send((0, response_1.httpOk)(businessQuestions, "Business questions fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const businessQuestionAnswer = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _d;
+    var _a;
     try {
         const { id } = request.user;
         const body = request.body;
@@ -154,11 +164,11 @@ const businessQuestionAnswer = (request, response, next) => __awaiter(void 0, vo
         }
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const insights = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e;
+    var _a;
     try {
         const { id, accountType, businessProfileID } = request.user;
         let parsedQuerySet = request.query;
@@ -220,11 +230,11 @@ const insights = (request, response, next) => __awaiter(void 0, void 0, void 0, 
         return response.send((0, response_1.httpOk)(responseData, 'Insights fetched'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const collectInsightsData = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _f;
+    var _a;
     try {
         const { id, accountType } = request.user;
         const myBusinessProfile = request.user.businessProfileID;
@@ -263,12 +273,12 @@ const collectInsightsData = (request, response, next) => __awaiter(void 0, void 
         return response.send("");
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //Fetch business based on google place id 
 const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
     try {
         const { placeID } = request.params;
         let parsedQuerySet = request.query;
@@ -284,15 +294,15 @@ const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 
             const apiResponse = yield (yield fetch(googlePlaceApiUrl)).json();
             if (apiResponse.status === "OK") {
                 const data = apiResponse.result;
-                const name = (_g = data === null || data === void 0 ? void 0 : data.name) !== null && _g !== void 0 ? _g : "";
-                const rating = (_h = data === null || data === void 0 ? void 0 : data.rating) !== null && _h !== void 0 ? _h : 0;
-                const lat = (_l = (_k = (_j = data === null || data === void 0 ? void 0 : data.geometry) === null || _j === void 0 ? void 0 : _j.location) === null || _k === void 0 ? void 0 : _k.lat) !== null && _l !== void 0 ? _l : 0;
-                const lng = (_p = (_o = (_m = data === null || data === void 0 ? void 0 : data.geometry) === null || _m === void 0 ? void 0 : _m.location) === null || _o === void 0 ? void 0 : _o.lng) !== null && _p !== void 0 ? _p : 0;
+                const name = (_a = data === null || data === void 0 ? void 0 : data.name) !== null && _a !== void 0 ? _a : "";
+                const rating = (_b = data === null || data === void 0 ? void 0 : data.rating) !== null && _b !== void 0 ? _b : 0;
+                const lat = (_e = (_d = (_c = data === null || data === void 0 ? void 0 : data.geometry) === null || _c === void 0 ? void 0 : _c.location) === null || _d === void 0 ? void 0 : _d.lat) !== null && _e !== void 0 ? _e : 0;
+                const lng = (_h = (_g = (_f = data === null || data === void 0 ? void 0 : data.geometry) === null || _f === void 0 ? void 0 : _f.location) === null || _g === void 0 ? void 0 : _g.lng) !== null && _h !== void 0 ? _h : 0;
                 /***
                  * Review Question based on place type
                  */
                 let reviewQuestions = [];
-                const types = (_q = data === null || data === void 0 ? void 0 : data.types) !== null && _q !== void 0 ? _q : [];
+                const types = (_j = data === null || data === void 0 ? void 0 : data.types) !== null && _j !== void 0 ? _j : [];
                 let businessTypeID = undefined;
                 const predictedCategoryName = (0, basic_1.predictCategory)(types, name);
                 if (predictedCategoryName) {
@@ -303,7 +313,7 @@ const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 
                     }
                 }
                 console.log("predictedCategory", predictedCategoryName);
-                const photoReference = (data === null || data === void 0 ? void 0 : data.photos) && ((_r = data === null || data === void 0 ? void 0 : data.photos) === null || _r === void 0 ? void 0 : _r.length) !== 0 ? (_t = (_s = data === null || data === void 0 ? void 0 : data.photos) === null || _s === void 0 ? void 0 : _s[0]) === null || _t === void 0 ? void 0 : _t.photo_reference : null;
+                const photoReference = (data === null || data === void 0 ? void 0 : data.photos) && ((_k = data === null || data === void 0 ? void 0 : data.photos) === null || _k === void 0 ? void 0 : _k.length) !== 0 ? (_m = (_l = data === null || data === void 0 ? void 0 : data.photos) === null || _l === void 0 ? void 0 : _l[0]) === null || _m === void 0 ? void 0 : _m.photo_reference : null;
                 let street = "";
                 let city = "";
                 let state = "";
@@ -366,12 +376,12 @@ const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 
         return response.send((0, response_1.httpOk)({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_u = error.message) !== null && _u !== void 0 ? _u : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //Fetch business profile by encrypted business profile id
 const getBusinessProfileByID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _v;
+    var _a;
     try {
         const { encryptedID } = request.params;
         const decryptedBusinessProfileID = encryptionService.decrypt(encryptedID);
@@ -386,12 +396,12 @@ const getBusinessProfileByID = (request, response, next) => __awaiter(void 0, vo
         }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_v = error.message) !== null && _v !== void 0 ? _v : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //Fetch business profile by direct business profile id (not encrypted)
 const getBusinessProfileByDirectID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _w;
+    var _a;
     try {
         const { id } = request.params;
         const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: id }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
@@ -405,7 +415,7 @@ const getBusinessProfileByDirectID = (request, response, next) => __awaiter(void
         }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_w = error.message) !== null && _w !== void 0 ? _w : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 function createChartLabels(filter) {

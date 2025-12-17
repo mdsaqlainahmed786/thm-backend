@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -131,7 +141,8 @@ const buySubscription = (request, response, next) => __awaiter(void 0, void 0, v
                     newSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                     break;
                 case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                    newSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    newSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                     break;
                 default:
                     newSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -160,7 +171,8 @@ const buySubscription = (request, response, next) => __awaiter(void 0, void 0, v
                 hasSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                 break;
             case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                hasSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                // Treat quarterly coupon as a 12-month free period
+                hasSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                 break;
             default:
                 hasSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -186,7 +198,7 @@ const buySubscription = (request, response, next) => __awaiter(void 0, void 0, v
     }
 });
 const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _d, _e, _f;
+    var _a, _b, _c;
     try {
         const { id } = request.user;
         const { token, subscriptionID, orderID } = request.body;
@@ -276,7 +288,8 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
                         newSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                         break;
                     case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                        newSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                        // Treat quarterly coupon as a 12-month free period
+                        newSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                         break;
                     default:
                         newSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -284,7 +297,7 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
                 const savedSubscription = yield newSubscription.save();
                 console.log((0, moment_1.default)(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'));
                 emailNotificationService.sendSubscriptionEmail({
-                    name: (_d = user.name) !== null && _d !== void 0 ? _d : user.username,
+                    name: (_a = user.name) !== null && _a !== void 0 ? _a : user.username,
                     toAddress: user.email,
                     cc: admins,
                     subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
@@ -306,7 +319,8 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
                     hasSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                     break;
                 case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                    hasSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    hasSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                     break;
                 default:
                     hasSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -315,7 +329,7 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
             const savedSubscription = yield hasSubscription.save();
             console.log((0, moment_1.default)(order.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A'));
             emailNotificationService.sendSubscriptionEmail({
-                name: (_e = user.name) !== null && _e !== void 0 ? _e : user.username,
+                name: (_b = user.name) !== null && _b !== void 0 ? _b : user.username,
                 toAddress: user.email,
                 cc: admins,
                 subscriptionName: `${subscriptionPlan.name} ₹${subscriptionPlan.price}`,
@@ -332,11 +346,11 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
         return response.send((0, response_1.httpBadRequest)(null, "Purchased failed."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const subscriptionNotification = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _g;
+    var _a;
     try {
         const notification = request.body;
         console.log("subscriptionNotification", notification);
@@ -356,11 +370,11 @@ const subscriptionNotification = (request, response, next) => __awaiter(void 0, 
         return response.status(200).send('Notification received');
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h;
+    var _a;
     try {
         const hostAddress = request.protocol + "://" + request.get("host");
         const allBusinessCategory = yield businessType_model_1.default.find({});
@@ -453,11 +467,11 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpOk)(subscriptions, "Subscription added."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const getSubscriptionPlans = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _j;
+    var _a;
     try {
         const { id } = request.user;
         const [user] = yield Promise.all([
@@ -485,11 +499,11 @@ const getSubscriptionPlans = (request, response, next) => __awaiter(void 0, void
         return response.send((0, response_1.httpOk)(businessQuestions, "Business subscription plan fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const subscription = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _k;
+    var _a;
     try {
         const { id } = request.user;
         const [user] = yield Promise.all([
@@ -587,11 +601,11 @@ const subscription = (request, response, next) => __awaiter(void 0, void 0, void
         return response.send((0, response_1.httpOk)(responseData, "Active subscription fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const cancelSubscription = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _l;
+    var _a;
     try {
         const { id } = request.user;
         const [user] = yield Promise.all([
@@ -620,11 +634,11 @@ const cancelSubscription = (request, response, next) => __awaiter(void 0, void 0
         return response.send((0, response_1.httpOk)(null, "Subscription Cancelled"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const subscriptionCheckout = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m;
+    var _a;
     try {
         const { id } = request.user;
         const { subscriptionPlanID, promoCode } = request.body;
@@ -830,12 +844,12 @@ const subscriptionCheckout = (request, response, next) => __awaiter(void 0, void
             next((0, response_1.httpInternalServerError)(error.error, errorMessage));
         }
         else {
-            next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+            next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
         }
     }
 });
 const subscriptionMeta = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _o;
+    var _a;
     try {
         const { id } = request.user;
         console.log(id);
@@ -860,11 +874,11 @@ const subscriptionMeta = (request, response, next) => __awaiter(void 0, void 0, 
         return response.send((0, response_1.httpOk)(responseData, "Subscription meta fetched."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const fetchPurchasesSubscriptions = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _p;
+    var _a;
     try {
         // androidpublisher.purchases.subscriptions.cancel({
         //     packageName:packageName,
@@ -886,7 +900,7 @@ const fetchPurchasesSubscriptions = (request, response, next) => __awaiter(void 
         return response.send("Fi");
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_p = error.message) !== null && _p !== void 0 ? _p : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { buySubscription, subscription, index, getSubscriptionPlans, cancelSubscription, subscriptionCheckout, subscriptionMeta, fetchPurchasesSubscriptions, verifyGooglePurchase, subscriptionNotification };

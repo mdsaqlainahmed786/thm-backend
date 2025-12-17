@@ -38,7 +38,7 @@ const banks = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _a;
     try {
         const { id, acco } = request.user;
         let { pageNumber, documentLimit, query, postType } = request.query;
@@ -86,11 +86,11 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpOkExtended)(documents, FETCHED, pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c, _d, _e;
+    var _a, _b, _c;
     try {
         const { id, AccountType, businessProfileID, role } = request.user;
         const { bankName, ifsc, accountNumber, accountHolder, type } = request.body;
@@ -105,7 +105,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         bankAccount.businessProfileID = businessProfileID;
         bankAccount.userID = id;
         bankAccount.bankName = bankName;
-        const bankIcon = (_d = (_c = bank_1.default.filter((bank) => bank.name === bankName)) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.icon;
+        const bankIcon = (_b = (_a = bank_1.default.filter((bank) => bank.name === bankName)) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.icon;
         const hostAddress = request.protocol + "://" + request.get("host");
         bankAccount.bankIcon = bankIcon ? hostAddress + "/" + bankIcon : "";
         if (bankAccounts.length === 0) {
@@ -120,7 +120,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpCreated)(savedBankAccount, CREATED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -160,9 +160,9 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
     // }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _f, _g;
+    var _a, _b;
     try {
-        const ID = (_f = request === null || request === void 0 ? void 0 : request.params) === null || _f === void 0 ? void 0 : _f.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const bankAccount = yield bankAccount_model_1.default.findOne({ _id: ID });
         if (!bankAccount) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(NOT_FOUND), NOT_FOUND));
@@ -179,7 +179,7 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, DELETED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -189,10 +189,10 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
     // }
 });
 const setPrimaryAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h, _j;
+    var _a, _b;
     try {
         const { id, AccountType, businessProfileID, role } = request.user;
-        const ID = (_h = request === null || request === void 0 ? void 0 : request.params) === null || _h === void 0 ? void 0 : _h.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const bankAccount = yield bankAccount_model_1.default.findOne({ _id: ID, userID: id, businessProfileID: businessProfileID });
         if (!bankAccount) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(NOT_FOUND), NOT_FOUND));
@@ -203,7 +203,7 @@ const setPrimaryAccount = (request, response, next) => __awaiter(void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, "Bank account set as the primary account."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { banks, index, store, update, destroy, show, setPrimaryAccount };

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkRoomsAvailability = void 0;
+exports.checkRoomsAvailability = checkRoomsAvailability;
 const mongoose_1 = require("mongoose");
 const room_model_1 = __importDefault(require("./room.model"));
 const mongodb_1 = require("mongodb");
@@ -194,7 +194,6 @@ function checkRoomsAvailability(businessProfileID, checkIn, checkOut) {
         return roomWithInventory;
     });
 }
-exports.checkRoomsAvailability = checkRoomsAvailability;
 // async function checkAvailability(roomType, checkIn, checkOut) {
 //     const rooms = await Room.findAll({ where: { roomType } });
 //     for (const room of rooms) {

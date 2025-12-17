@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -245,7 +255,7 @@ const orderPayment = (request, response, next) => __awaiter(void 0, void 0, void
 });
 //FIXME Add price check here 
 const checkout = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h;
+    var _a;
     try {
         const { id } = request.user;
         const { bookingID, roomID, quantity, bookedFor, guestDetails, promoCode, price } = request.body;
@@ -419,11 +429,11 @@ const checkout = (request, response, next) => __awaiter(void 0, void 0, void 0, 
         return response.send((0, response_1.httpOk)(responseData, "Checkout summary"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const confirmCheckout = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _j, _k, _l, _m, _o, _p, _q, _r, _s;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
     try {
         const { id } = request.user;
         const { bookingID, paymentID, signature, guestDetails, bookedFor } = request.body;
@@ -490,17 +500,17 @@ const confirmCheckout = (request, response, next) => __awaiter(void 0, void 0, v
         const responseData = Object.assign({}, savedBooking.toJSON());
         new EmailNotificationService_1.default().sendBookingEmail({
             type: savedBooking.type,
-            toAddress: (_j = hotelManager === null || hotelManager === void 0 ? void 0 : hotelManager.email) !== null && _j !== void 0 ? _j : "",
-            cc: [(_k = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _k !== void 0 ? _k : "", (_l = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _l !== void 0 ? _l : ""],
-            businessName: (_m = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _m !== void 0 ? _m : "",
+            toAddress: (_a = hotelManager === null || hotelManager === void 0 ? void 0 : hotelManager.email) !== null && _a !== void 0 ? _a : "",
+            cc: [(_b = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _b !== void 0 ? _b : "", (_c = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _c !== void 0 ? _c : ""],
+            businessName: (_d = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _d !== void 0 ? _d : "",
             businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.HOTEL.toString(),
-            customerName: (_o = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _o !== void 0 ? _o : "",
-            customerEmail: (_p = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _p !== void 0 ? _p : "",
-            customerPhone: (_q = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _q !== void 0 ? _q : "",
+            customerName: (_e = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _e !== void 0 ? _e : "",
+            customerEmail: (_f = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _f !== void 0 ? _f : "",
+            customerPhone: (_g = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _g !== void 0 ? _g : "",
             checkIn: savedBooking.checkIn,
             checkOut: savedBooking.checkOut,
             nights: savedBooking.bookedRoom.nights,
-            roomType: (_r = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _r !== void 0 ? _r : "",
+            roomType: (_h = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _h !== void 0 ? _h : "",
             bookingID: savedBooking.bookingID,
             adults: savedBooking.adults,
             children: savedBooking.children,
@@ -513,18 +523,18 @@ const confirmCheckout = (request, response, next) => __awaiter(void 0, void 0, v
         return response.send((0, response_1.httpOk)(responseData, "Your booking has been placed successfully. Our team will confirm your reservation shortly."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_s = error.message) !== null && _s !== void 0 ? _s : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _t, _u, _v;
+    var _a, _b, _c;
     try {
         console.log(request.url);
         console.log(request.path);
         const { id, accountType, businessProfileID, role } = request.user;
         let { pageNumber, documentLimit, query, status } = request.query;
-        let businessProfile = (_t = request === null || request === void 0 ? void 0 : request.query) === null || _t === void 0 ? void 0 : _t.businessProfileID;
-        let requestRole = (_u = request === null || request === void 0 ? void 0 : request.query) === null || _u === void 0 ? void 0 : _u.role;
+        let businessProfile = (_a = request === null || request === void 0 ? void 0 : request.query) === null || _a === void 0 ? void 0 : _a.businessProfileID;
+        let requestRole = (_b = request === null || request === void 0 ? void 0 : request.query) === null || _b === void 0 ? void 0 : _b.role;
         pageNumber = (0, basic_1.parseQueryParam)(pageNumber, 1);
         documentLimit = (0, basic_1.parseQueryParam)(documentLimit, 20);
         const dbQuery = { status: { $in: [booking_model_1.BookingStatus.PENDING, booking_model_1.BookingStatus.CONFIRMED, booking_model_1.BookingStatus.CANCELED, booking_model_1.BookingStatus.COMPLETED, booking_model_1.BookingStatus.CANCELED_BY_BUSINESS] } };
@@ -591,13 +601,13 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpOkExtended)(documents, FETCHED, pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_v = error.message) !== null && _v !== void 0 ? _v : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _w, _x;
+    var _a, _b;
     try {
-        const ID = (_w = request === null || request === void 0 ? void 0 : request.params) === null || _w === void 0 ? void 0 : _w.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const booking = yield booking_model_1.default.aggregate([
             {
                 $match: { _id: new mongodb_1.ObjectId(ID) }
@@ -662,13 +672,13 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         return response.send((0, response_1.httpOk)(booking[0], RETRIEVED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_x = error.message) !== null && _x !== void 0 ? _x : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const cancelBooking = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _y, _z;
+    var _a, _b;
     try {
-        const ID = (_y = request === null || request === void 0 ? void 0 : request.params) === null || _y === void 0 ? void 0 : _y.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const { id, accountType } = request.user;
         const booking = yield booking_model_1.default.findOne({ _id: ID, userID: id });
         if (!booking) {
@@ -691,13 +701,13 @@ const cancelBooking = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(message), message));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_z = error.message) !== null && _z !== void 0 ? _z : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68, _69, _70, _71, _72, _73, _74, _75, _76, _77, _78, _79, _80, _81, _82, _83, _84, _85, _86, _87, _88, _89, _90, _91;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67;
     try {
-        const ID = (_0 = request === null || request === void 0 ? void 0 : request.params) === null || _0 === void 0 ? void 0 : _0.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const { id, accountType, businessProfileID } = request.user;
         const { status } = request.body;
         const nextStatus = [booking_model_1.BookingStatus.CANCELED_BY_BUSINESS.toString(), booking_model_1.BookingStatus.CONFIRMED.toString()];
@@ -722,32 +732,32 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             user_model_1.default.findOne({ businessProfileID: booking.businessProfileID }),
             businessProfile_model_1.default.findOne({ _id: booking.businessProfileID }),
             user_model_1.default.findOne({ _id: booking.userID }),
-            room_model_1.default.findOne({ _id: (_1 = booking === null || booking === void 0 ? void 0 : booking.bookedRoom) === null || _1 === void 0 ? void 0 : _1.roomID }),
+            room_model_1.default.findOne({ _id: (_b = booking === null || booking === void 0 ? void 0 : booking.bookedRoom) === null || _b === void 0 ? void 0 : _b.roomID }),
         ]);
         if (businessType && [BusinessTypeSeeder_1.BusinessType.HOTEL.toString(), BusinessTypeSeeder_1.BusinessType.HOME_STAYS.toString()].includes(businessType)) {
             if (status === booking_model_1.BookingStatus.CONFIRMED) {
                 new EmailNotificationService_1.default().sendBookingConfirmationEmail({
                     type: savedBooking.type,
-                    toAddress: (_2 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _2 !== void 0 ? _2 : "",
-                    cc: [(_3 = user === null || user === void 0 ? void 0 : user.email) !== null && _3 !== void 0 ? _3 : "", (_4 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _4 !== void 0 ? _4 : ""],
-                    businessName: (_5 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _5 !== void 0 ? _5 : "",
+                    toAddress: (_c = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _c !== void 0 ? _c : "",
+                    cc: [(_d = user === null || user === void 0 ? void 0 : user.email) !== null && _d !== void 0 ? _d : "", (_e = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _e !== void 0 ? _e : ""],
+                    businessName: (_f = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _f !== void 0 ? _f : "",
                     businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.HOTEL.toString(),
-                    businessPhone: (_6 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _6 !== void 0 ? _6 : "",
-                    businessEmail: (_7 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _7 !== void 0 ? _7 : "",
+                    businessPhone: (_g = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _g !== void 0 ? _g : "",
+                    businessEmail: (_h = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _h !== void 0 ? _h : "",
                     address: {
-                        street: (_9 = (_8 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _8 === void 0 ? void 0 : _8.street) !== null && _9 !== void 0 ? _9 : "",
-                        city: (_11 = (_10 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _10 === void 0 ? void 0 : _10.city) !== null && _11 !== void 0 ? _11 : "",
-                        state: (_13 = (_12 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _12 === void 0 ? void 0 : _12.state) !== null && _13 !== void 0 ? _13 : "",
-                        zipCode: (_15 = (_14 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _14 === void 0 ? void 0 : _14.zipCode) !== null && _15 !== void 0 ? _15 : "",
-                        country: (_17 = (_16 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _16 === void 0 ? void 0 : _16.country) !== null && _17 !== void 0 ? _17 : "",
+                        street: (_k = (_j = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _j === void 0 ? void 0 : _j.street) !== null && _k !== void 0 ? _k : "",
+                        city: (_m = (_l = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _l === void 0 ? void 0 : _l.city) !== null && _m !== void 0 ? _m : "",
+                        state: (_p = (_o = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _o === void 0 ? void 0 : _o.state) !== null && _p !== void 0 ? _p : "",
+                        zipCode: (_r = (_q = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _q === void 0 ? void 0 : _q.zipCode) !== null && _r !== void 0 ? _r : "",
+                        country: (_t = (_s = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _s === void 0 ? void 0 : _s.country) !== null && _t !== void 0 ? _t : "",
                     },
-                    customerName: (_18 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _18 !== void 0 ? _18 : "",
-                    customerEmail: (_19 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _19 !== void 0 ? _19 : "",
-                    customerPhone: (_20 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _20 !== void 0 ? _20 : "",
+                    customerName: (_u = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _u !== void 0 ? _u : "",
+                    customerEmail: (_v = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _v !== void 0 ? _v : "",
+                    customerPhone: (_w = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _w !== void 0 ? _w : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: savedBooking.bookedRoom.nights,
-                    roomType: (_21 = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _21 !== void 0 ? _21 : "",
+                    roomType: (_x = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _x !== void 0 ? _x : "",
                     bookingID: savedBooking.bookingID,
                     adults: savedBooking.adults,
                     children: savedBooking.children,
@@ -761,18 +771,18 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             if (status === booking_model_1.BookingStatus.CANCELED_BY_BUSINESS) {
                 new EmailNotificationService_1.default().sendBookingCancellationEmail({
                     type: savedBooking.type,
-                    toAddress: (_22 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _22 !== void 0 ? _22 : "",
-                    cc: [(_23 = user === null || user === void 0 ? void 0 : user.email) !== null && _23 !== void 0 ? _23 : "", (_24 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _24 !== void 0 ? _24 : ""],
-                    businessName: (_25 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _25 !== void 0 ? _25 : "",
-                    businessPhone: (_26 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _26 !== void 0 ? _26 : "",
-                    businessEmail: (_27 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _27 !== void 0 ? _27 : "",
-                    customerName: (_28 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _28 !== void 0 ? _28 : "",
-                    customerEmail: (_29 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _29 !== void 0 ? _29 : "",
-                    customerPhone: (_30 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _30 !== void 0 ? _30 : "",
+                    toAddress: (_y = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _y !== void 0 ? _y : "",
+                    cc: [(_z = user === null || user === void 0 ? void 0 : user.email) !== null && _z !== void 0 ? _z : "", (_0 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _0 !== void 0 ? _0 : ""],
+                    businessName: (_1 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _1 !== void 0 ? _1 : "",
+                    businessPhone: (_2 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _2 !== void 0 ? _2 : "",
+                    businessEmail: (_3 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _3 !== void 0 ? _3 : "",
+                    customerName: (_4 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _4 !== void 0 ? _4 : "",
+                    customerEmail: (_5 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _5 !== void 0 ? _5 : "",
+                    customerPhone: (_6 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _6 !== void 0 ? _6 : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: savedBooking.bookedRoom.nights,
-                    roomType: (_31 = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _31 !== void 0 ? _31 : "",
+                    roomType: (_7 = roomDetails === null || roomDetails === void 0 ? void 0 : roomDetails.roomType) !== null && _7 !== void 0 ? _7 : "",
                     bookingID: savedBooking.bookingID,
                     adults: savedBooking.adults,
                     children: savedBooking.children,
@@ -784,7 +794,7 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
                 bookingID: savedBooking._id,
                 businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.RESTAURANT.toString(),
                 type: savedBooking.type,
-                typeOfEvent: (_32 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _32 !== void 0 ? _32 : "",
+                typeOfEvent: (_8 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _8 !== void 0 ? _8 : "",
                 status: status,
                 bookingRef: booking.bookingID
             }).catch((error) => console.error(error));
@@ -793,22 +803,22 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             if (status === booking_model_1.BookingStatus.CONFIRMED) {
                 new EmailNotificationService_1.default().sendBookingConfirmationEmail({
                     type: savedBooking.type,
-                    toAddress: (_33 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _33 !== void 0 ? _33 : "",
-                    cc: [(_34 = user === null || user === void 0 ? void 0 : user.email) !== null && _34 !== void 0 ? _34 : "", (_35 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _35 !== void 0 ? _35 : ""],
-                    businessName: (_36 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _36 !== void 0 ? _36 : "",
+                    toAddress: (_9 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _9 !== void 0 ? _9 : "",
+                    cc: [(_10 = user === null || user === void 0 ? void 0 : user.email) !== null && _10 !== void 0 ? _10 : "", (_11 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _11 !== void 0 ? _11 : ""],
+                    businessName: (_12 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _12 !== void 0 ? _12 : "",
                     businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.HOTEL.toString(),
-                    businessPhone: (_37 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _37 !== void 0 ? _37 : "",
-                    businessEmail: (_38 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _38 !== void 0 ? _38 : "",
+                    businessPhone: (_13 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _13 !== void 0 ? _13 : "",
+                    businessEmail: (_14 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _14 !== void 0 ? _14 : "",
                     address: {
-                        street: (_40 = (_39 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _39 === void 0 ? void 0 : _39.street) !== null && _40 !== void 0 ? _40 : "",
-                        city: (_42 = (_41 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _41 === void 0 ? void 0 : _41.city) !== null && _42 !== void 0 ? _42 : "",
-                        state: (_44 = (_43 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _43 === void 0 ? void 0 : _43.state) !== null && _44 !== void 0 ? _44 : "",
-                        zipCode: (_46 = (_45 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _45 === void 0 ? void 0 : _45.zipCode) !== null && _46 !== void 0 ? _46 : "",
-                        country: (_48 = (_47 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _47 === void 0 ? void 0 : _47.country) !== null && _48 !== void 0 ? _48 : "",
+                        street: (_16 = (_15 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _15 === void 0 ? void 0 : _15.street) !== null && _16 !== void 0 ? _16 : "",
+                        city: (_18 = (_17 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _17 === void 0 ? void 0 : _17.city) !== null && _18 !== void 0 ? _18 : "",
+                        state: (_20 = (_19 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _19 === void 0 ? void 0 : _19.state) !== null && _20 !== void 0 ? _20 : "",
+                        zipCode: (_22 = (_21 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _21 === void 0 ? void 0 : _21.zipCode) !== null && _22 !== void 0 ? _22 : "",
+                        country: (_24 = (_23 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _23 === void 0 ? void 0 : _23.country) !== null && _24 !== void 0 ? _24 : "",
                     },
-                    customerName: (_49 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _49 !== void 0 ? _49 : "",
-                    customerEmail: (_50 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _50 !== void 0 ? _50 : "",
-                    customerPhone: (_51 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _51 !== void 0 ? _51 : "",
+                    customerName: (_25 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _25 !== void 0 ? _25 : "",
+                    customerEmail: (_26 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _26 !== void 0 ? _26 : "",
+                    customerPhone: (_27 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _27 !== void 0 ? _27 : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: 0,
@@ -826,14 +836,14 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             if (status === booking_model_1.BookingStatus.CANCELED_BY_BUSINESS) {
                 new EmailNotificationService_1.default().sendBookingCancellationEmail({
                     type: savedBooking.type,
-                    toAddress: (_52 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _52 !== void 0 ? _52 : "",
-                    cc: [(_53 = user === null || user === void 0 ? void 0 : user.email) !== null && _53 !== void 0 ? _53 : "", (_54 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _54 !== void 0 ? _54 : ""],
-                    businessName: (_55 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _55 !== void 0 ? _55 : "",
-                    businessPhone: (_56 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _56 !== void 0 ? _56 : "",
-                    businessEmail: (_57 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _57 !== void 0 ? _57 : "",
-                    customerName: (_58 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _58 !== void 0 ? _58 : "",
-                    customerEmail: (_59 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _59 !== void 0 ? _59 : "",
-                    customerPhone: (_60 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _60 !== void 0 ? _60 : "",
+                    toAddress: (_28 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _28 !== void 0 ? _28 : "",
+                    cc: [(_29 = user === null || user === void 0 ? void 0 : user.email) !== null && _29 !== void 0 ? _29 : "", (_30 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _30 !== void 0 ? _30 : ""],
+                    businessName: (_31 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _31 !== void 0 ? _31 : "",
+                    businessPhone: (_32 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _32 !== void 0 ? _32 : "",
+                    businessEmail: (_33 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _33 !== void 0 ? _33 : "",
+                    customerName: (_34 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _34 !== void 0 ? _34 : "",
+                    customerEmail: (_35 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _35 !== void 0 ? _35 : "",
+                    customerPhone: (_36 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _36 !== void 0 ? _36 : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: 0,
@@ -850,7 +860,7 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
                 bookingID: savedBooking._id,
                 businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.RESTAURANT.toString(),
                 type: savedBooking.type,
-                typeOfEvent: (_61 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _61 !== void 0 ? _61 : "",
+                typeOfEvent: (_37 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _37 !== void 0 ? _37 : "",
                 status: status,
                 bookingRef: booking.bookingID
             }).catch((error) => console.error(error));
@@ -860,22 +870,22 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             if (status === booking_model_1.BookingStatus.CONFIRMED) {
                 new EmailNotificationService_1.default().sendBookingConfirmationEmail({
                     type: savedBooking.type,
-                    toAddress: (_62 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _62 !== void 0 ? _62 : "",
-                    cc: [(_63 = user === null || user === void 0 ? void 0 : user.email) !== null && _63 !== void 0 ? _63 : "", (_64 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _64 !== void 0 ? _64 : ""],
-                    businessName: (_65 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _65 !== void 0 ? _65 : "",
+                    toAddress: (_38 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _38 !== void 0 ? _38 : "",
+                    cc: [(_39 = user === null || user === void 0 ? void 0 : user.email) !== null && _39 !== void 0 ? _39 : "", (_40 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _40 !== void 0 ? _40 : ""],
+                    businessName: (_41 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _41 !== void 0 ? _41 : "",
                     businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.HOTEL.toString(),
-                    businessPhone: (_66 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _66 !== void 0 ? _66 : "",
-                    businessEmail: (_67 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _67 !== void 0 ? _67 : "",
+                    businessPhone: (_42 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _42 !== void 0 ? _42 : "",
+                    businessEmail: (_43 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _43 !== void 0 ? _43 : "",
                     address: {
-                        street: (_69 = (_68 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _68 === void 0 ? void 0 : _68.street) !== null && _69 !== void 0 ? _69 : "",
-                        city: (_71 = (_70 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _70 === void 0 ? void 0 : _70.city) !== null && _71 !== void 0 ? _71 : "",
-                        state: (_73 = (_72 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _72 === void 0 ? void 0 : _72.state) !== null && _73 !== void 0 ? _73 : "",
-                        zipCode: (_75 = (_74 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _74 === void 0 ? void 0 : _74.zipCode) !== null && _75 !== void 0 ? _75 : "",
-                        country: (_77 = (_76 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _76 === void 0 ? void 0 : _76.country) !== null && _77 !== void 0 ? _77 : "",
+                        street: (_45 = (_44 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _44 === void 0 ? void 0 : _44.street) !== null && _45 !== void 0 ? _45 : "",
+                        city: (_47 = (_46 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _46 === void 0 ? void 0 : _46.city) !== null && _47 !== void 0 ? _47 : "",
+                        state: (_49 = (_48 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _48 === void 0 ? void 0 : _48.state) !== null && _49 !== void 0 ? _49 : "",
+                        zipCode: (_51 = (_50 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _50 === void 0 ? void 0 : _50.zipCode) !== null && _51 !== void 0 ? _51 : "",
+                        country: (_53 = (_52 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _52 === void 0 ? void 0 : _52.country) !== null && _53 !== void 0 ? _53 : "",
                     },
-                    customerName: (_78 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _78 !== void 0 ? _78 : "",
-                    customerEmail: (_79 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _79 !== void 0 ? _79 : "",
-                    customerPhone: (_80 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _80 !== void 0 ? _80 : "",
+                    customerName: (_54 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _54 !== void 0 ? _54 : "",
+                    customerEmail: (_55 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _55 !== void 0 ? _55 : "",
+                    customerPhone: (_56 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _56 !== void 0 ? _56 : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: 0,
@@ -893,14 +903,14 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
             if (status === booking_model_1.BookingStatus.CANCELED_BY_BUSINESS) {
                 new EmailNotificationService_1.default().sendBookingCancellationEmail({
                     type: savedBooking.type,
-                    toAddress: (_81 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _81 !== void 0 ? _81 : "",
-                    cc: [(_82 = user === null || user === void 0 ? void 0 : user.email) !== null && _82 !== void 0 ? _82 : "", (_83 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _83 !== void 0 ? _83 : ""],
-                    businessName: (_84 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _84 !== void 0 ? _84 : "",
-                    businessPhone: (_85 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _85 !== void 0 ? _85 : "",
-                    businessEmail: (_86 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _86 !== void 0 ? _86 : "",
-                    customerName: (_87 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _87 !== void 0 ? _87 : "",
-                    customerEmail: (_88 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _88 !== void 0 ? _88 : "",
-                    customerPhone: (_89 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _89 !== void 0 ? _89 : "",
+                    toAddress: (_57 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _57 !== void 0 ? _57 : "",
+                    cc: [(_58 = user === null || user === void 0 ? void 0 : user.email) !== null && _58 !== void 0 ? _58 : "", (_59 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _59 !== void 0 ? _59 : ""],
+                    businessName: (_60 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _60 !== void 0 ? _60 : "",
+                    businessPhone: (_61 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.phoneNumber) !== null && _61 !== void 0 ? _61 : "",
+                    businessEmail: (_62 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _62 !== void 0 ? _62 : "",
+                    customerName: (_63 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _63 !== void 0 ? _63 : "",
+                    customerEmail: (_64 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _64 !== void 0 ? _64 : "",
+                    customerPhone: (_65 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _65 !== void 0 ? _65 : "",
                     checkIn: savedBooking.checkIn,
                     checkOut: savedBooking.checkOut,
                     nights: 0,
@@ -917,7 +927,7 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
                 bookingID: savedBooking._id,
                 businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.RESTAURANT.toString(),
                 type: savedBooking.type,
-                typeOfEvent: (_90 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _90 !== void 0 ? _90 : "",
+                typeOfEvent: (_66 = metadata === null || metadata === void 0 ? void 0 : metadata.typeOfEvent) !== null && _66 !== void 0 ? _66 : "",
                 status: status,
                 bookingRef: booking.bookingID
             }).catch((error) => console.error(error));
@@ -925,13 +935,13 @@ const changeBookingStatus = (request, response, next) => __awaiter(void 0, void 
         return response.send((0, response_1.httpNoContent)(null, "Booking status updated successfully."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_91 = error.message) !== null && _91 !== void 0 ? _91 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_67 = error.message) !== null && _67 !== void 0 ? _67 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const downloadInvoice = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _92, _93, _94, _95, _96, _97, _98, _99, _100, _101;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     try {
-        const ID = (_92 = request === null || request === void 0 ? void 0 : request.params) === null || _92 === void 0 ? void 0 : _92.id;
+        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
         const { id, accountType } = request.user;
         const booking = yield booking_model_1.default.findOne({ _id: ID, userID: id });
         if (!booking) {
@@ -953,14 +963,14 @@ const downloadInvoice = (request, response, next) => __awaiter(void 0, void 0, v
         pdf.text('\n');
         pdf.text('\n');
         pdf.fontSize(11).text(`Booking Information`);
-        pdf.fontSize(10).text(`Customer Name:   ${(_93 = user === null || user === void 0 ? void 0 : user.name) !== null && _93 !== void 0 ? _93 : ''}`);
+        pdf.fontSize(10).text(`Customer Name:   ${(_b = user === null || user === void 0 ? void 0 : user.name) !== null && _b !== void 0 ? _b : ''}`);
         pdf.fontSize(10).text(`Booking Reference:   ${booking.bookingID}`);
         pdf.fontSize(10).text(`Date:   ${(0, moment_1.default)(booking.createdAt).format('ddd DD, MMM YYYY hh:mm:ss A')}`);
         pdf.text('\n');
-        pdf.fontSize(10).text(`Check In:   ${(_94 = (0, moment_1.default)(booking.checkIn).format('ddd DD, MMM YYYY hh:mm:ss A')) !== null && _94 !== void 0 ? _94 : ''}`);
-        pdf.fontSize(10).text(`Number of Nights:   ${(_96 = (_95 = booking === null || booking === void 0 ? void 0 : booking.bookedRoom) === null || _95 === void 0 ? void 0 : _95.nights) !== null && _96 !== void 0 ? _96 : ''}`);
-        pdf.fontSize(10).text(`Check Out:   ${(_97 = (0, moment_1.default)(booking.checkOut).format('ddd DD, MMM YYYY hh:mm:ss A')) !== null && _97 !== void 0 ? _97 : ''}`);
-        pdf.fontSize(10).text(`Room Type:   ${(_99 = (_98 = room === null || room === void 0 ? void 0 : room.roomType) === null || _98 === void 0 ? void 0 : _98.toUpperCase()) !== null && _99 !== void 0 ? _99 : ''}`);
+        pdf.fontSize(10).text(`Check In:   ${(_c = (0, moment_1.default)(booking.checkIn).format('ddd DD, MMM YYYY hh:mm:ss A')) !== null && _c !== void 0 ? _c : ''}`);
+        pdf.fontSize(10).text(`Number of Nights:   ${(_e = (_d = booking === null || booking === void 0 ? void 0 : booking.bookedRoom) === null || _d === void 0 ? void 0 : _d.nights) !== null && _e !== void 0 ? _e : ''}`);
+        pdf.fontSize(10).text(`Check Out:   ${(_f = (0, moment_1.default)(booking.checkOut).format('ddd DD, MMM YYYY hh:mm:ss A')) !== null && _f !== void 0 ? _f : ''}`);
+        pdf.fontSize(10).text(`Room Type:   ${(_h = (_g = room === null || room === void 0 ? void 0 : room.roomType) === null || _g === void 0 ? void 0 : _g.toUpperCase()) !== null && _h !== void 0 ? _h : ''}`);
         // Table of Items
         pdf.text('\n');
         pdf.text('\n');
@@ -968,7 +978,7 @@ const downloadInvoice = (request, response, next) => __awaiter(void 0, void 0, v
         pdf.fontSize(10).text('--------------------------------------------------------------------------------------------------------------------------');
         pdf.text('Description          Quantity          Price          Total');
         pdf.fontSize(10).text('--------------------------------------------------------------------------------------------------------------------------');
-        pdf.fontSize(8).text(`${(_100 = room === null || room === void 0 ? void 0 : room.roomType) === null || _100 === void 0 ? void 0 : _100.toUpperCase()} Room\n${room === null || room === void 0 ? void 0 : room.title}          ${booking.bookedRoom.quantity}          ${booking.bookedRoom.price} INR          ${booking.bookedRoom.quantity * booking.bookedRoom.price} INR`);
+        pdf.fontSize(8).text(`${(_j = room === null || room === void 0 ? void 0 : room.roomType) === null || _j === void 0 ? void 0 : _j.toUpperCase()} Room\n${room === null || room === void 0 ? void 0 : room.title}          ${booking.bookedRoom.quantity}          ${booking.bookedRoom.price} INR          ${booking.bookedRoom.quantity * booking.bookedRoom.price} INR`);
         pdf.fontSize(10).text('--------------------------------------------------------------------------------------------------------------------------');
         pdf.text('\n');
         pdf.text('\n');
@@ -991,11 +1001,11 @@ const downloadInvoice = (request, response, next) => __awaiter(void 0, void 0, v
         return response.send((0, response_1.httpOk)(fileObject, "Invoice downloaded successfully."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_101 = error.message) !== null && _101 !== void 0 ? _101 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const bookTable = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _102, _103, _104, _105, _106, _107, _108, _109, _110, _111, _112, _113, _114, _115, _116;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
     try {
         const { id, accountType } = request.user;
         const { numberOfGuests, date, time, businessProfileID } = request.body;
@@ -1039,13 +1049,13 @@ const bookTable = (request, response, next) => __awaiter(void 0, void 0, void 0,
             const savedBooking = yield newBooking.save();
             new EmailNotificationService_1.default().sendBookingEmail({
                 type: savedBooking.type,
-                toAddress: (_102 = user === null || user === void 0 ? void 0 : user.email) !== null && _102 !== void 0 ? _102 : "",
-                cc: [(_103 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _103 !== void 0 ? _103 : "", (_104 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _104 !== void 0 ? _104 : ""],
-                businessName: (_105 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _105 !== void 0 ? _105 : "",
+                toAddress: (_a = user === null || user === void 0 ? void 0 : user.email) !== null && _a !== void 0 ? _a : "",
+                cc: [(_b = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _b !== void 0 ? _b : "", (_c = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _c !== void 0 ? _c : ""],
+                businessName: (_d = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _d !== void 0 ? _d : "",
                 businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.RESTAURANT.toString(),
-                customerName: (_106 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _106 !== void 0 ? _106 : "",
-                customerEmail: (_107 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _107 !== void 0 ? _107 : "",
-                customerPhone: (_108 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _108 !== void 0 ? _108 : "",
+                customerName: (_e = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _e !== void 0 ? _e : "",
+                customerEmail: (_f = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _f !== void 0 ? _f : "",
+                customerPhone: (_g = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _g !== void 0 ? _g : "",
                 checkIn: savedBooking.checkIn,
                 checkOut: savedBooking.checkOut,
                 nights: 0,
@@ -1076,12 +1086,12 @@ const bookTable = (request, response, next) => __awaiter(void 0, void 0, void 0,
         const savedBooking = yield booking.save();
         new EmailNotificationService_1.default().sendBookingEmail({
             type: savedBooking.type,
-            toAddress: (_109 = user === null || user === void 0 ? void 0 : user.email) !== null && _109 !== void 0 ? _109 : "",
-            cc: [(_110 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _110 !== void 0 ? _110 : "", (_111 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _111 !== void 0 ? _111 : ""],
-            businessName: (_112 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _112 !== void 0 ? _112 : "",
-            customerName: (_113 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _113 !== void 0 ? _113 : "",
-            customerEmail: (_114 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _114 !== void 0 ? _114 : "",
-            customerPhone: (_115 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _115 !== void 0 ? _115 : "",
+            toAddress: (_h = user === null || user === void 0 ? void 0 : user.email) !== null && _h !== void 0 ? _h : "",
+            cc: [(_j = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _j !== void 0 ? _j : "", (_k = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _k !== void 0 ? _k : ""],
+            businessName: (_l = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _l !== void 0 ? _l : "",
+            customerName: (_m = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _m !== void 0 ? _m : "",
+            customerEmail: (_o = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _o !== void 0 ? _o : "",
+            customerPhone: (_p = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _p !== void 0 ? _p : "",
             checkIn: savedBooking.checkIn,
             checkOut: savedBooking.checkOut,
             nights: 0,
@@ -1099,11 +1109,11 @@ const bookTable = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpOk)(savedBooking, "Table booking successful! We look forward to serving you."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_116 = error.message) !== null && _116 !== void 0 ? _116 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const bookBanquet = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _117, _118, _119, _120, _121, _122, _123, _124, _125, _126, _127, _128, _129, _130, _131;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
     try {
         const { id, accountType } = request.user;
         const { numberOfGuests, checkIn, checkOut, businessProfileID, typeOfEvent } = request.body;
@@ -1149,13 +1159,13 @@ const bookBanquet = (request, response, next) => __awaiter(void 0, void 0, void 
             const savedBooking = yield newBooking.save();
             new EmailNotificationService_1.default().sendBookingEmail({
                 type: savedBooking.type,
-                toAddress: (_117 = user === null || user === void 0 ? void 0 : user.email) !== null && _117 !== void 0 ? _117 : "",
-                cc: [(_118 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _118 !== void 0 ? _118 : "", (_119 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _119 !== void 0 ? _119 : ""],
-                businessName: (_120 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _120 !== void 0 ? _120 : "",
+                toAddress: (_a = user === null || user === void 0 ? void 0 : user.email) !== null && _a !== void 0 ? _a : "",
+                cc: [(_b = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _b !== void 0 ? _b : "", (_c = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _c !== void 0 ? _c : ""],
+                businessName: (_d = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _d !== void 0 ? _d : "",
                 businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.MARRIAGE_BANQUETS.toString(),
-                customerName: (_121 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _121 !== void 0 ? _121 : "",
-                customerEmail: (_122 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _122 !== void 0 ? _122 : "",
-                customerPhone: (_123 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _123 !== void 0 ? _123 : "",
+                customerName: (_e = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _e !== void 0 ? _e : "",
+                customerEmail: (_f = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _f !== void 0 ? _f : "",
+                customerPhone: (_g = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _g !== void 0 ? _g : "",
                 checkIn: savedBooking.checkIn,
                 checkOut: savedBooking.checkOut,
                 nights: 0,
@@ -1187,13 +1197,13 @@ const bookBanquet = (request, response, next) => __awaiter(void 0, void 0, void 
         const savedBooking = yield booking.save();
         new EmailNotificationService_1.default().sendBookingEmail({
             type: savedBooking.type,
-            toAddress: (_124 = user === null || user === void 0 ? void 0 : user.email) !== null && _124 !== void 0 ? _124 : "",
-            cc: [(_125 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _125 !== void 0 ? _125 : "", (_126 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _126 !== void 0 ? _126 : ""],
+            toAddress: (_h = user === null || user === void 0 ? void 0 : user.email) !== null && _h !== void 0 ? _h : "",
+            cc: [(_j = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _j !== void 0 ? _j : "", (_k = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.email) !== null && _k !== void 0 ? _k : ""],
             businessType: businessType !== null && businessType !== void 0 ? businessType : BusinessTypeSeeder_1.BusinessType.MARRIAGE_BANQUETS.toString(),
-            businessName: (_127 = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _127 !== void 0 ? _127 : "",
-            customerName: (_128 = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _128 !== void 0 ? _128 : "",
-            customerEmail: (_129 = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _129 !== void 0 ? _129 : "",
-            customerPhone: (_130 = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _130 !== void 0 ? _130 : "",
+            businessName: (_l = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.name) !== null && _l !== void 0 ? _l : "",
+            customerName: (_m = customer === null || customer === void 0 ? void 0 : customer.name) !== null && _m !== void 0 ? _m : "",
+            customerEmail: (_o = customer === null || customer === void 0 ? void 0 : customer.email) !== null && _o !== void 0 ? _o : "",
+            customerPhone: (_p = customer === null || customer === void 0 ? void 0 : customer.phoneNumber) !== null && _p !== void 0 ? _p : "",
             checkIn: savedBooking.checkIn,
             checkOut: savedBooking.checkOut,
             nights: 0,
@@ -1210,7 +1220,7 @@ const bookBanquet = (request, response, next) => __awaiter(void 0, void 0, void 
         return response.send((0, response_1.httpOk)(savedBooking, "Banquet booking successful! We look forward to serving you."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_131 = error.message) !== null && _131 !== void 0 ? _131 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { checkIn, checkout, confirmCheckout, index, show, cancelBooking, downloadInvoice, bookTable, bookBanquet, orderPayment, changeBookingStatus };
