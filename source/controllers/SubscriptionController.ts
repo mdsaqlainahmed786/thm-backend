@@ -807,7 +807,15 @@ const subscriptionMeta = async (request: Request, response: Response, next: Next
     try {
         const { id } = request.user;
         console.log(id);
-        const hasSubscription = await hasActiveSubscription(id);
+        /**
+         * TESTING CHANGE:
+         * For now we bypass the real subscription check so that test
+         * business accounts (e.g. test hotels / restaurants) behave
+         * as if they have an active subscription and do not get
+         * forced into the subscription purchase flow.
+         */
+        // const hasSubscription = await hasActiveSubscription(id);
+        const hasSubscription = true;
         const pdf = hasSubscription ? 5 : 2; //mega bytes 
         const video = hasSubscription ? 300 : 30;//seconds
         const responseData = {
