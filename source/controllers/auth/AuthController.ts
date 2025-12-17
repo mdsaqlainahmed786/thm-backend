@@ -89,17 +89,24 @@ const login = async (request: Request, response: Response, next: NextFunction) =
                 hasAmenities = false;
             }
 
-            if (!subscription) {
-                hasSubscription = false;
-            }
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // if (!subscription) {
+            //     hasSubscription = false;
+            // }
 
-            if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+            //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+            // }
+            // const now = new Date();
+            // if (subscription && subscription.expirationDate < now) {
+            //     hasSubscription = false;
+            //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }, `Your subscription expired.`));
+            // }
+
+            // Only check documents and amenities, not subscription
+            if (!isDocumentUploaded || !hasAmenities) {
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-            }
-            const now = new Date();
-            if (subscription && subscription.expirationDate < now) {
-                hasSubscription = false;
-                return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }, `Your subscription expired.`));
             }
         }
         if (!user.isApproved) {
@@ -214,17 +221,24 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         hasAmenities = false;
                     }
 
-                    if (!subscription) {
-                        hasSubscription = false;
-                    }
+                    // COMMENTED OUT: Subscription check bypassed for testing
+                    // if (!subscription) {
+                    //     hasSubscription = false;
+                    // }
 
-                    if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    // COMMENTED OUT: Subscription check bypassed for testing
+                    // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+                    // }
+                    // const now = new Date();
+                    // if (subscription && subscription.expirationDate < now) {
+                    //     hasSubscription = false;
+                    //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
+                    // }
+
+                    // Only check documents and amenities, not subscription
+                    if (!isDocumentUploaded || !hasAmenities) {
                         return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-                    }
-                    const now = new Date();
-                    if (subscription && subscription.expirationDate < now) {
-                        hasSubscription = false;
-                        return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
                     }
                 }
                 if (!user.isApproved) {
@@ -323,17 +337,24 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                         hasAmenities = false;
                     }
 
-                    if (!subscription) {
-                        hasSubscription = false;
-                    }
+                    // COMMENTED OUT: Subscription check bypassed for testing
+                    // if (!subscription) {
+                    //     hasSubscription = false;
+                    // }
 
-                    if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    // COMMENTED OUT: Subscription check bypassed for testing
+                    // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
+                    // }
+                    // const now = new Date();
+                    // if (subscription && subscription.expirationDate < now) {
+                    //     hasSubscription = false;
+                    //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
+                    // }
+
+                    // Only check documents and amenities, not subscription
+                    if (!isDocumentUploaded || !hasAmenities) {
                         return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-                    }
-                    const now = new Date();
-                    if (subscription && subscription.expirationDate < now) {
-                        hasSubscription = false;
-                        return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
                     }
                 }
                 if (!user.isApproved) {
@@ -585,18 +606,20 @@ const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) =
 
             if (!businessDocument || businessDocument.length === 0) isDocumentUploaded = false;
             if (!businessProfileRef?.amenities?.length) hasAmenities = false;
-            if (!subscription) hasSubscription = false;
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // if (!subscription) hasSubscription = false;
 
-            const now = new Date();
-            if (subscription && subscription.expirationDate < now) {
-                hasSubscription = false;
-                return res.status(403).json({
-                    status: false,
-                    statusCode: 403,
-                    message: "Your subscription expired",
-                    data: null
-                });
-            }
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // const now = new Date();
+            // if (subscription && subscription.expirationDate < now) {
+            //     hasSubscription = false;
+            //     return res.status(403).json({
+            //         status: false,
+            //         statusCode: 403,
+            //         message: "Your subscription expired",
+            //         data: null
+            //     });
+            // }
         }
 
         if (!user.isApproved) {
