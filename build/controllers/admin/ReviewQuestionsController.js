@@ -122,7 +122,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     try {
         const { question, businessSubtypeID, businessTypeID } = request.body;
         const [previousOrder, businessType, businessSubType] = yield Promise.all([
@@ -145,13 +145,13 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpCreated)(savedSubscriptionPlan, 'Review question created'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _c, _d;
     try {
-        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const ID = (_c = request === null || request === void 0 ? void 0 : request.params) === null || _c === void 0 ? void 0 : _c.id;
         const { question, businessSubtypeID, businessTypeID } = request.body;
         const [businessReviewQuestion, businessType, businessSubType] = yield Promise.all([
             businessReviewQuestion_model_1.default.findOne({ _id: ID }),
@@ -178,13 +178,13 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpAcceptedOrUpdated)(savedBusinessReviewQuestion, 'Review question updated.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _e, _f;
     try {
-        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
         const businessReviewQuestion = yield businessReviewQuestion_model_1.default.findOne({ _id: ID });
         if (!businessReviewQuestion) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Review question not found"), "Review question not found"));
@@ -193,7 +193,7 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, 'Review question deleted'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, store, destroy, update };

@@ -68,7 +68,7 @@ const inviteCollaborator = (req, res, next) => __awaiter(void 0, void 0, void 0,
  * Accept or Decline collaboration
  */
 const respondToInvite = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+    var _c, _d, _e;
     try {
         const { postID, action } = req.body; // "accept" or "decline"
         const { id: userID } = req.user;
@@ -82,7 +82,7 @@ const respondToInvite = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             console.log(" [RESPOND] Post not found:", postID);
             return res.send((0, response_1.httpNotFoundOr404)(null, "Post not found"));
         }
-        const invite = (_a = post.collaborationInvites) === null || _a === void 0 ? void 0 : _a.find((i) => { var _a; return ((_a = i.invitedUserID) === null || _a === void 0 ? void 0 : _a.toString()) === userID.toString(); });
+        const invite = (_c = post.collaborationInvites) === null || _c === void 0 ? void 0 : _c.find((i) => { var _a; return ((_a = i.invitedUserID) === null || _a === void 0 ? void 0 : _a.toString()) === userID.toString(); });
         if (!invite) {
             console.log(" [RESPOND] No invite found for user:", userID);
             return res.send((0, response_1.httpBadRequest)(null, "No pending invitation found"));
@@ -95,8 +95,8 @@ const respondToInvite = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
         invite.respondedAt = new Date();
         if (action === "accept") {
             // Add collaborator if accepted
-            if (!((_b = post.collaborators) === null || _b === void 0 ? void 0 : _b.includes(userID))) {
-                (_c = post.collaborators) === null || _c === void 0 ? void 0 : _c.push(new mongodb_1.ObjectId(userID));
+            if (!((_d = post.collaborators) === null || _d === void 0 ? void 0 : _d.includes(userID))) {
+                (_e = post.collaborators) === null || _e === void 0 ? void 0 : _e.push(new mongodb_1.ObjectId(userID));
                 // console.log(" [RESPOND] Added collaborator:", userID);
             }
         }

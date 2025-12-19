@@ -188,7 +188,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, tagged, feelings } = request.body;
+        const { content, placeName, lat, lng, userTagged, feelings } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -228,10 +228,21 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newStory.businessProfileID = businessProfileID;
         }
         newStory.duration = duration;
+
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
+        //@ts-ignore
+        newStory.location = { placeName, lat, lng };
+        //@ts-ignore
+        newStory.userTagged = userTagged;
+        //@ts-ignore
+        // console.log("newStory.location", newStory.location);
+        // console.log("placeName", placeName);
+        // console.log("lat", lat);
+        // console.log("lng", lng);
         const savedStory = await newStory.save();
-        return response.send(httpCreated(savedStory, 'Your story has been created successfully'));
+        //@ts-ignore
+        return response.send(httpCreated({...newStory.toObject(), location: newStory.location, userTagged: userTagged}, 'Your story has been created successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }

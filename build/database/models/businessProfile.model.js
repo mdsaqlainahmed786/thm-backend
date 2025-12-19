@@ -9,9 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addUserInBusinessProfile = addUserInBusinessProfile;
-exports.fetchBusinessProfiles = fetchBusinessProfiles;
-exports.fetchBusinessIDs = fetchBusinessIDs;
+exports.fetchBusinessIDs = exports.fetchBusinessProfiles = exports.addUserInBusinessProfile = void 0;
 const mongoose_1 = require("mongoose");
 const common_model_1 = require("./common.model");
 const common_model_2 = require("./common.model");
@@ -82,6 +80,7 @@ function addUserInBusinessProfile() {
     };
     return { lookup, unwindLookup };
 }
+exports.addUserInBusinessProfile = addUserInBusinessProfile;
 function fetchBusinessProfiles(match, pageNumber, documentLimit, lat, lng) {
     return __awaiter(this, void 0, void 0, function* () {
         return BusinessProfile.aggregate([
@@ -130,6 +129,7 @@ function fetchBusinessProfiles(match, pageNumber, documentLimit, lat, lng) {
         ]);
     });
 }
+exports.fetchBusinessProfiles = fetchBusinessProfiles;
 function fetchBusinessIDs(query, businessTypeID, lat, lng, radius) {
     return __awaiter(this, void 0, void 0, function* () {
         const dbQuery = {};
@@ -173,3 +173,4 @@ function fetchBusinessIDs(query, businessTypeID, lat, lng, radius) {
         return yield BusinessProfile.distinct('_id', dbQuery);
     });
 }
+exports.fetchBusinessIDs = fetchBusinessIDs;

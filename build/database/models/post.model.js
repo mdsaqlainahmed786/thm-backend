@@ -12,20 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPostQuery = exports.ReviewSchema = exports.PostType = void 0;
-exports.addPostedByInPost = addPostedByInPost;
-exports.addTaggedPeopleInPost = addTaggedPeopleInPost;
-exports.addMediaInPost = addMediaInPost;
-exports.addReviewedBusinessProfileInPost = addReviewedBusinessProfileInPost;
-exports.addGoogleReviewedBusinessProfileInPost = addGoogleReviewedBusinessProfileInPost;
-exports.addInterestedPeopleInPost = addInterestedPeopleInPost;
-exports.isLikedByMe = isLikedByMe;
-exports.isSavedByMe = isSavedByMe;
-exports.imJoining = imJoining;
-exports.fetchPosts = fetchPosts;
-exports.countPostDocument = countPostDocument;
-exports.getPostsCount = getPostsCount;
-exports.getSavedPost = getSavedPost;
+exports.getSavedPost = exports.getPostsCount = exports.getPostQuery = exports.countPostDocument = exports.fetchPosts = exports.imJoining = exports.isSavedByMe = exports.isLikedByMe = exports.addInterestedPeopleInPost = exports.addGoogleReviewedBusinessProfileInPost = exports.addReviewedBusinessProfileInPost = exports.addMediaInPost = exports.addTaggedPeopleInPost = exports.addPostedByInPost = exports.ReviewSchema = exports.PostType = void 0;
 const mongoose_1 = require("mongoose");
 const like_model_1 = require("./like.model");
 const comment_model_1 = require("./comment.model");
@@ -195,6 +182,7 @@ function addPostedByInPost() {
     };
     return { lookup, unwindLookup };
 }
+exports.addPostedByInPost = addPostedByInPost;
 /**
  *
  * @returns
@@ -228,6 +216,7 @@ function addTaggedPeopleInPost() {
     };
     return { lookup };
 }
+exports.addTaggedPeopleInPost = addTaggedPeopleInPost;
 /**
  *
  * @returns
@@ -266,6 +255,7 @@ function addMediaInPost() {
     };
     return { lookup, sort_media };
 }
+exports.addMediaInPost = addMediaInPost;
 /**
  *
  * @returns
@@ -310,6 +300,7 @@ function addReviewedBusinessProfileInPost() {
     };
     return { lookup, unwindLookup };
 }
+exports.addReviewedBusinessProfileInPost = addReviewedBusinessProfileInPost;
 function addGoogleReviewedBusinessProfileInPost() {
     const lookup = {
         '$lookup': {
@@ -345,6 +336,7 @@ function addGoogleReviewedBusinessProfileInPost() {
     };
     return { lookup, unwindLookup };
 }
+exports.addGoogleReviewedBusinessProfileInPost = addGoogleReviewedBusinessProfileInPost;
 /**
  *
  * @returns
@@ -413,6 +405,7 @@ function addInterestedPeopleInPost() {
     };
     return { lookup, addInterestedCount };
 }
+exports.addInterestedPeopleInPost = addInterestedPeopleInPost;
 function isLikedByMe(likedByMe) {
     return {
         $addFields: {
@@ -422,6 +415,7 @@ function isLikedByMe(likedByMe) {
         }
     };
 }
+exports.isLikedByMe = isLikedByMe;
 function isSavedByMe(savedByMe) {
     return {
         $addFields: {
@@ -431,6 +425,7 @@ function isSavedByMe(savedByMe) {
         }
     };
 }
+exports.isSavedByMe = isSavedByMe;
 function imJoining(joiningEvents) {
     return {
         $addFields: {
@@ -440,6 +435,7 @@ function imJoining(joiningEvents) {
         }
     };
 }
+exports.imJoining = imJoining;
 /**
  *
  * @param match  Used in an aggregation pipeline to filter documents.
@@ -567,17 +563,21 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
         }
     ]).exec();
 }
+exports.fetchPosts = fetchPosts;
 function countPostDocument(filter) {
     return Post.find(filter).countDocuments();
 }
+exports.countPostDocument = countPostDocument;
 exports.getPostQuery = { isPublished: true, isDeleted: false };
 function getPostsCount(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         return Post.find(Object.assign({ userID: userID }, exports.getPostQuery)).countDocuments();
     });
 }
+exports.getPostsCount = getPostsCount;
 function getSavedPost(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         return savedPost_model_1.default.distinct('postID', { userID: userID, postID: { $ne: null } });
     });
 }
+exports.getSavedPost = getSavedPost;

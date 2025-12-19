@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addLikesInPost = addLikesInPost;
-exports.addUserInLike = addUserInLike;
+exports.addUserInLike = exports.addLikesInPost = void 0;
 const mongoose_1 = require("mongoose");
 const user_model_1 = require("./user.model");
 const LikeSchema = new mongoose_1.Schema({
@@ -35,6 +34,7 @@ function addLikesInPost() {
     };
     return { lookup, addLikeCount };
 }
+exports.addLikesInPost = addLikesInPost;
 function addUserInLike() {
     const lookup = {
         '$lookup': {
@@ -64,3 +64,4 @@ function addUserInLike() {
     };
     return { lookup, unwindLookup, replaceRoot };
 }
+exports.addUserInLike = addUserInLike;

@@ -3,24 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.enumKeys = enumKeys;
-exports.generateOTP = generateOTP;
-exports.isNumeric = isNumeric;
-exports.isArray = isArray;
-exports.isString = isString;
-exports.isObjectIdInArray = isObjectIdInArray;
-exports.findCommonStrings = findCommonStrings;
-exports.generateRandomAlphaNumericID = generateRandomAlphaNumericID;
-exports.getRandomInteger = getRandomInteger;
-exports.parseFloatToFixed = parseFloatToFixed;
-exports.parseQueryParam = parseQueryParam;
-exports.getAllKeysFromSchema = getAllKeysFromSchema;
-exports.addStringBeforeExtension = addStringBeforeExtension;
-exports.countWords = countWords;
-exports.truncate = truncate;
-exports.randomColor = randomColor;
-exports.getDefaultProfilePic = getDefaultProfilePic;
-exports.predictCategory = predictCategory;
+exports.predictCategory = exports.getDefaultProfilePic = exports.randomColor = exports.truncate = exports.countWords = exports.addStringBeforeExtension = exports.getAllKeysFromSchema = exports.parseQueryParam = exports.parseFloatToFixed = exports.getRandomInteger = exports.generateRandomAlphaNumericID = exports.findCommonStrings = exports.isObjectIdInArray = exports.isString = exports.isArray = exports.isNumeric = exports.generateOTP = exports.enumKeys = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const constants_1 = require("../../config/constants");
 const BusinessTypeSeeder_1 = require("../../database/seeders/BusinessTypeSeeder");
@@ -33,17 +16,21 @@ String.prototype.capitalize = function () {
 function enumKeys(obj) {
     return Object.keys(obj).filter(k => !Number.isNaN(k));
 }
+exports.enumKeys = enumKeys;
 // import moment from 'moment';
 function generateOTP() {
     const otp = Math.floor(10000 + Math.random() * 90000);
     return (constants_1.AppConfig.APP_ENV === "dev") ? 12345 : otp;
 }
+exports.generateOTP = generateOTP;
 function isNumeric(data) {
     return isNaN(data);
 }
+exports.isNumeric = isNumeric;
 function isArray(data) {
     return Array.isArray(data);
 }
+exports.isArray = isArray;
 function isString(data) {
     if (typeof data === 'string' || data instanceof String) {
         return true;
@@ -52,6 +39,7 @@ function isString(data) {
         return false;
     }
 }
+exports.isString = isString;
 //check if a MongoDB ObjectId is in an array
 function isObjectIdInArray(objectId, array) {
     const objectIdStr = objectId.toString(); // Convert the input ObjectId to string
@@ -63,6 +51,7 @@ function isObjectIdInArray(objectId, array) {
     }
     return false; // ObjectId not found in the array
 }
+exports.isObjectIdInArray = isObjectIdInArray;
 function findCommonStrings(arr1, arr2) {
     console.log(arr1, 'Array 1');
     console.log(arr2, 'Array 2');
@@ -78,6 +67,7 @@ function findCommonStrings(arr1, arr2) {
     }
     return commonStrings;
 }
+exports.findCommonStrings = findCommonStrings;
 //Function generate a alpha number random id to given length....
 function generateRandomAlphaNumericID(length) {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -85,6 +75,7 @@ function generateRandomAlphaNumericID(length) {
     const characterArray = Array.from(randomBytes, byte => characters[byte % characters.length]);
     return characterArray.join('');
 }
+exports.generateRandomAlphaNumericID = generateRandomAlphaNumericID;
 //Function generate random integer between', minValue, 'and', maxValue.
 function getRandomInteger(min, max, includeNegative) {
     if (includeNegative && includeNegative) {
@@ -94,6 +85,7 @@ function getRandomInteger(min, max, includeNegative) {
     }
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+exports.getRandomInteger = getRandomInteger;
 function parseFloatToFixed(number, precision) {
     let returnNumber;
     switch (precision) {
@@ -106,6 +98,7 @@ function parseFloatToFixed(number, precision) {
     }
     return returnNumber;
 }
+exports.parseFloatToFixed = parseFloatToFixed;
 /** Function to parseQuery Params and set default value if not set */
 function parseQueryParam(value, defaultValue) {
     if (value !== undefined && value !== '' && !isNaN(value)) {
@@ -113,6 +106,7 @@ function parseQueryParam(value, defaultValue) {
     }
     return defaultValue;
 }
+exports.parseQueryParam = parseQueryParam;
 // export const calculateTotalDays = (startDate: Date, endDate: Date): number => {
 //     const startMoment = moment(startDate);
 //     const endMoment = moment(endDate);
@@ -139,6 +133,7 @@ function getAllKeysFromSchema(schema, prefix = '') {
     }
     return keys;
 }
+exports.getAllKeysFromSchema = getAllKeysFromSchema;
 function addStringBeforeExtension(filePath, stringToAdd) {
     const lastDotIndex = filePath.lastIndexOf('.');
     if (lastDotIndex !== -1) {
@@ -153,6 +148,7 @@ function addStringBeforeExtension(filePath, stringToAdd) {
         return `${filePath}`;
     }
 }
+exports.addStringBeforeExtension = addStringBeforeExtension;
 //Return the word count of give string;
 function countWords(string) {
     const trimmedStr = string.trim();
@@ -162,6 +158,7 @@ function countWords(string) {
     const wordsArray = trimmedStr.split(/\s+/);
     return wordsArray.length; // Return the count of words
 }
+exports.countWords = countWords;
 const months = ["January", "February", "March", "April", "May", "June", "July"];
 const random = Math.floor(Math.random() * months.length);
 function truncate(string, length) {
@@ -169,13 +166,16 @@ function truncate(string, length) {
     let truncatedComment = string ? string : '';
     return truncatedComment = truncatedComment.length > messageLength ? truncatedComment.slice(0, messageLength) + '...' : truncatedComment;
 }
+exports.truncate = truncate;
 function randomColor() {
     const colors = ["#4285F4", "#0F9D58", "#DB4437", "#F4B400", "#9C27B0"];
     return colors[Math.floor(Math.random() * colors.length)];
 }
+exports.randomColor = randomColor;
 function getDefaultProfilePic(request, size) {
     return request.protocol + "://" + request.get("host") + `/api/v1/profile-picture/thumbnail?color=${randomColor().replace("#", "")}&size=${size}`;
 }
+exports.getDefaultProfilePic = getDefaultProfilePic;
 function predictCategory(types, name) {
     const Restaurant = ['cafe', 'bakery', 'food', 'restaurant', 'meal_delivery', 'meal_takeaway'];
     const Hotel = ['lodging'];
@@ -240,3 +240,4 @@ function predictCategory(types, name) {
         return BusinessTypeSeeder_1.BusinessType.MARRIAGE_BANQUETS;
     }
 }
+exports.predictCategory = predictCategory;

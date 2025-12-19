@@ -12,8 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PricePresetType = void 0;
-exports.generatePricePresetForRoom = generatePricePresetForRoom;
+exports.generatePricePresetForRoom = exports.PricePresetType = void 0;
 const mongoose_1 = require("mongoose");
 const date_1 = require("../../utils/helper/date");
 const room_model_1 = __importDefault(require("./room.model"));
@@ -102,6 +101,7 @@ function generatePricePresetForRoom(pricePresetID) {
         return yield roomPrices_model_1.default.create(priceArray);
     });
 }
+exports.generatePricePresetForRoom = generatePricePresetForRoom;
 const pricesArray = (dates, pricePreset, room) => {
     let loopIndex = 0;
     let lastSlab = "";

@@ -68,7 +68,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     try {
         const { name, description, code, priceType, value, cartValue, redeemedCount, quantity, validFrom, validTo, maxDiscount, type } = request.body;
         const newPromoCode = new promoCode_model_1.default();
@@ -88,13 +88,13 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpCreated)(savedPromoCode, 'Promo code created'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _c, _d;
     try {
-        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const ID = (_c = request === null || request === void 0 ? void 0 : request.params) === null || _c === void 0 ? void 0 : _c.id;
         const { name, description, code, priceType, value, cartValue, redeemedCount, quantity, validFrom, validTo, maxDiscount, type } = request.body;
         const promoCode = yield promoCode_model_1.default.findOne({ _id: ID });
         if (!promoCode) {
@@ -116,13 +116,13 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpAcceptedOrUpdated)(savedPromoCode, 'Promo code updated'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _e, _f;
     try {
-        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
         const promoCode = yield promoCode_model_1.default.findOne({ _id: ID });
         if (!promoCode) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Promo code not found"), "Promo code not found"));
@@ -131,15 +131,15 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, 'Promo code deleted'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _g;
     try {
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, store, update, destroy, show };

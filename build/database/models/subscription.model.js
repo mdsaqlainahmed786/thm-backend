@@ -9,8 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hasActiveSubscription = hasActiveSubscription;
-exports.hasBusinessSubscription = hasBusinessSubscription;
+exports.hasBusinessSubscription = exports.hasActiveSubscription = void 0;
 const mongoose_1 = require("mongoose");
 const SubscriptionSchema = new mongoose_1.Schema({
     isCancelled: {
@@ -53,8 +52,10 @@ function hasActiveSubscription(userID) {
         return Subscription.findOne({ userID: userID, expirationDate: { $gte: new Date() }, isCancelled: false });
     });
 }
+exports.hasActiveSubscription = hasActiveSubscription;
 function hasBusinessSubscription(businessProfileID) {
     return __awaiter(this, void 0, void 0, function* () {
         return Subscription.findOne({ businessProfileID: businessProfileID, isCancelled: false }).sort({ createdAt: -1, id: 1 });
     });
 }
+exports.hasBusinessSubscription = hasBusinessSubscription;

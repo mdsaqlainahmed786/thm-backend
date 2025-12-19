@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.storyTimeStamp = void 0;
-exports.addMediaInStory = addMediaInStory;
+exports.addMediaInStory = exports.storyTimeStamp = void 0;
 const mongoose_1 = require("mongoose");
 const LikeSchema = new mongoose_1.Schema({
     userID: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
@@ -75,3 +74,4 @@ function addMediaInStory() {
     };
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project };
 }
+exports.addMediaInStory = addMediaInStory;

@@ -1,9 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addReportedByInReport = addReportedByInReport;
-exports.addPostInReport = addPostInReport;
-exports.addCommentInReport = addCommentInReport;
-exports.addUserInReport = addUserInReport;
+exports.addUserInReport = exports.addCommentInReport = exports.addPostInReport = exports.addReportedByInReport = void 0;
 const mongoose_1 = require("mongoose");
 const common_1 = require("../../common");
 const user_model_1 = require("./user.model");
@@ -47,6 +44,7 @@ function addReportedByInReport() {
     };
     return { lookup, unwindLookup };
 }
+exports.addReportedByInReport = addReportedByInReport;
 function addPostInReport() {
     const lookup = {
         '$lookup': {
@@ -82,6 +80,7 @@ function addPostInReport() {
     };
     return { lookup, unwindLookup };
 }
+exports.addPostInReport = addPostInReport;
 function addCommentInReport() {
     const lookup = {
         '$lookup': {
@@ -142,6 +141,7 @@ function addCommentInReport() {
     };
     return { lookup, unwindLookup };
 }
+exports.addCommentInReport = addCommentInReport;
 function addUserInReport() {
     const lookup = {
         '$lookup': {
@@ -173,3 +173,4 @@ function addUserInReport() {
     };
     return { lookup, unwindLookup };
 }
+exports.addUserInReport = addUserInReport;

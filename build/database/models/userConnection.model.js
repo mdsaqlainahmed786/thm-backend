@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -42,11 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConnectionStatus = void 0;
-exports.fetchUserFollowing = fetchUserFollowing;
-exports.fetchUserFollower = fetchUserFollower;
-exports.fetchFollowingCount = fetchFollowingCount;
-exports.fetchFollowerCount = fetchFollowerCount;
+exports.fetchFollowerCount = exports.fetchFollowingCount = exports.fetchUserFollower = exports.fetchUserFollowing = exports.ConnectionStatus = void 0;
 const mongoose_1 = require("mongoose");
 const user_model_1 = __importStar(require("./user.model"));
 var ConnectionStatus;
@@ -75,20 +61,24 @@ function fetchUserFollowing(userID) {
         return yield UserConnection.distinct('following', { follower: userID, status: ConnectionStatus.ACCEPTED });
     });
 }
+exports.fetchUserFollowing = fetchUserFollowing;
 function fetchUserFollower(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         return yield UserConnection.distinct('follower', { following: userID, status: ConnectionStatus.ACCEPTED });
     });
 }
+exports.fetchUserFollower = fetchUserFollower;
 function fetchFollowingCount(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         const followerIDs = yield fetchUserFollowing(userID);
         return yield user_model_1.default.find(Object.assign({ _id: { $in: followerIDs } }, user_model_1.activeUserQuery)).countDocuments();
     });
 }
+exports.fetchFollowingCount = fetchFollowingCount;
 function fetchFollowerCount(userID) {
     return __awaiter(this, void 0, void 0, function* () {
         const followingIDs = yield fetchUserFollower(userID);
         return yield user_model_1.default.find(Object.assign({ _id: { $in: followingIDs } }, user_model_1.activeUserQuery)).countDocuments();
     });
 }
+exports.fetchFollowerCount = fetchFollowerCount;

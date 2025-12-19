@@ -73,10 +73,10 @@ const posts = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const users = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d;
+    var _d, _e, _f, _g;
     try {
-        const requestedUserID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
-        const accountType = (_b = request.user) === null || _b === void 0 ? void 0 : _b.accountType;
+        const requestedUserID = (_d = request.user) === null || _d === void 0 ? void 0 : _d.id;
+        const accountType = (_e = request.user) === null || _e === void 0 ? void 0 : _e.accountType;
         const { id, userID } = request.query;
         if (!id || !userID) {
             return response.send((0, response_1.httpNotFoundOr404)({}));
@@ -106,14 +106,14 @@ const users = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             newSharedContent.contentID = decryptedID;
             newSharedContent.contentType = common_1.ContentType.USER;
             newSharedContent.userID = sharedBy.id; //Shared By
-            newSharedContent.businessProfileID = (_c = sharedBy.businessProfileID) !== null && _c !== void 0 ? _c : null;
+            newSharedContent.businessProfileID = (_f = sharedBy.businessProfileID) !== null && _f !== void 0 ? _f : null;
             yield newSharedContent.save();
             return response.send((0, response_1.httpOk)(responseData, "Content shared successfully"));
         }
         return response.send((0, response_1.httpOk)(responseData, 'Content shared successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const tester = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {

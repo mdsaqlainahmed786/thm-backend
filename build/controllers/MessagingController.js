@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -350,9 +340,9 @@ const sendMediaMessage = (request, response, next) => __awaiter(void 0, void 0, 
     }
 });
 const deleteChat = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _c, _d;
     try {
-        const requestedUserID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
+        const requestedUserID = (_c = request.user) === null || _c === void 0 ? void 0 : _c.id;
         const userID = request.params.id;
         let findQuery = {
             $or: [
@@ -367,14 +357,14 @@ const deleteChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         return response.send((0, response_2.httpOk)(null, "Chat deleted."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //FIXME Deleted chat will not be exported.
 const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _e, _f;
     try {
-        const requestedUserID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
+        const requestedUserID = (_e = request.user) === null || _e === void 0 ? void 0 : _e.id;
         const userID = request.params.id;
         const user = yield user_model_1.default.findOne({ userID: userID });
         if (!user) {
@@ -412,7 +402,7 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         const hostAddress = request.protocol + "://" + request.get("host");
         let chatWith = "User";
         const data = yield Promise.all(conversations.map((chat) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b, _c;
+            var _g, _h, _j;
             let name = "User";
             const user = yield user_model_1.default.findOne({ _id: chat.userID });
             if (user && user.accountType === user_model_1.AccountType.BUSINESS && user.businessProfileID) {
@@ -420,14 +410,14 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
                 if (business) {
                     name = business.name;
                     if (user.id.toString() !== userID) {
-                        chatWith = (_a = user.name) !== null && _a !== void 0 ? _a : user.username;
+                        chatWith = (_g = user.name) !== null && _g !== void 0 ? _g : user.username;
                     }
                 }
             }
             else if (user) {
-                name = (_b = user.name) !== null && _b !== void 0 ? _b : user.username;
+                name = (_h = user.name) !== null && _h !== void 0 ? _h : user.username;
                 if (user.id.toString() !== userID) {
-                    chatWith = (_c = user.name) !== null && _c !== void 0 ? _c : user.username;
+                    chatWith = (_j = user.name) !== null && _j !== void 0 ? _j : user.username;
                 }
             }
             const file = [message_model_2.MessageType.VIDEO, message_model_2.MessageType.IMAGE, message_model_2.MessageType.PDF].includes(chat.type);
@@ -444,7 +434,7 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         }, "Chat exported."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, deleteChat, exportChat };

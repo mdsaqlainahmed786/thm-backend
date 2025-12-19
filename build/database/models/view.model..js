@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addUserInView = addUserInView;
+exports.addUserInView = void 0;
 const mongoose_1 = require("mongoose");
 const user_model_1 = require("./user.model");
 //FIXME Add boolean type to Post with Media and Story
@@ -52,3 +52,4 @@ function addUserInView() {
     };
     return { lookup, unwindLookup, replaceRoot };
 }
+exports.addUserInView = addUserInView;

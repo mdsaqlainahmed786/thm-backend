@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -87,7 +77,7 @@ const MAX_CONTENT_UPLOADS = 2;
 const MAX_VIDEO_UPLOADS = 1;
 const MAX_IMAGE_UPLOADS = 2;
 const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings } = request.body;
@@ -214,13 +204,13 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         return response.send((0, response_1.httpCreated)(savedPost, 'Your post has been created successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _c, _d;
     try {
-        const postID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const postID = (_c = request === null || request === void 0 ? void 0 : request.params) === null || _c === void 0 ? void 0 : _c.id;
         const { id, accountType, businessProfileID } = request.user;
         const { content, placeName, lat, lng, tagged, feelings, deletedMedia } = request.body;
         const files = request.files;
@@ -279,15 +269,15 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpAcceptedOrUpdated)(updatedPost, "Post updated successfully"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _e, _f;
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const ID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
         const post = yield post_model_1.default.findOne({ _id: ID });
         if (!post) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
@@ -334,14 +324,14 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, 'Post deleted'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deletePost = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _g, _h;
     try {
         const { id } = request.user;
-        const postID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const postID = (_g = request === null || request === void 0 ? void 0 : request.params) === null || _g === void 0 ? void 0 : _g.id;
         const post = yield post_model_1.default.findById(postID);
         if (!post) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
@@ -357,13 +347,13 @@ const deletePost = (request, response, next) => __awaiter(void 0, void 0, void 0
         return response.send((0, response_1.httpNoContent)(null, "Post deleted successfully (soft delete)"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _j, _k;
     try {
-        const postID = (_a = request === null || request === void 0 ? void 0 : request.params) === null || _a === void 0 ? void 0 : _a.id;
+        const postID = (_j = request === null || request === void 0 ? void 0 : request.params) === null || _j === void 0 ? void 0 : _j.id;
         const { id } = request.user;
         if (!id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
@@ -484,11 +474,11 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         return response.send((0, response_1.httpOk)(post[0], "Post Fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const storeViews = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _l;
     try {
         const { postIDs } = request.body;
         if (postIDs && (0, basic_1.isArray)(postIDs)) {
@@ -507,11 +497,11 @@ const storeViews = (request, response, next) => __awaiter(void 0, void 0, void 0
         }
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _m;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { id: postID } = request.params;
@@ -564,7 +554,7 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         return response.send((0, response_1.httpCreated)(createdStories, "Post published as story successfully."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, store, update, destroy, deletePost, show, storeViews, publishPostAsStory };

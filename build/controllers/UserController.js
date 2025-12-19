@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -133,7 +123,7 @@ const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 
     }
 });
 const profile = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     try {
         const { id, accountType } = request.user;
         const [user, profileCompleted, posts, follower, following, userAddress] = yield Promise.all([
@@ -177,11 +167,11 @@ const profile = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpOk)(responseData, 'User profile fetched'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const publicProfile = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _c;
     try {
         const { id, accountType } = request.user;
         const userID = request.params.id;
@@ -199,11 +189,11 @@ const publicProfile = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpOk)(responseData, 'User profile fetched'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const changeProfilePic = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _d;
     try {
         const { id, accountType } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -240,11 +230,11 @@ const changeProfilePic = (request, response, next) => __awaiter(void 0, void 0, 
         }
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const businessDocumentUpload = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _e;
     try {
         const { id } = request.user;
         const { action } = request.body;
@@ -291,11 +281,11 @@ const businessDocumentUpload = (request, response, next) => __awaiter(void 0, vo
         return response.send((0, response_1.httpOk)(savedDocument, 'Business document updated.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const businessDocument = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _f;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -312,11 +302,11 @@ const businessDocument = (request, response, next) => __awaiter(void 0, void 0, 
         return response.send((0, response_1.httpOk)(businessDocuments, 'Business document fetched.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const userPosts = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _g;
     try {
         const userID = request.params.id;
         const { id } = request.user;
@@ -353,11 +343,11 @@ const userPosts = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpOkExtended)(documents, "User feed fetched.", pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const userPostMedia = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _h;
     try {
         const userID = request.params.id;
         const { id } = request.user;
@@ -429,11 +419,11 @@ const userPostMedia = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpOkExtended)(documents, 'User media fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const userReviews = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _j;
     try {
         const userID = request.params.id;
         const { id } = request.user;
@@ -472,11 +462,11 @@ const userReviews = (request, response, next) => __awaiter(void 0, void 0, void 
         return response.send((0, response_1.httpOkExtended)(documents, 'Business reviews fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const businessPropertyPictures = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _k;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const files = request.files;
@@ -514,12 +504,12 @@ const businessPropertyPictures = (request, response, next) => __awaiter(void 0, 
         return response.send((0, response_1.httpCreated)(propertyPictures, 'Property pictures uploaded successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //FIXME add blocked users 
 const tagPeople = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _l;
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query } = request.query;
@@ -563,11 +553,11 @@ const tagPeople = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpOkExtended)(documents, 'Tagged fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _m;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -583,11 +573,11 @@ const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _o;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -602,11 +592,11 @@ const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpNoContent)(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _p;
     try {
         const ID = request.params.id;
         const { id, accountType, businessProfileID } = request.user;
@@ -636,12 +626,12 @@ const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, 'User unblocked successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_p = error.message) !== null && _p !== void 0 ? _p : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //TODO remove deleted and disabled user
 const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _q;
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query } = request.query;
@@ -660,11 +650,11 @@ const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void
         return response.send((0, response_1.httpOkExtended)(documents, 'Blocked list fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const address = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _r;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { street, city, state, zipCode, country, phoneNumber, dialCode, lat, lng } = request.body;
@@ -706,7 +696,7 @@ const address = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpCreated)(savedUserAddress, 'Billing address added successfully.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_r = error.message) !== null && _r !== void 0 ? _r : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };

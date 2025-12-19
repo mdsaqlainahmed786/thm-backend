@@ -1,9 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addCommentsInPost = addCommentsInPost;
-exports.addSharedCountInPost = addSharedCountInPost;
-exports.addCommentedByInPost = addCommentedByInPost;
-exports.addLikesInComment = addLikesInComment;
+exports.addLikesInComment = exports.addCommentedByInPost = exports.addSharedCountInPost = exports.addCommentsInPost = void 0;
 const mongoose_1 = require("mongoose");
 const common_1 = require("../../common");
 const CommentSchema = new mongoose_1.Schema({
@@ -39,6 +36,7 @@ function addCommentsInPost() {
     };
     return { lookup, addCommentCount };
 }
+exports.addCommentsInPost = addCommentsInPost;
 function addSharedCountInPost() {
     const lookup = {
         $lookup: {
@@ -57,6 +55,7 @@ function addSharedCountInPost() {
     };
     return { lookup, addSharedCount };
 }
+exports.addSharedCountInPost = addSharedCountInPost;
 const user_model_1 = require("./user.model");
 /**
  *
@@ -96,6 +95,7 @@ function addCommentedByInPost() {
     };
     return { lookup, unwindLookup };
 }
+exports.addCommentedByInPost = addCommentedByInPost;
 function addLikesInComment() {
     const lookup = {
         $lookup: {
@@ -114,3 +114,4 @@ function addLikesInComment() {
     };
     return { lookup, addLikeCount };
 }
+exports.addLikesInComment = addLikesInComment;

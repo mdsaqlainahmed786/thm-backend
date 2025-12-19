@@ -15,23 +15,13 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -136,7 +126,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const status = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const dbQuery = { isDeleted: false, targetUserID: new mongodb_1.ObjectId(id), isSeen: false };
@@ -162,11 +152,11 @@ const status = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpOk)(responseObject, 'Notification fetched.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _c, _d, _e, _f, _g, _h, _j;
     try {
         console.log("   [STORE] Start creating notification:");
         console.log("   → Type:", type);
@@ -182,7 +172,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
             return null;
         }
         let name = userData.name;
-        let profileImage = ((_a = userData === null || userData === void 0 ? void 0 : userData.profilePic) === null || _a === void 0 ? void 0 : _a.small) || "";
+        let profileImage = ((_c = userData === null || userData === void 0 ? void 0 : userData.profilePic) === null || _c === void 0 ? void 0 : _c.small) || "";
         let postType = "post";
         let description = "Welcome to The Hotel Media";
         let image = "";
@@ -193,7 +183,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
             });
             if (businessData) {
                 name = businessData.name;
-                profileImage = (_c = (_b = businessData === null || businessData === void 0 ? void 0 : businessData.profilePic) === null || _b === void 0 ? void 0 : _b.small) !== null && _c !== void 0 ? _c : profileImage;
+                profileImage = (_e = (_d = businessData === null || businessData === void 0 ? void 0 : businessData.profilePic) === null || _d === void 0 ? void 0 : _d.small) !== null && _e !== void 0 ? _e : profileImage;
             }
         }
         switch (type) {
@@ -201,7 +191,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 description = `${name} liked your story.`;
                 break;
             case notification_model_1.NotificationType.LIKE_POST:
-                postType = (_d = metadata.postType) !== null && _d !== void 0 ? _d : "post";
+                postType = (_f = metadata.postType) !== null && _f !== void 0 ? _f : "post";
                 description = `${name} liked your ${postType}.`;
                 break;
             case notification_model_1.NotificationType.LIKE_COMMENT:
@@ -217,7 +207,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 description = `${name} accepted your follow request.`;
                 break;
             case notification_model_1.NotificationType.COMMENT:
-                postType = (_e = metadata.postType) !== null && _e !== void 0 ? _e : "post";
+                postType = (_g = metadata.postType) !== null && _g !== void 0 ? _g : "post";
                 description = `${name} commented on your ${postType}: '${(0, basic_1.truncate)(metadata === null || metadata === void 0 ? void 0 : metadata.message)}'.`;
                 break;
             case notification_model_1.NotificationType.REPLY:
@@ -227,7 +217,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 description = `${name} tagged you in a post.`;
                 break;
             case notification_model_1.NotificationType.EVENT_JOIN:
-                const eventName = (_f = metadata.name) !== null && _f !== void 0 ? _f : "";
+                const eventName = (_h = metadata.name) !== null && _h !== void 0 ? _h : "";
                 description = `${name} has joined the event \n${eventName}.`;
                 break;
             case notification_model_1.NotificationType.COLLABORATION_INVITE:
@@ -240,7 +230,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 description = `${name} declined your collaboration invite.`;
                 break;
             case notification_model_1.NotificationType.JOB:
-                const jobTitle = (_g = metadata === null || metadata === void 0 ? void 0 : metadata.title) !== null && _g !== void 0 ? _g : "a job";
+                const jobTitle = (_j = metadata === null || metadata === void 0 ? void 0 : metadata.title) !== null && _j !== void 0 ? _j : "a job";
                 description = `${name} posted a new job: ${jobTitle}.`;
                 break;
             default:
@@ -296,12 +286,12 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _k;
     try {
         // return response.send(httpAcceptedOrUpdated(null, 'Not implemented'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0, void 0, function* () {
@@ -354,12 +344,12 @@ const destroy = (userID, targetUserID, type, metadata) => __awaiter(void 0, void
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _l;
     try {
         // return response.send(httpOk(null, "Not implemented"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, status, store, update, destroy };

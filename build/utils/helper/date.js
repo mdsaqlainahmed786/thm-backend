@@ -3,11 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.timeRegEx = exports.getTimeStampFromString = void 0;
-exports.calculateNights = calculateNights;
-exports.combineDateTime = combineDateTime;
-exports.generateMonthDates = generateMonthDates;
-exports.generateDateFromRange = generateDateFromRange;
+exports.generateDateFromRange = exports.generateMonthDates = exports.combineDateTime = exports.calculateNights = exports.timeRegEx = exports.getTimeStampFromString = void 0;
 // import moment from "moment-timezone"
 const moment_1 = __importDefault(require("moment"));
 const getTimeStampFromString = (time, timeZone) => {
@@ -38,11 +34,13 @@ function calculateNights(checkInDate, checkOutDate) {
     // Return the result (make sure to return an integer)
     return nights;
 }
+exports.calculateNights = calculateNights;
 function combineDateTime(date, time) {
     const combinedDateTime = moment_1.default.utc(`${date} ${time}`, 'YYYY-MM-DD HH:mm:ss');
     // Format the resulting datetime to ISO 8601 with Z (Zulu Time)
     return combinedDateTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 }
+exports.combineDateTime = combineDateTime;
 function generateMonthDates(offsets) {
     const dates = [];
     const today = (0, moment_1.default)();
@@ -71,6 +69,7 @@ function generateMonthDates(offsets) {
     });
     return dates;
 }
+exports.generateMonthDates = generateMonthDates;
 ;
 function generateDateFromRange(startDate, endDate) {
     const result = [];
@@ -93,3 +92,4 @@ function generateDateFromRange(startDate, endDate) {
     }
     return result;
 }
+exports.generateDateFromRange = generateDateFromRange;

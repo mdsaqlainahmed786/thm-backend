@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateRequest = validateRequest;
+exports.validateRequest = void 0;
 const express_validator_1 = require("express-validator");
 const response_1 = require("../utils/response");
 const error_1 = require("../utils/response-message/error");
@@ -17,3 +17,4 @@ function validateRequest(request, response, next) {
     }
     next();
 }
+exports.validateRequest = validateRequest;
