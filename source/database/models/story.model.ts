@@ -94,6 +94,8 @@ export function addMediaInStory() {
             'duration': 1,
             'seenByMe': 1,
             'thumbnailUrl': 1,
+            'location': 1,
+            'userTagged': 1,
         }
     }
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project }
