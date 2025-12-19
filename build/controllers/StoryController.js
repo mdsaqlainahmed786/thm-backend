@@ -261,18 +261,20 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         newStory.duration = duration;
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
-        //@ts-ignore
-        newStory.location = { placeName, lat, lng };
-        //@ts-ignore
-        newStory.userTagged = userTagged;
-        //@ts-ignore
-        // console.log("newStory.location", newStory.location);
-        // console.log("placeName", placeName);
-        // console.log("lat", lat);
-        // console.log("lng", lng);
+        // Set location only if all location fields are provided
+        if (placeName && lat && lng) {
+            newStory.location = {
+                placeName,
+                lat: typeof lat === 'string' ? parseFloat(lat) : lat,
+                lng: typeof lng === 'string' ? parseFloat(lng) : lng
+            };
+        }
+        // Set userTagged only if provided
+        if (userTagged) {
+            newStory.userTagged = userTagged;
+        }
         const savedStory = yield newStory.save();
-        //@ts-ignore
-        return response.send((0, response_1.httpCreated)(Object.assign(Object.assign({}, newStory.toObject()), { location: newStory.location, userTagged: userTagged }), 'Your story has been created successfully'));
+        return response.send((0, response_1.httpCreated)(savedStory.toObject(), 'Your story has been created successfully'));
     }
     catch (error) {
         next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));

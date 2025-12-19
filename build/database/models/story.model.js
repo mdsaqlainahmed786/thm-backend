@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addMediaInStory = exports.storyTimeStamp = void 0;
 const mongoose_1 = require("mongoose");
+const common_model_1 = require("./common.model");
 const LikeSchema = new mongoose_1.Schema({
     userID: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     mediaID: { type: mongoose_1.Schema.Types.ObjectId, ref: "Media", required: true },
@@ -17,6 +18,10 @@ const LikeSchema = new mongoose_1.Schema({
     duration: {
         type: Number,
         default: 0,
+    },
+    location: common_model_1.LocationSchema,
+    userTagged: {
+        type: String,
     },
 }, {
     timestamps: true

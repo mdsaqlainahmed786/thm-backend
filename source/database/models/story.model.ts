@@ -1,5 +1,6 @@
 import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
+import { LocationSchema, ILocation } from "./common.model";
 
 interface IStory extends Document {
     userID: MongoID;
@@ -7,6 +8,8 @@ interface IStory extends Document {
     mediaID: MongoID;
     timeStamp: Date;
     duration: number;
+    location?: ILocation;
+    userTagged?: string;
 }
 const LikeSchema: Schema = new Schema<IStory>(
     {
@@ -24,6 +27,10 @@ const LikeSchema: Schema = new Schema<IStory>(
         duration: {
             type: Number,
             default: 0,
+        },
+        location: LocationSchema,
+        userTagged: {
+            type: String,
         },
     },
     {
