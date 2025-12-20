@@ -10,6 +10,7 @@ interface IStory extends Document {
     duration: number;
     location?: ILocation;
     userTagged?: string;
+    userTaggedId?: MongoID;
     locationPositionX?: number;
     locationPositionY?: number;
     userTaggedPositionX?: number;
@@ -35,6 +36,10 @@ const LikeSchema: Schema = new Schema<IStory>(
         location: LocationSchema,
         userTagged: {
             type: String,
+        },
+        userTaggedId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
         },
         locationPositionX: {
             type: Number,
@@ -112,6 +117,7 @@ export function addMediaInStory() {
             'thumbnailUrl': 1,
             'location': 1,
             'userTagged': 1,
+            'userTaggedId': 1,
             'locationPositionX': 1,
             'locationPositionY': 1,
             'userTaggedPositionX': 1,

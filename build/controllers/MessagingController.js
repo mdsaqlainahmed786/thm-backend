@@ -314,11 +314,21 @@ const sendMediaMessage = (request, response, next) => __awaiter(void 0, void 0, 
             return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
         const files = request.files;
-        const singleFile = files.media;
+        const mediaFiles = files && files.media;
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Media file is required"), "Media file is required"));
+        }
+        // Validate that files have the S3 key property (required for S3 operations)
+        const validFiles = mediaFiles.filter((file) => {
+            return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
+        });
+        if (validFiles.length === 0) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"));
+        }
         const type = messageType;
         const [uploadedFiles] = yield Promise.all([
             //@ts-ignore
-            (0, MediaController_1.storeMedia)(singleFile, id, businessProfileID, constants_1.AwsS3AccessEndpoints.MESSAGING, 'POST'),
+            (0, MediaController_1.storeMedia)(validFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.MESSAGING, 'POST'),
         ]);
         if (uploadedFiles && uploadedFiles.length === 0) {
             return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`));

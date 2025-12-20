@@ -188,7 +188,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
+        const { content, placeName, lat, lng, userTagged, userTaggedId, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -245,9 +245,12 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             };
         }
 
-        // Set userTagged only if provided
+        // Set userTagged and userTaggedId only if provided
         if (userTagged) {
             newStory.userTagged = userTagged;
+        }
+        if (userTaggedId) {
+            newStory.userTaggedId = userTaggedId;
         }
 
         const savedStory = await newStory.save();
