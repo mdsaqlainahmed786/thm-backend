@@ -284,11 +284,25 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const singleFile = files.media;
+        const mediaFiles = files && files.media as Express.Multer.S3File[] | undefined;
+
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Media file is required"), "Media file is required"))
+        }
+
+        // Validate that files have the S3 key property (required for S3 operations)
+        const validFiles = mediaFiles.filter((file): file is Express.Multer.S3File => {
+            return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
+        });
+
+        if (validFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"))
+        }
+
         const type = messageType as MediaType;
         const [uploadedFiles] = await Promise.all([
             //@ts-ignore
-            storeMedia(singleFile, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
+            storeMedia(validFiles, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
         ])
         if (uploadedFiles && uploadedFiles.length === 0) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))

@@ -9,7 +9,7 @@ const MessagingEndpoints: Router = express.Router();
 
 
 // s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }])
-MessagingEndpoints.post('/media-message', diskUpload.fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
+MessagingEndpoints.post('/media-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
 MessagingEndpoints.delete('/chat/:id', [paramIDValidationRule], validateRequest, MessagingController.deleteChat);
 MessagingEndpoints.post('/export-chat/:id', [paramIDValidationRule], validateRequest, MessagingController.exportChat);
 export default MessagingEndpoints;
