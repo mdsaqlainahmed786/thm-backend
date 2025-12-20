@@ -23,6 +23,10 @@ const LikeSchema = new mongoose_1.Schema({
     userTagged: {
         type: String,
     },
+    userTaggedId: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+    },
     locationPositionX: {
         type: Number,
     },
@@ -89,6 +93,7 @@ function addMediaInStory() {
             'thumbnailUrl': 1,
             'location': 1,
             'userTagged': 1,
+            'userTaggedId': 1,
             'locationPositionX': 1,
             'locationPositionY': 1,
             'userTaggedPositionX': 1,

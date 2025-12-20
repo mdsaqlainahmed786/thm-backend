@@ -346,18 +346,18 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
             User.findOne({ _id: userID }),
             UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
             // All media from user's own posts
-            Post.distinct('media', { 
-                ...getPostQuery, 
-                userID: new ObjectId(userID), 
-                postType: { $in: [PostType.POST] } 
+            Post.distinct('media', {
+                ...getPostQuery,
+                userID: new ObjectId(userID),
+                postType: { $in: [PostType.POST] }
             }),
             // Property media
             PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) }),
             // All media from posts where this user is a collaborator
-            Post.distinct('media', { 
-                ...getPostQuery, 
-                collaborators: new ObjectId(userID), 
-                postType: { $in: [PostType.POST] } 
+            Post.distinct('media', {
+                ...getPostQuery,
+                collaborators: new ObjectId(userID),
+                postType: { $in: [PostType.POST] }
             })
         ]);
 

@@ -34,11 +34,11 @@ import { lat_lng } from './EventController';
 import { FeedOrderCache } from '../utils/feedOrderCache';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
-    try {
+  try {
 
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
@@ -301,56 +301,56 @@ const update = async (request: Request, response: Response, next: NextFunction) 
 
 //FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id, accountType, businessProfileID } = request.user;
-        const ID = request?.params?.id;
-        const post = await Post.findOne({ _id: ID });
-        if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
-        }
-        if (post.userID.toString() !== id) {
-            return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
-        }
-        const mediaIDs = post.media;
-        if (mediaIDs.length !== 0) {
-            await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
-                const media = await Media.findOne({ _id: mediaID });
-                const fileQueues = await FileQueue.findOne({ mediaID: mediaID });
-                if (media) {
-                    await s3Service.deleteS3Object(media.s3Key);
-                    if (media.thumbnailUrl) {
-                        await s3Service.deleteS3Asset(media.thumbnailUrl);
-                    }
-                    await media.deleteOne();
-                }
-                if (fileQueues && fileQueues.status === QueueStatus.COMPLETED) {
-                    await Promise.all(fileQueues.s3Location.map(async (location) => {
-                        await s3Service.deleteS3Asset(location);
-                        return location;
-                    }));
-                    await fileQueues.deleteOne();
-                }
-                return mediaID;
-            }));
-        }
-        const [likes, comments, savedPosts, reportedContent, eventJoins] = await Promise.all([
-            Like.deleteMany({ postID: ID }),
-            Comment.deleteMany({ postID: ID }),
-            SavedPost.deleteMany({ postID: ID }),
-            Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
-            EventJoin.deleteMany({ postID: ID }),
-            Notification.deleteMany({ "metadata.postID": post._id })
-        ]);
-        console.log('likes', likes);
-        console.log('comments', comments);
-        console.log('savedPosts', savedPosts);
-        console.log('reportedContent', reportedContent)
-        console.log('eventJoins', eventJoins);
-        await post.deleteOne();
-        return response.send(httpNoContent(null, 'Post deleted'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const { id, accountType, businessProfileID } = request.user;
+    const ID = request?.params?.id;
+    const post = await Post.findOne({ _id: ID });
+    if (!post) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
     }
+    if (post.userID.toString() !== id) {
+      return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+    }
+    const mediaIDs = post.media;
+    if (mediaIDs.length !== 0) {
+      await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
+        const media = await Media.findOne({ _id: mediaID });
+        const fileQueues = await FileQueue.findOne({ mediaID: mediaID });
+        if (media) {
+          await s3Service.deleteS3Object(media.s3Key);
+          if (media.thumbnailUrl) {
+            await s3Service.deleteS3Asset(media.thumbnailUrl);
+          }
+          await media.deleteOne();
+        }
+        if (fileQueues && fileQueues.status === QueueStatus.COMPLETED) {
+          await Promise.all(fileQueues.s3Location.map(async (location) => {
+            await s3Service.deleteS3Asset(location);
+            return location;
+          }));
+          await fileQueues.deleteOne();
+        }
+        return mediaID;
+      }));
+    }
+    const [likes, comments, savedPosts, reportedContent, eventJoins] = await Promise.all([
+      Like.deleteMany({ postID: ID }),
+      Comment.deleteMany({ postID: ID }),
+      SavedPost.deleteMany({ postID: ID }),
+      Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
+      EventJoin.deleteMany({ postID: ID }),
+      Notification.deleteMany({ "metadata.postID": post._id })
+    ]);
+    console.log('likes', likes);
+    console.log('comments', comments);
+    console.log('savedPosts', savedPosts);
+    console.log('reportedContent', reportedContent)
+    console.log('eventJoins', eventJoins);
+    await post.deleteOne();
+    return response.send(httpNoContent(null, 'Post deleted'));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
@@ -383,153 +383,153 @@ const deletePost = async (request: Request, response: Response, next: NextFuncti
 
 
 const show = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const postID = request?.params?.id;
-        const { id } = request.user;
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
-            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            getSavedPost(id),
-            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
-        ]);
-        const post = await Post.aggregate(
-            [
-                {
-                    $match: { _id: new ObjectId(postID) }
-                },
-                addMediaInPost().lookup,
-                addTaggedPeopleInPost().lookup,
-                {
-                    '$lookup': {
-                        'from': 'users',
-                        'let': { 'userID': '$userID' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
-                            addBusinessProfileInUser().lookup,
-                            addBusinessProfileInUser().unwindLookup,
-                            addBusinessSubTypeInBusinessProfile().lookup,
-                            addBusinessSubTypeInBusinessProfile().unwindLookup,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "profilePic": 1,
-                                    "accountType": 1,
-                                    "businessProfileID": 1,
-                                    "businessProfileRef._id": 1,
-                                    "businessProfileRef.name": 1,
-                                    "businessProfileRef.profilePic": 1,
-                                    "businessProfileRef.rating": 1,
-                                    "businessProfileRef.businessTypeRef": 1,
-                                    "businessProfileRef.businessSubtypeRef": 1,
-                                    "businessProfileRef.address": 1,
-                                }
-                            }
-                        ],
-                        'as': 'postedBy'
-                    }
-                },
-                {
-                    '$unwind': {
-                        'path': '$postedBy',
-                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                    }
-                },
-                addAnonymousUserInPost().lookup,
-                addAnonymousUserInPost().unwindLookup,
-                addPostedByInPost().unwindLookup,
-                addLikesInPost().lookup,
-                addLikesInPost().addLikeCount,
-                addCommentsInPost().lookup,
-                addCommentsInPost().addCommentCount,
-                addSharedCountInPost().lookup,
-                addSharedCountInPost().addSharedCount,
-                addReviewedBusinessProfileInPost().lookup,
-                addReviewedBusinessProfileInPost().unwindLookup,
-                addGoogleReviewedBusinessProfileInPost().lookup,
-                addGoogleReviewedBusinessProfileInPost().unwindLookup,
-                isLikedByMe(likedByMe),
-                isSavedByMe(savedByMe),
-                imJoining(joiningEvents),
-                addInterestedPeopleInPost().lookup,
-                addInterestedPeopleInPost().addInterestedCount,
-                {
-                    $addFields: {
-                        reviewedBusinessProfileRef: {
-                            $cond: {
-                                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
-                                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
-                                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
-                            }
-                        },
-                        postedBy: {
-                            $cond: {
-                                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
-                                then: "$publicPostedBy", // Replace with publicPostedBy
-                                else: "$postedBy" // Keep the existing value if it exists
-                            }
-                        }
-                    }
-                },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $limit: 1,
-                },
-                {
-                    $addFields: {
-                        eventJoinsRef: { $slice: ["$eventJoinsRef", 7] },
-                    }
-                },
-                {
-                    $unset: [
-                        "geoCoordinate",
-                        "publicPostedBy",
-                        "googleReviewedBusinessRef",
-                        "reviews",
-                        "isPublished",
-                        "sharedRef",
-                        "commentsRef",
-                        "likesRef",
-                        "tagged",
-                        "media",
-                        "updatedAt",
-                        "__v"
-                    ]
-                }
-            ]
-        ).exec()
-        if (post.length === 0) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
-        }
-        return response.send(httpOk(post[0], "Post Fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const postID = request?.params?.id;
+    const { id } = request.user;
+    if (!id) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
     }
+    const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
+      Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+      getSavedPost(id),
+      EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
+    ]);
+    const post = await Post.aggregate(
+      [
+        {
+          $match: { _id: new ObjectId(postID) }
+        },
+        addMediaInPost().lookup,
+        addTaggedPeopleInPost().lookup,
+        {
+          '$lookup': {
+            'from': 'users',
+            'let': { 'userID': '$userID' },
+            'pipeline': [
+              { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
+              addBusinessProfileInUser().lookup,
+              addBusinessProfileInUser().unwindLookup,
+              addBusinessSubTypeInBusinessProfile().lookup,
+              addBusinessSubTypeInBusinessProfile().unwindLookup,
+              {
+                '$project': {
+                  "name": 1,
+                  "profilePic": 1,
+                  "accountType": 1,
+                  "businessProfileID": 1,
+                  "businessProfileRef._id": 1,
+                  "businessProfileRef.name": 1,
+                  "businessProfileRef.profilePic": 1,
+                  "businessProfileRef.rating": 1,
+                  "businessProfileRef.businessTypeRef": 1,
+                  "businessProfileRef.businessSubtypeRef": 1,
+                  "businessProfileRef.address": 1,
+                }
+              }
+            ],
+            'as': 'postedBy'
+          }
+        },
+        {
+          '$unwind': {
+            'path': '$postedBy',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+          }
+        },
+        addAnonymousUserInPost().lookup,
+        addAnonymousUserInPost().unwindLookup,
+        addPostedByInPost().unwindLookup,
+        addLikesInPost().lookup,
+        addLikesInPost().addLikeCount,
+        addCommentsInPost().lookup,
+        addCommentsInPost().addCommentCount,
+        addSharedCountInPost().lookup,
+        addSharedCountInPost().addSharedCount,
+        addReviewedBusinessProfileInPost().lookup,
+        addReviewedBusinessProfileInPost().unwindLookup,
+        addGoogleReviewedBusinessProfileInPost().lookup,
+        addGoogleReviewedBusinessProfileInPost().unwindLookup,
+        isLikedByMe(likedByMe),
+        isSavedByMe(savedByMe),
+        imJoining(joiningEvents),
+        addInterestedPeopleInPost().lookup,
+        addInterestedPeopleInPost().addInterestedCount,
+        {
+          $addFields: {
+            reviewedBusinessProfileRef: {
+              $cond: {
+                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+              }
+            },
+            postedBy: {
+              $cond: {
+                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                then: "$publicPostedBy", // Replace with publicPostedBy
+                else: "$postedBy" // Keep the existing value if it exists
+              }
+            }
+          }
+        },
+        {
+          $sort: { createdAt: -1, id: 1 }
+        },
+        {
+          $limit: 1,
+        },
+        {
+          $addFields: {
+            eventJoinsRef: { $slice: ["$eventJoinsRef", 7] },
+          }
+        },
+        {
+          $unset: [
+            "geoCoordinate",
+            "publicPostedBy",
+            "googleReviewedBusinessRef",
+            "reviews",
+            "isPublished",
+            "sharedRef",
+            "commentsRef",
+            "likesRef",
+            "tagged",
+            "media",
+            "updatedAt",
+            "__v"
+          ]
+        }
+      ]
+    ).exec()
+    if (post.length === 0) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
+    }
+    return response.send(httpOk(post[0], "Post Fetched"));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
 const storeViews = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { postIDs } = request.body;
-        if (postIDs && isArray(postIDs)) {
-            await Promise.all(postIDs && postIDs.map(async (postID: string) => {
-                const post = await Post.findOne({ _id: postID });
-                if (post) {
-                    post.views = post.views ? post.views + 1 : 1;
-                    await post.save();
-                }
-                return postID;
-            }));
-            return response.send(httpOk(null, "Post views saved successfully."))
-        } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid post id array."), "Invalid post id array."))
+  try {
+    const { postIDs } = request.body;
+    if (postIDs && isArray(postIDs)) {
+      await Promise.all(postIDs && postIDs.map(async (postID: string) => {
+        const post = await Post.findOne({ _id: postID });
+        if (post) {
+          post.views = post.views ? post.views + 1 : 1;
+          await post.save();
         }
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        return postID;
+      }));
+      return response.send(httpOk(null, "Post views saved successfully."))
+    } else {
+      return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid post id array."), "Invalid post id array."))
     }
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
@@ -568,19 +568,19 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
-    const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
+    // const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
+    // const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
 
-    if (!isFollowing) {
-      return response.send(
-        httpForbidden(
-          ErrorMessage.invalidRequest("You can only share media from users you follow."),
-          "You can only share media from users you follow."
-        )
-      );
-    }
+    // if (!isFollowing) {
+    //   return response.send(
+    //     httpForbidden(
+    //       ErrorMessage.invalidRequest("You can only share media from users you follow."),
+    //       "You can only share media from users you follow."
+    //     )
+    //   );
+    // }
 
-  
+
     if (!post.media || post.media.length === 0) {
       return response.send(
         httpBadRequest(
@@ -590,7 +590,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-  
+
     const existingStories = await Story.find({
       userID: id,
       mediaID: { $in: post.media },
@@ -612,7 +612,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-   
+
     const storyPromises = newMedia.map(async (mediaID: any) => {
       const media = await Media.findById(mediaID);
       if (!media) return null;

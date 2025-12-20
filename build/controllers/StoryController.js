@@ -219,7 +219,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     var _b;
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
+        const { content, placeName, lat, lng, userTagged, userTaggedId, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
         const files = request.files;
         const images = files && files.images;
         const videos = files && files.videos;
@@ -273,9 +273,12 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 lng: typeof lng === 'string' ? parseFloat(lng) : lng
             };
         }
-        // Set userTagged only if provided
+        // Set userTagged and userTaggedId only if provided
         if (userTagged) {
             newStory.userTagged = userTagged;
+        }
+        if (userTaggedId) {
+            newStory.userTaggedId = userTaggedId;
         }
         const savedStory = yield newStory.save();
         return response.send((0, response_1.httpCreated)(savedStory.toObject(), 'Your story has been created successfully'));

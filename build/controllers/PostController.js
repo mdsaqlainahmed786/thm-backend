@@ -35,7 +35,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const userConnection_model_1 = require("../database/models/userConnection.model");
 const mongodb_1 = require("mongodb");
 const recentPostCache_1 = require("../utils/recentPostCache");
 const story_model_1 = __importDefault(require("../database/models/story.model"));
@@ -515,11 +514,16 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         if (post.userID.toString() === id.toString()) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("You cannot share your own post as a story."), "You cannot share your own post as a story."));
         }
-        const myFollowingIDs = yield (0, userConnection_model_1.fetchUserFollowing)(id); // returns IDs I follow
-        const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
-        if (!isFollowing) {
-            return response.send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest("You can only share media from users you follow."), "You can only share media from users you follow."));
-        }
+        // const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
+        // const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
+        // if (!isFollowing) {
+        //   return response.send(
+        //     httpForbidden(
+        //       ErrorMessage.invalidRequest("You can only share media from users you follow."),
+        //       "You can only share media from users you follow."
+        //     )
+        //   );
+        // }
         if (!post.media || post.media.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no media to publish as a story."), "This post has no media to publish as a story."));
         }
