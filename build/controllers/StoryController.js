@@ -219,7 +219,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     var _b;
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, feelings } = request.body;
+        const { content, placeName, lat, lng, userTagged, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
         const files = request.files;
         const images = files && files.images;
         const videos = files && files.videos;
@@ -261,6 +261,10 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         newStory.duration = duration;
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
+        newStory.locationPositionX = locationPositionX;
+        newStory.locationPositionY = locationPositionY;
+        newStory.userTaggedPositionX = userTaggedPositionX;
+        newStory.userTaggedPositionY = userTaggedPositionY;
         // Set location only if all location fields are provided
         if (placeName && lat && lng) {
             newStory.location = {

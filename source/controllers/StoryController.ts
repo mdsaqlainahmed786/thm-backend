@@ -188,7 +188,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, feelings } = request.body;
+        const { content, placeName, lat, lng, userTagged, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -231,6 +231,10 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
+        newStory.locationPositionX = locationPositionX;
+        newStory.locationPositionY = locationPositionY;
+        newStory.userTaggedPositionX = userTaggedPositionX;
+        newStory.userTaggedPositionY = userTaggedPositionY;
 
         // Set location only if all location fields are provided
         if (placeName && lat && lng) {

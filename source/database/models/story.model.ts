@@ -10,6 +10,10 @@ interface IStory extends Document {
     duration: number;
     location?: ILocation;
     userTagged?: string;
+    locationPositionX?: number;
+    locationPositionY?: number;
+    userTaggedPositionX?: number;
+    userTaggedPositionY?: number;
 }
 const LikeSchema: Schema = new Schema<IStory>(
     {
@@ -31,6 +35,18 @@ const LikeSchema: Schema = new Schema<IStory>(
         location: LocationSchema,
         userTagged: {
             type: String,
+        },
+        locationPositionX: {
+            type: Number,
+        },
+        locationPositionY: {
+            type: Number,
+        },
+        userTaggedPositionX: {
+            type: Number,
+        },
+        userTaggedPositionY: {
+            type: Number,
         },
     },
     {
@@ -96,6 +112,10 @@ export function addMediaInStory() {
             'thumbnailUrl': 1,
             'location': 1,
             'userTagged': 1,
+            'locationPositionX': 1,
+            'locationPositionY': 1,
+            'userTaggedPositionX': 1,
+            'userTaggedPositionY': 1,
         }
     }
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project }

@@ -23,6 +23,18 @@ const LikeSchema = new mongoose_1.Schema({
     userTagged: {
         type: String,
     },
+    locationPositionX: {
+        type: Number,
+    },
+    locationPositionY: {
+        type: Number,
+    },
+    userTaggedPositionX: {
+        type: Number,
+    },
+    userTaggedPositionY: {
+        type: Number,
+    },
 }, {
     timestamps: true
 });
@@ -77,6 +89,10 @@ function addMediaInStory() {
             'thumbnailUrl': 1,
             'location': 1,
             'userTagged': 1,
+            'locationPositionX': 1,
+            'locationPositionY': 1,
+            'userTaggedPositionX': 1,
+            'userTaggedPositionY': 1,
         }
     };
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project };
