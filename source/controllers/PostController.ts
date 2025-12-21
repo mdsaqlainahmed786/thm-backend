@@ -649,4 +649,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
 
 
 
+
+
+
 export default { index, store, update, destroy, deletePost, show, storeViews, publishPostAsStory };

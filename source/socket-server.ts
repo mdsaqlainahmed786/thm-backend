@@ -124,6 +124,9 @@ export default function createSocketServer(httpServer: https.Server) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case MessageType.VIDEO:
                             newMessage.message = data.message.message;
@@ -131,12 +134,18 @@ export default function createSocketServer(httpServer: https.Server) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case MessageType.PDF:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.PDF;
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
+                            }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
                             }
                             break;
 

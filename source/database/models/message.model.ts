@@ -41,6 +41,7 @@ export interface IMessage extends Document {
     deletedByID: MongoID[];
     storyID: MongoID;
     mediaID: MongoID;
+    postID: MongoID;
 }
 const MessageSchema: Schema = new Schema<IMessage>(
     {
@@ -60,6 +61,7 @@ const MessageSchema: Schema = new Schema<IMessage>(
         // mediaUrl: { type: String },
         mediaID: { type: Schema.Types.ObjectId, ref: "Media" },
         storyID: { type: Schema.Types.ObjectId, ref: "Story" },
+        postID: { type: Schema.Types.ObjectId, ref: "Post" },
         location: LocationSchema
     },
     {

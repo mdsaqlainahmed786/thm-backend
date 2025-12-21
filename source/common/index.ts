@@ -46,6 +46,8 @@ export interface Message {
     thumbnailUrl?: string;
     storyID?: string;
     mediaID?: string;
+    postID?: string;
+    postOwnerUsername?: string;
 }
 
 export interface Messages {
