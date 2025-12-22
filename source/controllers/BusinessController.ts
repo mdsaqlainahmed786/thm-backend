@@ -31,8 +31,11 @@ import EncryptionService from '../services/EncryptionService';
 import { storeMedia } from "./MediaController";
 import Menu from "../database/models/menu.model";
 import Media from "../database/models/media.model";
+import S3Service from "../services/S3Service";
+import { httpNoContent } from "../utils/response";
 
 const encryptionService = new EncryptionService();
+const s3Service = new S3Service();
 const businessTypes = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const businessTypes = await BusinessType.find();
@@ -863,6 +866,56 @@ const getRestaurantMenu = async (request: Request, response: Response, next: Nex
     }
 };
 
+/**
+ * Delete a specific menu item (image or PDF) for the logged-in restaurant business owner.
+ * This will delete the Menu document, associated Media document, and files from S3.
+ */
+const deleteRestaurantMenu = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, businessProfileID } = request.user;
+        const menuID = request.params.id;
+
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+
+        // Find the menu item and verify it belongs to the user's business profile
+        const menuItem = await Menu.findOne({
+            _id: new ObjectId(menuID),
+            businessProfileID: new ObjectId(String(businessProfileID))
+        });
+
+        if (!menuItem) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Menu item not found or you don't have permission to delete it"), "Menu item not found or you don't have permission to delete it"));
+        }
+
+        // Find the associated media document
+        const media = await Media.findOne({ _id: menuItem.mediaID });
+
+        if (media) {
+            // Delete files from S3
+            if (media.s3Key) {
+                await s3Service.deleteS3Object(media.s3Key);
+            }
+            if (media.thumbnailUrl) {
+                await s3Service.deleteS3Asset(media.thumbnailUrl);
+            }
+            // Delete the media document
+            await media.deleteOne();
+        }
+
+        // Delete the menu document
+        await menuItem.deleteOne();
+
+        return response.send(httpNoContent(null, "Menu item deleted successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
 async function fetchEngagedData(businessProfileID: string, userID: string, groupFormat: string, labels: string[], labelFormat: string) {
     console.log(businessProfileID, userID, "businessProfileID");
     //analyzing posts && stories
@@ -965,5 +1018,6 @@ export default {
     getBusinessProfileByID,
     getBusinessProfileByDirectID,
     addRestaurantMenu,
-    getRestaurantMenu
+    getRestaurantMenu,
+    deleteRestaurantMenu
 };

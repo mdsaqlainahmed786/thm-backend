@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import { validateRequest } from "../../middleware/api-request-validator";
 import authenticateUser, { isBusinessUser } from "../../middleware/authenticate";
-import { businessQuestionsApiValidator, collectInsightsDataApiValidator } from "../../validation/rules/api-validation";
+import { businessQuestionsApiValidator, collectInsightsDataApiValidator, paramIDValidationRule } from "../../validation/rules/api-validation";
 import BusinessController from "../../controllers/BusinessController";
 import { s3Upload } from "../../middleware/file-uploading";
 import { AwsS3AccessEndpoints } from "../../config/constants";
@@ -33,6 +33,16 @@ BusinessEndpoints.post(
 BusinessEndpoints.get(
     '/restaurant/:businessProfileID/menu',
     BusinessController.getRestaurantMenu
+);
+
+// DELETE: Delete a specific menu item - only for restaurant business owners
+BusinessEndpoints.delete(
+    '/restaurant/menu/:id',
+    authenticateUser,
+    isBusinessUser,
+    [paramIDValidationRule],
+    validateRequest,
+    BusinessController.deleteRestaurantMenu
 );
 
 BusinessEndpoints.get('/:id', BusinessController.getBusinessProfileByDirectID);
