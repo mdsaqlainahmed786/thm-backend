@@ -900,8 +900,14 @@ const deleteRestaurantMenu = async (request: Request, response: Response, next: 
             if (media.s3Key) {
                 await s3Service.deleteS3Object(media.s3Key);
             }
-            if (media.thumbnailUrl) {
-                await s3Service.deleteS3Asset(media.thumbnailUrl);
+            // Only delete thumbnail if it's an S3 URL (not external placeholder URLs like for PDFs)
+            if (media.thumbnailUrl && (media.thumbnailUrl.includes('.s3.') || media.thumbnailUrl.startsWith('s3://'))) {
+                try {
+                    await s3Service.deleteS3Asset(media.thumbnailUrl);
+                } catch (error: any) {
+                    // If thumbnail deletion fails (e.g., external URL), just log and continue
+                    console.warn('Failed to delete thumbnail (may be external URL):', media.thumbnailUrl);
+                }
             }
             // Delete the media document
             await media.deleteOne();
