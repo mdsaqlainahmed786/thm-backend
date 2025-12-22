@@ -325,84 +325,84 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
 }
 
 
-const sharingPostMediaMessage = async(request: Request, response: Response, next: NextFunction) => {
-        try {
-            const { id, accountType, businessProfileID } = request.user;
-            const { messageType, username, message, postID } = request.body;
-            const requestedUserID = request.user?.id;
-            
-            // Validate postID is provided
-            if (!postID) {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Post ID is required"), "Post ID is required"))
-            }
+const sharingPostMediaMessage = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, accountType, businessProfileID } = request.user;
+        const { messageType, username, message, postID } = request.body;
+        const requestedUserID = request.user?.id;
 
-            const sendedBy = await User.findOne({ _id: requestedUserID });
-            const sendTo = await User.findOne({ username: username });
-            if (!sendedBy) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
-            }
-            if (!sendTo) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
-            }
-
-            // Fetch the post to validate it exists and get the owner
-            const post = await Post.findOne({ _id: new ObjectId(postID), isDeleted: false, isPublished: true });
-            if (!post) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND))
-            }
-
-            // Fetch the post owner to get username
-            const postOwner = await User.findOne({ _id: post.userID });
-            if (!postOwner) {
-                return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post owner not found"), "Post owner not found"))
-            }
-
-            // Get the username - prefer name if available, otherwise use username
-            const postOwnerUsername = postOwner.accountType === AccountType.BUSINESS && postOwner.businessProfileID 
-                ? (await BusinessProfile.findOne({ _id: postOwner.businessProfileID }))?.name || postOwner.name || postOwner.username
-                : postOwner.name || postOwner.username;
-
-            const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-            const mediaFiles = files && files.media as Express.Multer.S3File[] | undefined;
-    
-            if (!mediaFiles || mediaFiles.length === 0) {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Media file is required"), "Media file is required"))
-            }
-    
-            // Validate that files have the S3 key property (required for S3 operations)
-            const validFiles = mediaFiles.filter((file): file is Express.Multer.S3File => {
-                return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
-            });
-    
-            if (validFiles.length === 0) {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"))
-            }
-    
-            const type = messageType as MediaType;
-            const [uploadedFiles] = await Promise.all([
-                //@ts-ignore
-                storeMedia(validFiles, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
-            ])
-            if (uploadedFiles && uploadedFiles.length === 0) {
-                return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))
-            }
-            
-            const messageObject: PrivateIncomingMessagePayload = {
-                to: username,
-                message: {
-                    type: messageType,
-                    message: message ?? '',
-                    mediaUrl: uploadedFiles[0].sourceUrl,
-                    thumbnailUrl: uploadedFiles[0].thumbnailUrl,
-                    mediaID: uploadedFiles[0].id,
-                    postID: postID,
-                    postOwnerUsername: postOwnerUsername,
-                }
-            };
-            return response.send(httpOk(messageObject, "Post shared successfully"));
-        } catch (error: any) {
-            next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        // Validate postID is provided
+        if (!postID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Post ID is required"), "Post ID is required"))
         }
+
+        const sendedBy = await User.findOne({ _id: requestedUserID });
+        const sendTo = await User.findOne({ username: username });
+        if (!sendedBy) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+        }
+        if (!sendTo) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
+        }
+
+        // Fetch the post to validate it exists and get the owner
+        const post = await Post.findOne({ _id: new ObjectId(postID), isDeleted: false, isPublished: true });
+        if (!post) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND))
+        }
+
+        // Fetch the post owner to get username
+        const postOwner = await User.findOne({ _id: post.userID });
+        if (!postOwner) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post owner not found"), "Post owner not found"))
+        }
+
+        // Get the username - prefer name if available, otherwise use username
+        const postOwnerUsername = postOwner.accountType === AccountType.BUSINESS && postOwner.businessProfileID
+            ? (await BusinessProfile.findOne({ _id: postOwner.businessProfileID }))?.name || postOwner.name || postOwner.username
+            : postOwner.name || postOwner.username;
+
+        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
+        const mediaFiles = files && files.media as Express.Multer.S3File[] | undefined;
+
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Media file is required"), "Media file is required"))
+        }
+
+        // Validate that files have the S3 key property (required for S3 operations)
+        const validFiles = mediaFiles.filter((file): file is Express.Multer.S3File => {
+            return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
+        });
+
+        if (validFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"))
+        }
+
+        const type = messageType as MediaType;
+        const [uploadedFiles] = await Promise.all([
+            //@ts-ignore
+            storeMedia(validFiles, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
+        ])
+        if (uploadedFiles && uploadedFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))
+        }
+
+        const messageObject: PrivateIncomingMessagePayload = {
+            to: username,
+            message: {
+                type: messageType,
+                message: message ?? '',
+                mediaUrl: uploadedFiles[0].sourceUrl,
+                thumbnailUrl: uploadedFiles[0].thumbnailUrl,
+                mediaID: uploadedFiles[0].id,
+                postID: postID,
+                postOwnerUsername: postOwnerUsername,
+            }
+        };
+        return response.send(httpOk(messageObject, "Post shared successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
 }
 
 const deleteChat = async (request: Request, response: Response, next: NextFunction) => {
