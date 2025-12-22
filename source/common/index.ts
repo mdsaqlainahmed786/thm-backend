@@ -15,8 +15,16 @@ export interface AuthenticateUser {
     id: string | Types.ObjectId;
     accountType?: AccountType | undefined;
     businessProfileID?: string | Types.ObjectId;
+    businessTypeID?: string | Types.ObjectId;
+    businessTypeName?: string;
     role: Role,
 }
+
+// Type alias for request.user in Express
+export type UserWithRole = AuthenticateUser & {
+    businessTypeID?: string | null;
+    businessTypeName?: string | null;
+};
 
 export type MongoID = Types.ObjectId | string;
 

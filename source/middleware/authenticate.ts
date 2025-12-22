@@ -8,6 +8,8 @@ import User, { AccountType } from "../database/models/user.model";
 import { AuthenticateUser, Role } from "../common";
 import AuthToken from "../database/models/authToken.model";
 import Subscription, { hasBusinessSubscription } from "../database/models/subscription.model";
+import BusinessProfile from "../database/models/businessProfile.model";
+import BusinessType from "../database/models/businessType.model";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
     const cookies = request?.cookies;
     const authKey = AppConfig.USER_AUTH_TOKEN_KEY;
@@ -38,10 +40,31 @@ export default async function authenticateUser(request: Request, response: Respo
                 //     console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
                 //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
                 // }
+                // Fetch business type if it's a business account
+                let businessTypeID: string | null = null;
+                let businessTypeName: string | null = null;
+
+                if (auth_user.accountType === AccountType.BUSINESS && auth_user.businessProfileID) {
+                    try {
+                        const businessProfile = await BusinessProfile.findOne({ _id: auth_user.businessProfileID });
+                        if (businessProfile && businessProfile.businessTypeID) {
+                            businessTypeID = String(businessProfile.businessTypeID);
+                            const businessType = await BusinessType.findOne({ _id: businessProfile.businessTypeID });
+                            if (businessType) {
+                                businessTypeName = businessType.name;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error fetching business type in authenticate:', error);
+                    }
+                }
+
                 request.user = {
                     id: auth_user.id,
                     accountType: auth_user.accountType,
                     businessProfileID: auth_user.accountType === AccountType.BUSINESS ? auth_user.businessProfileID : null,
+                    businessTypeID: businessTypeID,
+                    businessTypeName: businessTypeName,
                     role: auth_user.role
                 }
             } else {
@@ -78,10 +101,37 @@ export async function isBusinessUser(request: Request, response: Response, next:
 }
 
 export async function generateRefreshToken(user: AuthenticateUser, deviceID: string) {
+    // Fetch business type information if businessProfileID exists
+    let businessTypeID: string | undefined = undefined;
+    let businessTypeName: string | undefined = undefined;
+
+    if (user.businessProfileID && user.accountType === AccountType.BUSINESS) {
+        // Use provided businessTypeID if available, otherwise fetch from database
+        if (user.businessTypeID) {
+            businessTypeID = String(user.businessTypeID);
+            businessTypeName = user.businessTypeName;
+        } else {
+            try {
+                const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (businessProfile && businessProfile.businessTypeID) {
+                    businessTypeID = String(businessProfile.businessTypeID);
+                    const businessType = await BusinessType.findOne({ _id: businessProfile.businessTypeID });
+                    if (businessType) {
+                        businessTypeName = businessType.name;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching business type for token:', error);
+            }
+        }
+    }
+
     const payload = {
         id: String(user.id),
         accountType: user.accountType,
         businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+        businessTypeID: businessTypeID,
+        businessTypeName: businessTypeName,
         role: user.role
     };
     const options: SignOptions = { expiresIn: AppConfig.REFRESH_TOKEN_EXPIRES_IN as StringValue };
@@ -103,10 +153,37 @@ export async function generateRefreshToken(user: AuthenticateUser, deviceID: str
 
 
 export async function generateAccessToken(user: AuthenticateUser, expiresIn?: string) {
+    // Fetch business type information if businessProfileID exists
+    let businessTypeID: string | undefined = undefined;
+    let businessTypeName: string | undefined = undefined;
+
+    if (user.businessProfileID && user.accountType === AccountType.BUSINESS) {
+        // Use provided businessTypeID if available, otherwise fetch from database
+        if (user.businessTypeID) {
+            businessTypeID = String(user.businessTypeID);
+            businessTypeName = user.businessTypeName;
+        } else {
+            try {
+                const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (businessProfile && businessProfile.businessTypeID) {
+                    businessTypeID = String(businessProfile.businessTypeID);
+                    const businessType = await BusinessType.findOne({ _id: businessProfile.businessTypeID });
+                    if (businessType) {
+                        businessTypeName = businessType.name;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching business type for token:', error);
+            }
+        }
+    }
+
     const payload = {
         id: String(user.id),
         accountType: user.accountType,
         businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+        businessTypeID: businessTypeID,
+        businessTypeName: businessTypeName,
         role: user.role
     };
     const options: SignOptions = { expiresIn: (expiresIn ?? AppConfig.ACCESS_TOKEN_EXPIRES_IN) as StringValue };
