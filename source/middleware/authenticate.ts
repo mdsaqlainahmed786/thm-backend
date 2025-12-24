@@ -10,6 +10,7 @@ import AuthToken from "../database/models/authToken.model";
 import Subscription, { hasBusinessSubscription } from "../database/models/subscription.model";
 import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessType from "../database/models/businessType.model";
+import moment from "moment";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
     const cookies = request?.cookies;
     const authKey = AppConfig.USER_AUTH_TOKEN_KEY;
@@ -29,17 +30,22 @@ export default async function authenticateUser(request: Request, response: Respo
             if (auth_user && auth_user.isActivated && !auth_user.isDeleted) {
                 console.log(request.path);
                 //FIXME improve endpoint check
-                // COMMENTED OUT: Subscription check bypassed for testing
-                // const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
-                // const now = new Date();
-                // if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
-                //     console.error("ErrorMessage.NO_SUBSCRIPTION");
-                //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
-                // }
-                // if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
-                //     console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
-                //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
-                // }
+                const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
+                const now = new Date();
+
+                // Check if account is within 11-month grace period
+                const accountAgeInMonths = moment().diff(moment(auth_user.createdAt), 'months', true);
+                const isWithinGracePeriod = accountAgeInMonths < 11;
+
+                // Only enforce subscription checks if account is 11+ months old
+                if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
+                    console.error("ErrorMessage.NO_SUBSCRIPTION");
+                    return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
+                }
+                if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
+                    console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
+                    return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
+                }
                 // Fetch business type if it's a business account
                 let businessTypeID: string | null = null;
                 let businessTypeName: string | null = null;

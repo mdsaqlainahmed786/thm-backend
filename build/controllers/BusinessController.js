@@ -63,7 +63,13 @@ const businessReviewQuestion_model_1 = __importDefault(require("../database/mode
 const constants_1 = require("../config/constants");
 const axios_1 = __importDefault(require("axios"));
 const EncryptionService_1 = __importDefault(require("../services/EncryptionService"));
+const MediaController_1 = require("./MediaController");
+const menu_model_1 = __importDefault(require("../database/models/menu.model"));
+const media_model_1 = __importDefault(require("../database/models/media.model"));
+const S3Service_1 = __importDefault(require("../services/S3Service"));
+const response_2 = require("../utils/response");
 const encryptionService = new EncryptionService_1.default();
+const s3Service = new S3Service_1.default();
 const businessTypes = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -784,6 +790,145 @@ function engagementAggregatePipeline(groupFormat, labels, labelFormat) {
     ];
     return { pipeline };
 }
+/**
+ * Upload restaurant menu items (images or PDFs) for the logged-in business owner.
+ * Only businesses whose type is "Restaurant" are allowed to add menu items.
+ */
+const addRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _x;
+    try {
+        const { id, businessProfileID } = request.user;
+        if (!id) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!businessProfileID) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const businessProfile = yield businessProfile_model_1.default.findOne({ _id: new mongodb_1.ObjectId(String(businessProfileID)) });
+        if (!businessProfile) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+        if (!businessType || businessType.name !== "Restaurant") {
+            return response.send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest("Access denied: Only restaurant businesses can add menu items."), "Access denied: Only restaurant businesses can add menu items."));
+        }
+        const files = request.files;
+        const menuFiles = files && files["menu"];
+        if (!menuFiles || menuFiles.length === 0) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Menu file (image or PDF) is required"), "Menu file (image or PDF) is required"));
+        }
+        // Store uploaded files as media records (supports images and PDFs)
+        const mediaList = yield (0, MediaController_1.storeMedia)(menuFiles, id, businessProfile.id, constants_1.AwsS3AccessEndpoints.BUSINESS_DOCUMENTS, "POST");
+        if (!mediaList || mediaList.length === 0) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Unable to upload menu items"), "Unable to upload menu items"));
+        }
+        // Link media to business profile as menu entries
+        const menuDocs = yield Promise.all(mediaList.map((media) => __awaiter(void 0, void 0, void 0, function* () {
+            const newMenu = new menu_model_1.default();
+            newMenu.businessProfileID = businessProfile.id;
+            newMenu.userID = id;
+            newMenu.mediaID = media.id;
+            return newMenu.save();
+        })));
+        return response.send((0, response_1.httpCreated)(menuDocs, "Menu items added successfully"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_x = error.message) !== null && _x !== void 0 ? _x : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+/**
+ * Fetch all menu items (images / PDFs) for a given business profile.
+ * This route is public so users can see restaurant menus.
+ */
+const getRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _y;
+    try {
+        const { businessProfileID } = request.params;
+        const businessProfile = yield businessProfile_model_1.default.findOne({ _id: new mongodb_1.ObjectId(businessProfileID) });
+        if (!businessProfile) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        const menuItems = yield menu_model_1.default.find({ businessProfileID: businessProfile.id }).sort({ createdAt: -1 });
+        if (!menuItems || menuItems.length === 0) {
+            return response.send((0, response_1.httpOk)([], "No menu items found for this business"));
+        }
+        const mediaIDs = menuItems.map((m) => m.mediaID);
+        const mediaList = yield media_model_1.default.find({ _id: { $in: mediaIDs } });
+        const menuResponse = menuItems.map((menu) => {
+            const media = mediaList.find((m) => String(m.id) === String(menu.mediaID));
+            return {
+                id: menu.id,
+                businessProfileID: menu.businessProfileID,
+                mediaID: menu.mediaID,
+                createdAt: menu.createdAt,
+                media: media
+                    ? {
+                        id: media.id,
+                        mediaType: media.mediaType,
+                        sourceUrl: media.sourceUrl,
+                        thumbnailUrl: media.thumbnailUrl,
+                        mimeType: media.mimeType,
+                    }
+                    : null,
+            };
+        });
+        return response.send((0, response_1.httpOk)(menuResponse, "Menu items fetched successfully"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_y = error.message) !== null && _y !== void 0 ? _y : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+/**
+ * Delete a specific menu item (image or PDF) for the logged-in restaurant business owner.
+ * This will delete the Menu document, associated Media document, and files from S3.
+ */
+const deleteRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _z;
+    try {
+        const { id, businessProfileID } = request.user;
+        const menuID = request.params.id;
+        if (!id) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!businessProfileID) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+        // Find the menu item and verify it belongs to the user's business profile
+        const menuItem = yield menu_model_1.default.findOne({
+            _id: new mongodb_1.ObjectId(menuID),
+            businessProfileID: new mongodb_1.ObjectId(String(businessProfileID))
+        });
+        if (!menuItem) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Menu item not found or you don't have permission to delete it"), "Menu item not found or you don't have permission to delete it"));
+        }
+        // Find the associated media document
+        const media = yield media_model_1.default.findOne({ _id: menuItem.mediaID });
+        if (media) {
+            // Delete files from S3
+            if (media.s3Key) {
+                yield s3Service.deleteS3Object(media.s3Key);
+            }
+            // Only delete thumbnail if it's an S3 URL (not external placeholder URLs like for PDFs)
+            if (media.thumbnailUrl && (media.thumbnailUrl.includes('.s3.') || media.thumbnailUrl.startsWith('s3://'))) {
+                try {
+                    yield s3Service.deleteS3Asset(media.thumbnailUrl);
+                }
+                catch (error) {
+                    // If thumbnail deletion fails (e.g., external URL), just log and continue
+                    console.warn('Failed to delete thumbnail (may be external URL):', media.thumbnailUrl);
+                }
+            }
+            // Delete the media document
+            yield media.deleteOne();
+        }
+        // Delete the menu document
+        yield menuItem.deleteOne();
+        return response.send((0, response_2.httpNoContent)(null, "Menu item deleted successfully"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_z = error.message) !== null && _z !== void 0 ? _z : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
 function fetchEngagedData(businessProfileID, userID, groupFormat, labels, labelFormat) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(businessProfileID, userID, "businessProfileID");
@@ -865,4 +1010,17 @@ function fetchEngagedData(businessProfileID, userID, groupFormat, labels, labelF
         return { engagementsData, engagements };
     });
 }
-exports.default = { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID, getBusinessProfileByDirectID };
+exports.default = {
+    insights,
+    collectInsightsData,
+    businessTypes,
+    businessSubTypes,
+    businessQuestions,
+    businessQuestionAnswer,
+    getBusinessProfileByPlaceID,
+    getBusinessProfileByID,
+    getBusinessProfileByDirectID,
+    addRestaurantMenu,
+    getRestaurantMenu,
+    deleteRestaurantMenu
+};

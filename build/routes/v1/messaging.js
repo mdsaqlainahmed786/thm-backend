@@ -12,6 +12,7 @@ const api_request_validator_1 = require("../../middleware/api-request-validator"
 const MessagingEndpoints = express_1.default.Router();
 // s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }])
 MessagingEndpoints.post('/media-message', (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), api_validation_1.mediaMessageApiValidator, api_request_validator_1.validateRequest, MessagingController_1.default.sendMediaMessage);
+MessagingEndpoints.post('/share-post-message', (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), [...api_validation_1.mediaMessageApiValidator, api_validation_1.postIDValidationRule], api_request_validator_1.validateRequest, MessagingController_1.default.sharingPostMediaMessage);
 MessagingEndpoints.delete('/chat/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, MessagingController_1.default.deleteChat);
 MessagingEndpoints.post('/export-chat/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, MessagingController_1.default.exportChat);
 exports.default = MessagingEndpoints;

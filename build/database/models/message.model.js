@@ -34,6 +34,7 @@ const MessageSchema = new mongoose_1.Schema({
     // mediaUrl: { type: String },
     mediaID: { type: mongoose_1.Schema.Types.ObjectId, ref: "Media" },
     storyID: { type: mongoose_1.Schema.Types.ObjectId, ref: "Story" },
+    postID: { type: mongoose_1.Schema.Types.ObjectId, ref: "Post" },
     location: LocationSchema
 }, {
     timestamps: true

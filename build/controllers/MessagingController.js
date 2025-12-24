@@ -50,6 +50,7 @@ const businessProfile_model_1 = __importDefault(require("../database/models/busi
 const story_model_1 = require("../database/models/story.model");
 const constants_1 = require("../config/constants");
 const MediaController_1 = require("./MediaController");
+const post_model_1 = __importDefault(require("../database/models/post.model"));
 /**
  *
  * @param query
@@ -349,10 +350,80 @@ const sendMediaMessage = (request, response, next) => __awaiter(void 0, void 0, 
         next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-const deleteChat = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c, _d;
+const sharingPostMediaMessage = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _c, _d, _e;
     try {
+        const { id, accountType, businessProfileID } = request.user;
+        const { messageType, username, message, postID } = request.body;
         const requestedUserID = (_c = request.user) === null || _c === void 0 ? void 0 : _c.id;
+        // Validate postID is provided
+        if (!postID) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Post ID is required"), "Post ID is required"));
+        }
+        const sendedBy = yield user_model_1.default.findOne({ _id: requestedUserID });
+        const sendTo = yield user_model_1.default.findOne({ username: username });
+        if (!sendedBy) {
+            return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!sendTo) {
+            return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        // Fetch the post to validate it exists and get the owner
+        const post = yield post_model_1.default.findOne({ _id: new mongodb_1.ObjectId(postID), isDeleted: false, isPublished: true });
+        if (!post) {
+            return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
+        }
+        // Fetch the post owner to get username
+        const postOwner = yield user_model_1.default.findOne({ _id: post.userID });
+        if (!postOwner) {
+            return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Post owner not found"), "Post owner not found"));
+        }
+        // Get the username - prefer name if available, otherwise use username
+        const postOwnerUsername = postOwner.accountType === user_model_1.AccountType.BUSINESS && postOwner.businessProfileID
+            ? ((_d = (yield businessProfile_model_1.default.findOne({ _id: postOwner.businessProfileID }))) === null || _d === void 0 ? void 0 : _d.name) || postOwner.name || postOwner.username
+            : postOwner.name || postOwner.username;
+        const files = request.files;
+        const mediaFiles = files && files.media;
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Media file is required"), "Media file is required"));
+        }
+        // Validate that files have the S3 key property (required for S3 operations)
+        const validFiles = mediaFiles.filter((file) => {
+            return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
+        });
+        if (validFiles.length === 0) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"));
+        }
+        const type = messageType;
+        const [uploadedFiles] = yield Promise.all([
+            //@ts-ignore
+            (0, MediaController_1.storeMedia)(validFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.MESSAGING, 'POST'),
+        ]);
+        if (uploadedFiles && uploadedFiles.length === 0) {
+            return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`));
+        }
+        const messageObject = {
+            to: username,
+            message: {
+                type: messageType,
+                message: message !== null && message !== void 0 ? message : '',
+                mediaUrl: uploadedFiles[0].sourceUrl,
+                thumbnailUrl: uploadedFiles[0].thumbnailUrl,
+                mediaID: uploadedFiles[0].id,
+                postID: postID,
+                postOwnerUsername: postOwnerUsername,
+            }
+        };
+        return response.send((0, response_2.httpOk)(messageObject, "Post shared successfully"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+const deleteChat = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _f, _g;
+    try {
+        const requestedUserID = (_f = request.user) === null || _f === void 0 ? void 0 : _f.id;
         const userID = request.params.id;
         let findQuery = {
             $or: [
@@ -367,14 +438,14 @@ const deleteChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         return response.send((0, response_2.httpOk)(null, "Chat deleted."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //FIXME Deleted chat will not be exported.
 const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f;
+    var _h, _j;
     try {
-        const requestedUserID = (_e = request.user) === null || _e === void 0 ? void 0 : _e.id;
+        const requestedUserID = (_h = request.user) === null || _h === void 0 ? void 0 : _h.id;
         const userID = request.params.id;
         const user = yield user_model_1.default.findOne({ userID: userID });
         if (!user) {
@@ -412,7 +483,7 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         const hostAddress = request.protocol + "://" + request.get("host");
         let chatWith = "User";
         const data = yield Promise.all(conversations.map((chat) => __awaiter(void 0, void 0, void 0, function* () {
-            var _g, _h, _j;
+            var _k, _l, _m;
             let name = "User";
             const user = yield user_model_1.default.findOne({ _id: chat.userID });
             if (user && user.accountType === user_model_1.AccountType.BUSINESS && user.businessProfileID) {
@@ -420,14 +491,14 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
                 if (business) {
                     name = business.name;
                     if (user.id.toString() !== userID) {
-                        chatWith = (_g = user.name) !== null && _g !== void 0 ? _g : user.username;
+                        chatWith = (_k = user.name) !== null && _k !== void 0 ? _k : user.username;
                     }
                 }
             }
             else if (user) {
-                name = (_h = user.name) !== null && _h !== void 0 ? _h : user.username;
+                name = (_l = user.name) !== null && _l !== void 0 ? _l : user.username;
                 if (user.id.toString() !== userID) {
-                    chatWith = (_j = user.name) !== null && _j !== void 0 ? _j : user.username;
+                    chatWith = (_m = user.name) !== null && _m !== void 0 ? _m : user.username;
                 }
             }
             const file = [message_model_2.MessageType.VIDEO, message_model_2.MessageType.IMAGE, message_model_2.MessageType.PDF].includes(chat.type);
@@ -444,7 +515,7 @@ const exportChat = (request, response, next) => __awaiter(void 0, void 0, void 0
         }, "Chat exported."));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-exports.default = { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, deleteChat, exportChat };
+exports.default = { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, sharingPostMediaMessage, deleteChat, exportChat };

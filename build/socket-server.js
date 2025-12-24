@@ -144,6 +144,9 @@ function createSocketServer(httpServer) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case message_model_1.MessageType.VIDEO:
                             newMessage.message = data.message.message;
@@ -151,12 +154,18 @@ function createSocketServer(httpServer) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case message_model_1.MessageType.PDF:
                             newMessage.message = data.message.message;
                             newMessage.type = message_model_1.MessageType.PDF;
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
+                            }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
                             }
                             break;
                         //TODO Also add in chat export 

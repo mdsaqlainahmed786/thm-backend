@@ -44,6 +44,8 @@ const user_model_1 = __importStar(require("../database/models/user.model"));
 const common_1 = require("../common");
 const authToken_model_1 = __importDefault(require("../database/models/authToken.model"));
 const subscription_model_1 = require("../database/models/subscription.model");
+const businessProfile_model_1 = __importDefault(require("../database/models/businessProfile.model"));
+const businessType_model_1 = __importDefault(require("../database/models/businessType.model"));
 function authenticateUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
@@ -75,10 +77,30 @@ function authenticateUser(request, response, next) {
                     //     console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
                     //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
                     // }
+                    // Fetch business type if it's a business account
+                    let businessTypeID = null;
+                    let businessTypeName = null;
+                    if (auth_user.accountType === user_model_1.AccountType.BUSINESS && auth_user.businessProfileID) {
+                        try {
+                            const businessProfile = yield businessProfile_model_1.default.findOne({ _id: auth_user.businessProfileID });
+                            if (businessProfile && businessProfile.businessTypeID) {
+                                businessTypeID = String(businessProfile.businessTypeID);
+                                const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                                if (businessType) {
+                                    businessTypeName = businessType.name;
+                                }
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error fetching business type in authenticate:', error);
+                        }
+                    }
                     request.user = {
                         id: auth_user.id,
                         accountType: auth_user.accountType,
                         businessProfileID: auth_user.accountType === user_model_1.AccountType.BUSINESS ? auth_user.businessProfileID : null,
+                        businessTypeID: businessTypeID,
+                        businessTypeName: businessTypeName,
                         role: auth_user.role
                     };
                 }
@@ -125,10 +147,37 @@ exports.isBusinessUser = isBusinessUser;
 function generateRefreshToken(user, deviceID) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
+        // Fetch business type information if businessProfileID exists
+        let businessTypeID = undefined;
+        let businessTypeName = undefined;
+        if (user.businessProfileID && user.accountType === user_model_1.AccountType.BUSINESS) {
+            // Use provided businessTypeID if available, otherwise fetch from database
+            if (user.businessTypeID) {
+                businessTypeID = String(user.businessTypeID);
+                businessTypeName = user.businessTypeName;
+            }
+            else {
+                try {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                    if (businessProfile && businessProfile.businessTypeID) {
+                        businessTypeID = String(businessProfile.businessTypeID);
+                        const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                        if (businessType) {
+                            businessTypeName = businessType.name;
+                        }
+                    }
+                }
+                catch (error) {
+                    console.error('Error fetching business type for token:', error);
+                }
+            }
+        }
         const payload = {
             id: String(user.id),
             accountType: user.accountType,
             businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+            businessTypeID: businessTypeID,
+            businessTypeName: businessTypeName,
             role: user.role
         };
         const options = { expiresIn: constants_1.AppConfig.REFRESH_TOKEN_EXPIRES_IN };
@@ -151,10 +200,37 @@ function generateRefreshToken(user, deviceID) {
 exports.generateRefreshToken = generateRefreshToken;
 function generateAccessToken(user, expiresIn) {
     return __awaiter(this, void 0, void 0, function* () {
+        // Fetch business type information if businessProfileID exists
+        let businessTypeID = undefined;
+        let businessTypeName = undefined;
+        if (user.businessProfileID && user.accountType === user_model_1.AccountType.BUSINESS) {
+            // Use provided businessTypeID if available, otherwise fetch from database
+            if (user.businessTypeID) {
+                businessTypeID = String(user.businessTypeID);
+                businessTypeName = user.businessTypeName;
+            }
+            else {
+                try {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                    if (businessProfile && businessProfile.businessTypeID) {
+                        businessTypeID = String(businessProfile.businessTypeID);
+                        const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                        if (businessType) {
+                            businessTypeName = businessType.name;
+                        }
+                    }
+                }
+                catch (error) {
+                    console.error('Error fetching business type for token:', error);
+                }
+            }
+        }
         const payload = {
             id: String(user.id),
             accountType: user.accountType,
             businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+            businessTypeID: businessTypeID,
+            businessTypeName: businessTypeName,
             role: user.role
         };
         const options = { expiresIn: (expiresIn !== null && expiresIn !== void 0 ? expiresIn : constants_1.AppConfig.ACCESS_TOKEN_EXPIRES_IN) };
