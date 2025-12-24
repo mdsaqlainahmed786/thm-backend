@@ -95,8 +95,16 @@ const login = async (request: Request, response: Response, next: NextFunction) =
             const isWithinGracePeriod = accountAgeInMonths < 11;
 
             // Only enforce subscription checks if account is 11+ months old
-            if (!isWithinGracePeriod && !subscription) {
-                hasSubscription = false;
+            // For accounts within grace period, keep hasSubscription = true
+            if (!isWithinGracePeriod) {
+                if (!subscription) {
+                    hasSubscription = false;
+                } else {
+                    const now = new Date();
+                    if (subscription.expirationDate < now) {
+                        hasSubscription = false;
+                    }
+                }
             }
 
             if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
@@ -225,8 +233,16 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     const isWithinGracePeriod = accountAgeInMonths < 11;
 
                     // Only enforce subscription checks if account is 11+ months old
-                    if (!isWithinGracePeriod && !subscription) {
-                        hasSubscription = false;
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        } else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
                     }
 
                     if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
@@ -339,8 +355,16 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     const isWithinGracePeriod = accountAgeInMonths < 11;
 
                     // Only enforce subscription checks if account is 11+ months old
-                    if (!isWithinGracePeriod && !subscription) {
-                        hasSubscription = false;
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        } else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
                     }
 
                     if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
