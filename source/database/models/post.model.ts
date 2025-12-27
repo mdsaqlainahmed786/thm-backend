@@ -622,7 +622,18 @@ export function countPostDocument(filter: { [key: string]: any; }) {
 }
 export const getPostQuery = { isPublished: true, isDeleted: false };
 export async function getPostsCount(userID: MongoID) {
-    return Post.find({ userID: userID, ...getPostQuery }).countDocuments()
+    return Post.find({
+        ...getPostQuery,
+        $and: [
+            { postType: { $in: [PostType.POST, PostType.EVENT] } },
+            {
+                $or: [
+                    { userID: userID }, // user's own posts
+                    { collaborators: userID } // collaborated posts
+                ]
+            }
+        ]
+    }).countDocuments();
 }
 
 export async function getSavedPost(userID: MongoID) {
