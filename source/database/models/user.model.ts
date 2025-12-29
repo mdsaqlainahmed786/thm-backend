@@ -6,7 +6,7 @@ import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
 import { Language, MongoID, Role } from "../../common";
-import { addMediaInStory } from "./story.model";
+import { addMediaInStory, addTaggedUsersInStory } from "./story.model";
 import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
@@ -413,6 +413,12 @@ export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: Mon
                 addMediaInStory().unwindLookup,
                 addMediaInStory().replaceRootAndMergeObjects,
                 addMediaInStory().project,
+                addTaggedUsersInStory().addFieldsBeforeUnwind,
+                addTaggedUsersInStory().unwind,
+                addTaggedUsersInStory().lookup,
+                addTaggedUsersInStory().addFields,
+                addTaggedUsersInStory().group,
+                addTaggedUsersInStory().replaceRoot,
             ],
             'as': 'storiesRef'
         }

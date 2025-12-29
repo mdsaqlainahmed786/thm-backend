@@ -1,6 +1,7 @@
 import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
 import { LocationSchema, ILocation } from "./common.model";
+import { addBusinessProfileInUser } from "./user.model";
 
 export interface ITaggedUser {
     userTagged: string;
@@ -163,5 +164,111 @@ export function addMediaInStory() {
         }
     }
     return { lookup, unwindLookup, replaceRootAndMergeObjects, project }
+}
+
+/**
+ * 
+ * @returns 
+ * Return tagged users reference in story with populated user details
+ * Uses unwind -> lookup -> group pattern to populate user details for each tagged user
+ */
+export function addTaggedUsersInStory() {
+    // Save all fields before unwinding
+    const addFieldsBeforeUnwind = {
+        $addFields: {
+            _root: {
+                $arrayToObject: {
+                    $filter: {
+                        input: { $objectToArray: "$$ROOT" },
+                        cond: { $ne: ["$$this.k", "taggedUsers"] }
+                    }
+                }
+            },
+            _taggedUsersArray: "$taggedUsers"
+        }
+    };
+
+    const unwind = {
+        $unwind: {
+            path: "$_taggedUsersArray",
+            preserveNullAndEmptyArrays: true
+        }
+    };
+
+    const lookup = {
+        $lookup: {
+            from: "users",
+            let: { userId: "$_taggedUsersArray.userTaggedId" },
+            pipeline: [
+                { $match: { $expr: { $eq: ["$_id", "$$userId"] } } },
+                addBusinessProfileInUser().lookup,
+                addBusinessProfileInUser().unwindLookup,
+                {
+                    $project: {
+                        "_id": 1,
+                        "name": 1,
+                        "username": 1,
+                        "profilePic": 1,
+                        "accountType": 1,
+                        "businessProfileID": 1,
+                        "businessProfileRef._id": 1,
+                        "businessProfileRef.name": 1,
+                        "businessProfileRef.username": 1,
+                        "businessProfileRef.profilePic": 1,
+                    }
+                }
+            ],
+            as: "taggedUserDetails"
+        }
+    };
+
+    const addFields = {
+        $addFields: {
+            "_taggedUsersArray.user": {
+                $cond: {
+                    if: { $gt: [{ $size: "$taggedUserDetails" }, 0] },
+                    then: { $arrayElemAt: ["$taggedUserDetails", 0] },
+                    else: null
+                }
+            }
+        }
+    };
+
+    const group = {
+        $group: {
+            _id: "$_id",
+            root: { $first: "$_root" },
+            taggedUsers: {
+                $push: {
+                    $cond: {
+                        if: { $ne: ["$_taggedUsersArray", null] },
+                        then: "$_taggedUsersArray",
+                        else: "$$REMOVE"
+                    }
+                }
+            }
+        }
+    };
+
+    const replaceRoot = {
+        $replaceRoot: {
+            newRoot: {
+                $mergeObjects: [
+                    "$root",
+                    {
+                        taggedUsers: {
+                            $cond: {
+                                if: { $eq: [{ $size: "$taggedUsers" }, 0] },
+                                then: [],
+                                else: "$taggedUsers"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    };
+
+    return { addFieldsBeforeUnwind, unwind, lookup, addFields, group, replaceRoot }
 }
 

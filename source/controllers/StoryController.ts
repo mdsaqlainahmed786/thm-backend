@@ -7,7 +7,7 @@ import { AccountType, addBusinessProfileInUser, addStoriesInUser } from "../data
 import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
-import Story, { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
+import Story, { addMediaInStory, addTaggedUsersInStory, storyTimeStamp } from '../database/models/story.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
 import Like, { addUserInLike } from '../database/models/like.model';
@@ -39,6 +39,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     addMediaInStory().unwindLookup,
                     addMediaInStory().replaceRootAndMergeObjects,
                     addMediaInStory().project,
+                    addTaggedUsersInStory().addFieldsBeforeUnwind,
+                    addTaggedUsersInStory().unwind,
+                    addTaggedUsersInStory().lookup,
+                    addTaggedUsersInStory().addFields,
+                    addTaggedUsersInStory().group,
+                    addTaggedUsersInStory().replaceRoot,
                     {
                         '$lookup': {
                             'from': 'likes',
