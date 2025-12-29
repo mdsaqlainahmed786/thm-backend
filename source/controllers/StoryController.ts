@@ -250,12 +250,27 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
 
         // Handle multiple tagged users with their positions
-        if (taggedUsers && Array.isArray(taggedUsers) && taggedUsers.length > 0) {
-            newStory.taggedUsers = taggedUsers.map((tagged: any) => ({
+        // Parse taggedUsers if it comes as a JSON string from form-data
+        let parsedTaggedUsers: any[] = [];
+        if (taggedUsers) {
+            try {
+                parsedTaggedUsers = Array.isArray(taggedUsers)
+                    ? taggedUsers
+                    : typeof taggedUsers === 'string'
+                        ? JSON.parse(taggedUsers)
+                        : [];
+            } catch (err) {
+                console.error("Invalid taggedUsers format:", taggedUsers);
+                parsedTaggedUsers = [];
+            }
+        }
+
+        if (parsedTaggedUsers && Array.isArray(parsedTaggedUsers) && parsedTaggedUsers.length > 0) {
+            newStory.taggedUsers = parsedTaggedUsers.map((tagged: any) => ({
                 userTagged: tagged.userTagged || tagged.username || '',
                 userTaggedId: tagged.userTaggedId || tagged.userId,
-                positionX: typeof tagged.positionX === 'string' ? parseFloat(tagged.positionX) : tagged.positionX,
-                positionY: typeof tagged.positionY === 'string' ? parseFloat(tagged.positionY) : tagged.positionY
+                positionX: typeof tagged.positionX === 'string' ? parseFloat(tagged.positionX) : (tagged.positionX || 0),
+                positionY: typeof tagged.positionY === 'string' ? parseFloat(tagged.positionY) : (tagged.positionY || 0)
             })).filter((tagged: any) => tagged.userTaggedId && tagged.userTagged); // Filter out invalid entries
         }
 
