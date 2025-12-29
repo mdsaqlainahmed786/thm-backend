@@ -188,7 +188,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, userTaggedId, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
+        const { content, placeName, lat, lng, taggedUsers, feelings, locationPositionX, locationPositionY } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -233,8 +233,6 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newStory.mediaID = mediaIDs;
         newStory.locationPositionX = locationPositionX;
         newStory.locationPositionY = locationPositionY;
-        newStory.userTaggedPositionX = userTaggedPositionX;
-        newStory.userTaggedPositionY = userTaggedPositionY;
 
         // Set location only if all location fields are provided
         if (placeName && lat && lng) {
@@ -245,12 +243,14 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             };
         }
 
-        // Set userTagged and userTaggedId only if provided
-        if (userTagged) {
-            newStory.userTagged = userTagged;
-        }
-        if (userTaggedId) {
-            newStory.userTaggedId = userTaggedId;
+        // Handle multiple tagged users with their positions
+        if (taggedUsers && Array.isArray(taggedUsers) && taggedUsers.length > 0) {
+            newStory.taggedUsers = taggedUsers.map((tagged: any) => ({
+                userTagged: tagged.userTagged || tagged.username || '',
+                userTaggedId: tagged.userTaggedId || tagged.userId,
+                positionX: typeof tagged.positionX === 'string' ? parseFloat(tagged.positionX) : tagged.positionX,
+                positionY: typeof tagged.positionY === 'string' ? parseFloat(tagged.positionY) : tagged.positionY
+            })).filter((tagged: any) => tagged.userTaggedId && tagged.userTagged); // Filter out invalid entries
         }
 
         const savedStory = await newStory.save();

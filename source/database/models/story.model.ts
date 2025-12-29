@@ -2,6 +2,38 @@ import { Document, Model, Schema, model, Types } from "mongoose";
 import { MongoID } from "../../common";
 import { LocationSchema, ILocation } from "./common.model";
 
+export interface ITaggedUser {
+    userTagged: string;
+    userTaggedId: MongoID;
+    positionX: number;
+    positionY: number;
+}
+
+const TaggedUserSchema = new Schema<ITaggedUser>(
+    {
+        userTagged: {
+            type: String,
+            required: true
+        },
+        userTaggedId: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+        positionX: {
+            type: Number,
+            required: true
+        },
+        positionY: {
+            type: Number,
+            required: true
+        }
+    },
+    {
+        _id: false
+    }
+);
+
 interface IStory extends Document {
     userID: MongoID;
     businessProfileID?: MongoID;
@@ -9,10 +41,12 @@ interface IStory extends Document {
     timeStamp: Date;
     duration: number;
     location?: ILocation;
-    userTagged?: string;
-    userTaggedId?: MongoID;
+    taggedUsers?: ITaggedUser[];
     locationPositionX?: number;
     locationPositionY?: number;
+    // Keep old fields for backward compatibility during migration
+    userTagged?: string;
+    userTaggedId?: MongoID;
     userTaggedPositionX?: number;
     userTaggedPositionY?: number;
 }
@@ -34,18 +68,20 @@ const LikeSchema: Schema = new Schema<IStory>(
             default: 0,
         },
         location: LocationSchema,
+        taggedUsers: [TaggedUserSchema],
+        locationPositionX: {
+            type: Number,
+        },
+        locationPositionY: {
+            type: Number,
+        },
+        // Keep old fields for backward compatibility during migration
         userTagged: {
             type: String,
         },
         userTaggedId: {
             type: Schema.Types.ObjectId,
             ref: "User",
-        },
-        locationPositionX: {
-            type: Number,
-        },
-        locationPositionY: {
-            type: Number,
         },
         userTaggedPositionX: {
             type: Number,
@@ -116,10 +152,12 @@ export function addMediaInStory() {
             'seenByMe': 1,
             'thumbnailUrl': 1,
             'location': 1,
-            'userTagged': 1,
-            'userTaggedId': 1,
+            'taggedUsers': 1,
             'locationPositionX': 1,
             'locationPositionY': 1,
+            // Keep old fields for backward compatibility
+            'userTagged': 1,
+            'userTaggedId': 1,
             'userTaggedPositionX': 1,
             'userTaggedPositionY': 1,
         }
