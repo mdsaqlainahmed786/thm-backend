@@ -151,10 +151,11 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                     }
                     const savedMessage = await newMessage.save();
+                    const messageID = String(savedMessage._id);
                     const messageData = {
                         message: {
                             ...data.message,
-                            messageID: savedMessage.id.toString()
+                            messageID: messageID
                         },
                         from: (socket as AppSocketUser).username,
                         to: data.to,
@@ -199,7 +200,12 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "User not found" });
                 }
 
-                const message = await Message.findById(data.messageID);
+                // Validate ObjectId format
+                if (!ObjectId.isValid(data.messageID)) {
+                    return socket.emit("error", { message: "Invalid message ID format" });
+                }
+
+                const message = await Message.findById(new ObjectId(data.messageID));
                 if (!message) {
                     return socket.emit("error", { message: "Message not found" });
                 }
@@ -223,7 +229,7 @@ export default function createSocketServer(httpServer: https.Server) {
 
                 // Emit updated message to both users
                 const updatePayload = {
-                    messageID: updatedMessage.id.toString(),
+                    messageID: String(updatedMessage._id),
                     message: updatedMessage.message,
                     isEdited: true,
                     editedAt: updatedMessage.editedAt?.toISOString(),
@@ -245,7 +251,12 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "User not found" });
                 }
 
-                const message = await Message.findById(data.messageID);
+                // Validate ObjectId format
+                if (!ObjectId.isValid(data.messageID)) {
+                    return socket.emit("error", { message: "Invalid message ID format" });
+                }
+
+                const message = await Message.findById(new ObjectId(data.messageID));
                 if (!message) {
                     return socket.emit("error", { message: "Message not found" });
                 }
@@ -262,7 +273,7 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
 
                 // Hard delete the message
-                await Message.findByIdAndDelete(data.messageID);
+                await Message.findByIdAndDelete(new ObjectId(data.messageID));
 
                 // Emit delete event to both users
                 const deletePayload = {
