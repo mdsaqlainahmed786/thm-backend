@@ -55,7 +55,7 @@ const BusinessProfileSchema: Schema = new Schema<IBusinessProfile>(
             }
         ],
         privateAccount: {
-            type: Boolean, default: true,
+            type: Boolean, default: false,
         },
         coverImage: {
             type: String, default: ""

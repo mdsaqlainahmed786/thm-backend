@@ -127,7 +127,7 @@ const UserSchema: Schema = new Schema<IUser>(
             type: Boolean, default: false,
         },
         privateAccount: {
-            type: Boolean, default: true,
+            type: Boolean, default: false,
         },
         notificationEnabled: {
             type: Boolean, default: true,
@@ -670,8 +670,10 @@ export async function createUserAccount(data: any, sendOTP: boolean) {
     if (isApproved !== undefined && isApproved !== null && isApproved === false) {
         newUser.isApproved = isApproved;//The business account needs to be approved by the admin; the default value of 'isApproved' is true.
     }
-    if (privateAccount !== undefined && privateAccount !== null && privateAccount === false) {
-        newUser.privateAccount = privateAccount;// All business account is public account 
+    if (privateAccount !== undefined && privateAccount !== null) {
+        newUser.privateAccount = privateAccount;
+    } else {
+        newUser.privateAccount = false; // Default to public account
     }
     if (socialIDs && isArray(socialIDs)) {
         newUser.socialIDs = socialIDs;
@@ -706,6 +708,10 @@ export async function createBusinessProfile(data: any) {
     newBusinessProfile.website = website;
     newBusinessProfile.gstn = gstn;
     newBusinessProfile.placeID = placeID;
-    newBusinessProfile.privateAccount = privateAccount;
+    if (privateAccount !== undefined && privateAccount !== null) {
+        newBusinessProfile.privateAccount = privateAccount;
+    } else {
+        newBusinessProfile.privateAccount = false; // Default to public account
+    }
     return await newBusinessProfile.save();
 }
