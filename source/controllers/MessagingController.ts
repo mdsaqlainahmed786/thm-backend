@@ -136,7 +136,9 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 targetUserID: 0,
                 userID: 0,
                 deletedByID: 0,
-                storiesRef: 0
+                storiesRef: 0,
+                isEdited: 1,
+                editedAt: 1
             }
         }
     ])

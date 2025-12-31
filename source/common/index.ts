@@ -56,6 +56,9 @@ export interface Message {
     mediaID?: string;
     postID?: string;
     postOwnerUsername?: string;
+    messageID?: string;
+    isEdited?: boolean;
+    editedAt?: Date;
 }
 
 export interface Messages {

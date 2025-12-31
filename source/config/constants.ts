@@ -93,7 +93,7 @@ export abstract class AppConfig {
         TEAM_ID: process.env.APPLE_TEAM_ID!,
         KEY_IDENTIFIER: process.env.APPLE_KEY_IDENTIFIER!,
     }
-     // If PUBLIC_DIR is set and points to folder
+    // If PUBLIC_DIR is set and points to folder
     static readonly PUBLIC_DIR: string = process.env.PUBLIC_DIR || "public";
 }
 
@@ -117,6 +117,8 @@ export abstract class SocketChannel {
     static readonly LEAVE_CHAT = "leave chat";
     static readonly IN_PRIVATE_CHAT = "in private chat";
     static readonly LEAVE_PRIVATE_CHAT = "leave private chat";
+    static readonly EDIT_MESSAGE = "edit message";
+    static readonly DELETE_MESSAGE = "delete message";
 }
 
 

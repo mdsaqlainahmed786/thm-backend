@@ -95,16 +95,6 @@ export default function createSocketServer(httpServer: https.Server) {
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
             const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
             const isOnline = currentSession ? true : false;
-            const messageData = {
-                message: data.message,
-                from: (socket as AppSocketUser).username,
-                to: data.to,
-                time: new Date().toISOString(),
-                isSeen: isSeen ?? false
-            }
-            socket.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
-            // console.log(data)
-            // return false
             try {
                 const sendedBy = await User.findOne({ username: (socket as AppSocketUser).username });
                 const sendTo = await User.findOne({ username: data.to });
@@ -112,7 +102,7 @@ export default function createSocketServer(httpServer: https.Server) {
                     const newMessage = new Message();
                     newMessage.userID = sendedBy.id;
                     newMessage.targetUserID = sendTo.id;
-                    newMessage.isSeen = messageData.isSeen;
+                    newMessage.isSeen = isSeen ?? false;
                     switch (data.message.type) {
                         case MessageType.TEXT:
                             newMessage.message = data.message.message;
@@ -161,6 +151,18 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                     }
                     const savedMessage = await newMessage.save();
+                    const messageData = {
+                        message: {
+                            ...data.message,
+                            messageID: savedMessage.id.toString()
+                        },
+                        from: (socket as AppSocketUser).username,
+                        to: data.to,
+                        time: new Date().toISOString(),
+                        isSeen: isSeen ?? false,
+                        isEdited: false
+                    }
+                    socket.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
 
                     let message = savedMessage.message;
                     switch (savedMessage.type) {
@@ -187,6 +189,92 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
             } catch (error: any) {
                 console.error(error)
+            }
+        });
+
+        socket.on(SocketChannel.EDIT_MESSAGE, async (data: { messageID: string; message: string }) => {
+            try {
+                const user = await User.findOne({ username: (socket as AppSocketUser).username });
+                if (!user) {
+                    return socket.emit("error", { message: "User not found" });
+                }
+
+                const message = await Message.findById(data.messageID);
+                if (!message) {
+                    return socket.emit("error", { message: "Message not found" });
+                }
+
+                // Only the sender can edit the message
+                if (message.userID.toString() !== user.id.toString()) {
+                    return socket.emit("error", { message: "You can only edit your own messages" });
+                }
+
+                // Update message
+                message.message = data.message;
+                message.isEdited = true;
+                message.editedAt = new Date();
+                const updatedMessage = await message.save();
+
+                // Get the target user for broadcasting
+                const targetUser = await User.findById(message.targetUserID);
+                if (!targetUser) {
+                    return socket.emit("error", { message: "Target user not found" });
+                }
+
+                // Emit updated message to both users
+                const updatePayload = {
+                    messageID: updatedMessage.id.toString(),
+                    message: updatedMessage.message,
+                    isEdited: true,
+                    editedAt: updatedMessage.editedAt?.toISOString(),
+                    from: (socket as AppSocketUser).username,
+                    to: targetUser.username
+                };
+
+                socket.to(targetUser.username).to((socket as AppSocketUser).username).emit(SocketChannel.EDIT_MESSAGE, updatePayload);
+            } catch (error: any) {
+                console.error("EDIT_MESSAGE_ERROR:", error);
+                socket.emit("error", { message: error.message || "Failed to edit message" });
+            }
+        });
+
+        socket.on(SocketChannel.DELETE_MESSAGE, async (data: { messageID: string }) => {
+            try {
+                const user = await User.findOne({ username: (socket as AppSocketUser).username });
+                if (!user) {
+                    return socket.emit("error", { message: "User not found" });
+                }
+
+                const message = await Message.findById(data.messageID);
+                if (!message) {
+                    return socket.emit("error", { message: "Message not found" });
+                }
+
+                // Only the sender can delete the message
+                if (message.userID.toString() !== user.id.toString()) {
+                    return socket.emit("error", { message: "You can only delete your own messages" });
+                }
+
+                // Get target user before deletion for broadcasting
+                const targetUser = await User.findById(message.targetUserID);
+                if (!targetUser) {
+                    return socket.emit("error", { message: "Target user not found" });
+                }
+
+                // Hard delete the message
+                await Message.findByIdAndDelete(data.messageID);
+
+                // Emit delete event to both users
+                const deletePayload = {
+                    messageID: data.messageID,
+                    from: (socket as AppSocketUser).username,
+                    to: targetUser.username
+                };
+
+                socket.to(targetUser.username).to((socket as AppSocketUser).username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
+            } catch (error: any) {
+                console.error("DELETE_MESSAGE_ERROR:", error);
+                socket.emit("error", { message: error.message || "Failed to delete message" });
             }
         });
 
