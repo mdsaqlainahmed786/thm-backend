@@ -210,11 +210,13 @@ export function addPostedByInPost() {
                         "name": 1,
                         "profilePic": 1,
                         "accountType": 1,
+                        "privateAccount": 1,
                         "businessProfileID": 1,
                         "businessProfileRef._id": 1,
                         "businessProfileRef.name": 1,
                         "businessProfileRef.profilePic": 1,
                         "businessProfileRef.rating": 1,
+                        "businessProfileRef.privateAccount": 1,
                         "businessProfileRef.businessTypeRef": 1,
                         "businessProfileRef.businessSubtypeRef": 1,
                         "businessProfileRef.address": 1,
@@ -559,6 +561,27 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             addTaggedPeopleInPost().lookup,
             addPostedByInPost().lookup,
             addPostedByInPost().unwindLookup,
+            {
+                $match: {
+                    $and: [
+                        { "postedBy": { $ne: null } },
+                        {
+                            $or: [
+                                { "postedBy.privateAccount": { $ne: true } },
+                                { "postedBy.privateAccount": { $exists: false } }
+                            ]
+                        },
+                        {
+                            $or: [
+                                { "postedBy.businessProfileRef": { $exists: false } },
+                                { "postedBy.businessProfileRef": null },
+                                { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
+                                { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
+                            ]
+                        }
+                    ]
+                }
+            },
             addAnonymousUserInPost().lookup,
             addAnonymousUserInPost().unwindLookup,
             addLikesInPost().lookup,
