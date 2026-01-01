@@ -44,6 +44,7 @@ export interface IMessage extends Document {
     postID: MongoID;
     isEdited: boolean;
     editedAt?: Date;
+    clientMessageID?: string;
 }
 const MessageSchema: Schema = new Schema<IMessage>(
     {
@@ -66,7 +67,8 @@ const MessageSchema: Schema = new Schema<IMessage>(
         postID: { type: Schema.Types.ObjectId, ref: "Post" },
         location: LocationSchema,
         isEdited: { type: Boolean, default: false },
-        editedAt: { type: Date }
+        editedAt: { type: Date },
+        clientMessageID: { type: String }
     },
     {
         timestamps: true

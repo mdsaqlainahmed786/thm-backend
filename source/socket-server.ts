@@ -103,6 +103,11 @@ export default function createSocketServer(httpServer: https.Server) {
                     newMessage.userID = sendedBy.id;
                     newMessage.targetUserID = sendTo.id;
                     newMessage.isSeen = isSeen ?? false;
+                    // Save the client's temporary ID if provided
+                    if (data.message.messageID && data.message.messageID.length !== 24) {
+                        newMessage.clientMessageID = data.message.messageID;
+                    }
+
                     switch (data.message.type) {
                         case MessageType.TEXT:
                             newMessage.message = data.message.message;
@@ -230,6 +235,18 @@ export default function createSocketServer(httpServer: https.Server) {
                         // Ignore
                     }
                 }
+
+                // If still not found, try searching by clientMessageID
+                if (!messageDoc) {
+                    try {
+                        messageDoc = await Message.findOne({ clientMessageID: messageID });
+                        if (messageDoc) {
+                            console.log("EDIT_MESSAGE: Found message via clientMessageID:", messageID);
+                        }
+                    } catch (e) {
+                        console.error("EDIT_MESSAGE: Error searching by clientMessageID", e);
+                    }
+                }
                 if (!messageDoc) {
                     console.log("EDIT_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
@@ -316,6 +333,18 @@ export default function createSocketServer(httpServer: https.Server) {
                         // Ignore
                     }
                 }
+
+                // If still not found, try searching by clientMessageID
+                if (!message) {
+                    try {
+                        message = await Message.findOne({ clientMessageID: messageID });
+                        if (message) {
+                            console.log("DELETE_MESSAGE: Found message via clientMessageID:", messageID);
+                        }
+                    } catch (e) {
+                        console.error("DELETE_MESSAGE: Error searching by clientMessageID", e);
+                    }
+                }
                 if (!message) {
                     console.log("DELETE_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
@@ -336,8 +365,9 @@ export default function createSocketServer(httpServer: https.Server) {
 
                 // Hard delete the message
                 // Hard delete the message
-                await Message.deleteOne({ _id: messageID });
-                console.log("DELETE_MESSAGE: Message deleted successfully:", messageID);
+                // If we found it via clientMessageID, use the doc's _id for deletion
+                await Message.deleteOne({ _id: message._id });
+                console.log("DELETE_MESSAGE: Message deleted successfully. ID:", message._id, "ClientID:", messageID);
 
                 // Emit delete event to both users
                 const deletePayload = {
