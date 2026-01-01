@@ -163,7 +163,8 @@ export default function createSocketServer(httpServer: https.Server) {
                         isSeen: isSeen ?? false,
                         isEdited: false
                     }
-                    socket.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
+                    // Emit to both users (including sender) so they get the real messageID
+                    io.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
 
                     let message = savedMessage.message;
                     switch (savedMessage.type) {
