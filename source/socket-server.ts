@@ -155,7 +155,8 @@ export default function createSocketServer(httpServer: https.Server) {
                     const messageData = {
                         message: {
                             ...data.message,
-                            messageID: messageID
+                            messageID: messageID,
+                            tempMessageID: data.message.messageID
                         },
                         from: (socket as AppSocketUser).username,
                         to: data.to,
