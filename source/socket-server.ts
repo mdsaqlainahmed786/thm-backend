@@ -217,11 +217,7 @@ export default function createSocketServer(httpServer: https.Server) {
                     // Valid MongoDB ObjectId (24 characters)
                     messageDoc = await Message.findById(new ObjectId(messageID));
                 } else {
-                    // Not a valid ObjectId
                     console.log("EDIT_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
-                    return socket.emit("error", {
-                        message: `Invalid message ID format. Expected 24-character MongoDB ObjectId, got ${messageID.length}-character ID. Please use the _id field from the message.`
-                    });
                 }
 
                 if (!messageDoc) {
@@ -307,15 +303,7 @@ export default function createSocketServer(httpServer: https.Server) {
                     // Valid MongoDB ObjectId (24 characters)
                     message = await Message.findById(new ObjectId(messageID));
                 } else {
-                    // Not a valid ObjectId - might be a different ID format
-                    // Try to find by converting to ObjectId if possible, or search by message content
                     console.log("DELETE_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
-                    // Try as string comparison against _id.toString()
-                    // This won't work directly, so we need to fetch all messages and filter
-                    // But that's inefficient. Better to log and ask frontend to use correct ID
-                    return socket.emit("error", {
-                        message: `Invalid message ID format. Expected 24-character MongoDB ObjectId, got ${messageID.length}-character ID. Please use the _id field from the message.`
-                    });
                 }
 
                 if (!message) {
@@ -345,7 +333,8 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
 
                 // Hard delete the message
-                await Message.findByIdAndDelete(new ObjectId(messageID));
+                // Hard delete the message
+                await Message.deleteOne({ _id: messageID });
                 console.log("DELETE_MESSAGE: Message deleted successfully:", messageID);
 
                 // Emit delete event to both users
