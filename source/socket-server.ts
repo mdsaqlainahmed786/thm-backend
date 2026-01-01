@@ -273,6 +273,7 @@ export default function createSocketServer(httpServer: https.Server) {
                 // Emit updated message to both users
                 const updatePayload = {
                     messageID: String(updatedMessage._id),
+                    clientMessageID: updatedMessage.clientMessageID, // Include client ID for sender synchronization
                     message: updatedMessage.message,
                     isEdited: true,
                     editedAt: updatedMessage.editedAt?.toISOString(),
@@ -336,16 +337,10 @@ export default function createSocketServer(httpServer: https.Server) {
 
                 // If still not found, try searching by clientMessageID
                 if (!message) {
-                    // console.log("DELETE_MESSAGE: Valid ObjectId lookup failed. Searching by clientMessageID:", messageID);
                     try {
                         message = await Message.findOne({ clientMessageID: messageID });
-                        // if (message) {
-                        //     console.log("DELETE_MESSAGE: Found message via clientMessageID:", messageID, "Real ID:", message._id);
-                        // } else {
-                        //     console.log("DELETE_MESSAGE: Message NOT found via clientMessageID:", messageID);
-                        // }
                     } catch (e) {
-                        // console.error("DELETE_MESSAGE: Error searching by clientMessageID", e);
+                        // Ignore
                     }
                 }
                 if (!message) {
