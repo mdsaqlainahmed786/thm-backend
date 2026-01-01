@@ -59,6 +59,7 @@ export interface Message {
     messageID?: string;
     isEdited?: boolean;
     editedAt?: Date;
+    isDeleted?: boolean;
 }
 
 export interface Messages {

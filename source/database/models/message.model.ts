@@ -45,6 +45,7 @@ export interface IMessage extends Document {
     isEdited: boolean;
     editedAt?: Date;
     clientMessageID?: string;
+    isDeleted: boolean;
 }
 const MessageSchema: Schema = new Schema<IMessage>(
     {
@@ -68,7 +69,8 @@ const MessageSchema: Schema = new Schema<IMessage>(
         location: LocationSchema,
         isEdited: { type: Boolean, default: false },
         editedAt: { type: Date },
-        clientMessageID: { type: String }
+        clientMessageID: { type: String },
+        isDeleted: { type: Boolean, default: false }
     },
     {
         timestamps: true

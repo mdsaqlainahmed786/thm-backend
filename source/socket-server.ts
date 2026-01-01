@@ -361,15 +361,16 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "Target user not found" });
                 }
 
-                // Hard delete the message
-                // Hard delete the message
-                // If we found it via clientMessageID, use the doc's _id for deletion
-                await Message.deleteOne({ _id: message._id });
-                console.log("DELETE_MESSAGE: Message deleted successfully. ID:", message._id, "ClientID:", messageID);
+                // Soft delete the message
+                message.isDeleted = true;
+                message.message = "Deleted message"; // Optional: Clear the content if needed
+                await message.save();
+                console.log("DELETE_MESSAGE: Message soft-deleted successfully. ID:", message._id, "ClientID:", messageID);
 
                 // Emit delete event to both users
                 const deletePayload = {
                     messageID: messageID,
+                    isDeleted: true,
                     from: (socket as AppSocketUser).username,
                     to: targetUser.username
                 };
