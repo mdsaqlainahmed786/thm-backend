@@ -90,7 +90,11 @@ export default function createSocketServer(httpServer: https.Server) {
         })
 
         /**Done */
-        socket.on(SocketChannel.PRIVATE_MESSAGE, async (data: PrivateIncomingMessagePayload, next) => {
+        socket.on(SocketChannel.PRIVATE_MESSAGE, async (...args: any[]) => {
+            const data: PrivateIncomingMessagePayload = args[0];
+            const next = args[1]; // Ack callback if present
+            console.log("PRIVATE_MESSAGE ALL ARGS:", JSON.stringify(args));
+
             const currentSession = sessionStore.findSession(data.to);
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
             const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
