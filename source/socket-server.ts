@@ -193,37 +193,50 @@ export default function createSocketServer(httpServer: https.Server) {
             }
         });
 
-        socket.on(SocketChannel.EDIT_MESSAGE, async (data: { messageID: string; message: string }) => {
-            console.log("EDIT_MESSAGE received:", data, "from user:", (socket as AppSocketUser).username);
+        socket.on(SocketChannel.EDIT_MESSAGE, async (...args: any[]) => {
+            // Handle different data formats
+            const data = args[0] || {};
+            console.log("EDIT_MESSAGE received - Raw args:", args);
+            console.log("EDIT_MESSAGE received - Parsed data:", data, "from user:", (socket as AppSocketUser).username);
             try {
+                const messageID = data.messageID || data.messageId;
+                const message = data.message || data.text;
+
+                if (!messageID || !message) {
+                    console.log("EDIT_MESSAGE: Missing required fields", { messageID, message });
+                    return socket.emit("error", { message: "Missing messageID or message field" });
+                }
                 const user = await User.findOne({ username: (socket as AppSocketUser).username });
                 if (!user) {
                     return socket.emit("error", { message: "User not found" });
                 }
 
                 // Validate ObjectId format
-                if (!ObjectId.isValid(data.messageID)) {
+                if (!ObjectId.isValid(messageID)) {
+                    console.log("EDIT_MESSAGE: Invalid message ID format:", messageID);
                     return socket.emit("error", { message: "Invalid message ID format" });
                 }
 
-                const message = await Message.findById(new ObjectId(data.messageID));
-                if (!message) {
+                const messageDoc = await Message.findById(new ObjectId(messageID));
+                if (!messageDoc) {
+                    console.log("EDIT_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
                 }
 
                 // Only the sender can edit the message
-                if (message.userID.toString() !== user.id.toString()) {
+                if (messageDoc.userID.toString() !== user.id.toString()) {
+                    console.log("EDIT_MESSAGE: User not authorized to edit message");
                     return socket.emit("error", { message: "You can only edit your own messages" });
                 }
 
                 // Update message
-                message.message = data.message;
-                message.isEdited = true;
-                message.editedAt = new Date();
-                const updatedMessage = await message.save();
+                messageDoc.message = message;
+                messageDoc.isEdited = true;
+                messageDoc.editedAt = new Date();
+                const updatedMessage = await messageDoc.save();
 
                 // Get the target user for broadcasting
-                const targetUser = await User.findById(message.targetUserID);
+                const targetUser = await User.findById(messageDoc.targetUserID);
                 if (!targetUser) {
                     return socket.emit("error", { message: "Target user not found" });
                 }
@@ -246,8 +259,18 @@ export default function createSocketServer(httpServer: https.Server) {
             }
         });
 
-        socket.on(SocketChannel.DELETE_MESSAGE, async (data: { messageID: string }) => {
-            console.log("DELETE_MESSAGE received:", data, "from user:", (socket as AppSocketUser).username);
+        // Catch-all listener for debugging (log any unhandled events)
+        socket.onAny((eventName, ...args) => {
+            if (eventName === SocketChannel.EDIT_MESSAGE || eventName === SocketChannel.DELETE_MESSAGE) {
+                console.log("DEBUG: Event received via onAny:", eventName, "Args:", args);
+            }
+        });
+
+        socket.on(SocketChannel.DELETE_MESSAGE, async (...args: any[]) => {
+            // Handle different data formats
+            const data = args[0] || {};
+            console.log("DELETE_MESSAGE received - Raw args:", args);
+            console.log("DELETE_MESSAGE received - Parsed data:", data, "from user:", (socket as AppSocketUser).username);
             try {
                 const user = await User.findOne({ username: (socket as AppSocketUser).username });
                 if (!user) {
@@ -255,15 +278,22 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "User not found" });
                 }
 
+                const messageID = data.messageID || data.messageId;
+
+                if (!messageID) {
+                    console.log("DELETE_MESSAGE: Missing messageID field");
+                    return socket.emit("error", { message: "Missing messageID field" });
+                }
+
                 // Validate ObjectId format
-                if (!ObjectId.isValid(data.messageID)) {
-                    console.log("DELETE_MESSAGE: Invalid message ID format:", data.messageID);
+                if (!ObjectId.isValid(messageID)) {
+                    console.log("DELETE_MESSAGE: Invalid message ID format:", messageID);
                     return socket.emit("error", { message: "Invalid message ID format" });
                 }
 
-                const message = await Message.findById(new ObjectId(data.messageID));
+                const message = await Message.findById(new ObjectId(messageID));
                 if (!message) {
-                    console.log("DELETE_MESSAGE: Message not found with ID:", data.messageID);
+                    console.log("DELETE_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
                 }
 
@@ -281,12 +311,12 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
 
                 // Hard delete the message
-                await Message.findByIdAndDelete(new ObjectId(data.messageID));
-                console.log("DELETE_MESSAGE: Message deleted successfully:", data.messageID);
+                await Message.findByIdAndDelete(new ObjectId(messageID));
+                console.log("DELETE_MESSAGE: Message deleted successfully:", messageID);
 
                 // Emit delete event to both users
                 const deletePayload = {
-                    messageID: data.messageID,
+                    messageID: messageID,
                     from: (socket as AppSocketUser).username,
                     to: targetUser.username
                 };
