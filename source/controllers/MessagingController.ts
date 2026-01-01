@@ -137,8 +137,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 targetUserID: 0,
                 userID: 0,
                 deletedByID: 0,
-                storiesRef: 0,
-                isDeleted: 1
+                storiesRef: 0
             }
         }
     ])
@@ -226,7 +225,6 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 deletedByID: 0,
                 document: 0,
                 usersRef: 0,
-                isDeleted: 1
             }
         }
     ])
