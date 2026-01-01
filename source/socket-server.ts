@@ -104,6 +104,7 @@ export default function createSocketServer(httpServer: https.Server) {
                     newMessage.targetUserID = sendTo.id;
                     newMessage.isSeen = isSeen ?? false;
                     // Save the client's temporary ID if provided
+                    console.log("PRIVATE_MESSAGE FULL PAYLOAD:", JSON.stringify(data));
                     console.log("PRIVATE_MESSAGE: Incoming messageID:", data.message.messageID, "Length:", data.message.messageID?.length);
                     if (data.message.messageID && data.message.messageID.length !== 24) {
                         newMessage.clientMessageID = data.message.messageID;
