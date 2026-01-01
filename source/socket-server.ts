@@ -104,8 +104,12 @@ export default function createSocketServer(httpServer: https.Server) {
                     newMessage.targetUserID = sendTo.id;
                     newMessage.isSeen = isSeen ?? false;
                     // Save the client's temporary ID if provided
+                    console.log("PRIVATE_MESSAGE: Incoming messageID:", data.message.messageID, "Length:", data.message.messageID?.length);
                     if (data.message.messageID && data.message.messageID.length !== 24) {
                         newMessage.clientMessageID = data.message.messageID;
+                        console.log("PRIVATE_MESSAGE: Setting clientMessageID to:", newMessage.clientMessageID);
+                    } else {
+                        console.log("PRIVATE_MESSAGE: Not setting clientMessageID. ID valid or missing.");
                     }
 
                     switch (data.message.type) {
@@ -336,10 +340,13 @@ export default function createSocketServer(httpServer: https.Server) {
 
                 // If still not found, try searching by clientMessageID
                 if (!message) {
+                    console.log("DELETE_MESSAGE: Valid ObjectId lookup failed. Searching by clientMessageID:", messageID);
                     try {
                         message = await Message.findOne({ clientMessageID: messageID });
                         if (message) {
-                            console.log("DELETE_MESSAGE: Found message via clientMessageID:", messageID);
+                            console.log("DELETE_MESSAGE: Found message via clientMessageID:", messageID, "Real ID:", message._id);
+                        } else {
+                            console.log("DELETE_MESSAGE: Message NOT found via clientMessageID:", messageID);
                         }
                     } catch (e) {
                         console.error("DELETE_MESSAGE: Error searching by clientMessageID", e);
