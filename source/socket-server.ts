@@ -363,21 +363,21 @@ export default function createSocketServer(httpServer: https.Server) {
 
                 // Soft delete the message
                 message.isDeleted = true;
-                message.message = "Deleted message"; // Optional: Clear the content if needed
+                message.message = "The message was deleted";
                 await message.save();
-                console.log("DELETE_MESSAGE: Message soft-deleted successfully. ID:", message._id, "ClientID:", messageID);
+                console.log("DELETE_MESSAGE: Message soft-deleted successfully. ID:", message._id, "ClientID:", message.clientMessageID);
 
                 // Emit delete event to both users
                 const deletePayload = {
-                    messageID: messageID,
+                    messageID: String(message._id),
+                    clientMessageID: message.clientMessageID,
                     isDeleted: true,
                     from: (socket as AppSocketUser).username,
                     to: targetUser.username
                 };
 
                 // Emit to both users' rooms to ensure real-time updates
-                io.to(targetUser.username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
-                io.to((socket as AppSocketUser).username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
+                io.to(targetUser.username).to((socket as AppSocketUser).username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
                 console.log("DELETE_MESSAGE: Delete event emitted to users:", deletePayload);
             } catch (error: any) {
                 console.error("DELETE_MESSAGE_ERROR:", error);
