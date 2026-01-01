@@ -131,6 +131,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
 
         {
             $project: {
+                _id: 1,
                 mediaRef: 0,
                 updatedAt: 0,
                 targetUserID: 0,

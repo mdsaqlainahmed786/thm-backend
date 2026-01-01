@@ -200,10 +200,10 @@ export default function createSocketServer(httpServer: https.Server) {
             console.log("EDIT_MESSAGE received - Parsed data:", data, "from user:", (socket as AppSocketUser).username);
             try {
                 const messageID = data.messageID || data.messageId;
-                const message = data.message || data.text;
+                const newMessageText = data.message || data.text;
 
-                if (!messageID || !message) {
-                    console.log("EDIT_MESSAGE: Missing required fields", { messageID, message });
+                if (!messageID || !newMessageText) {
+                    console.log("EDIT_MESSAGE: Missing required fields", { messageID, message: newMessageText });
                     return socket.emit("error", { message: "Missing messageID or message field" });
                 }
                 const user = await User.findOne({ username: (socket as AppSocketUser).username });
@@ -211,13 +211,27 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "User not found" });
                 }
 
-                // Validate ObjectId format
-                if (!ObjectId.isValid(messageID)) {
-                    console.log("EDIT_MESSAGE: Invalid message ID format:", messageID);
-                    return socket.emit("error", { message: "Invalid message ID format" });
+                // Try to find message - first try as ObjectId, if that fails, try string match
+                let messageDoc = null;
+                if (ObjectId.isValid(messageID) && messageID.length === 24) {
+                    // Valid MongoDB ObjectId (24 characters)
+                    messageDoc = await Message.findById(new ObjectId(messageID));
+                } else {
+                    // Not a valid ObjectId
+                    console.log("EDIT_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
+                    return socket.emit("error", {
+                        message: `Invalid message ID format. Expected 24-character MongoDB ObjectId, got ${messageID.length}-character ID. Please use the _id field from the message.`
+                    });
                 }
 
-                const messageDoc = await Message.findById(new ObjectId(messageID));
+                if (!messageDoc) {
+                    // Try one more time with the string as-is (in case of casting issues)
+                    try {
+                        messageDoc = await Message.findOne({ _id: messageID });
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
                 if (!messageDoc) {
                     console.log("EDIT_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
@@ -230,7 +244,7 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
 
                 // Update message
-                messageDoc.message = message;
+                messageDoc.message = newMessageText;
                 messageDoc.isEdited = true;
                 messageDoc.editedAt = new Date();
                 const updatedMessage = await messageDoc.save();
@@ -251,7 +265,9 @@ export default function createSocketServer(httpServer: https.Server) {
                     to: targetUser.username
                 };
 
-                socket.to(targetUser.username).to((socket as AppSocketUser).username).emit(SocketChannel.EDIT_MESSAGE, updatePayload);
+                // Emit to both users' rooms to ensure real-time updates
+                io.to(targetUser.username).emit(SocketChannel.EDIT_MESSAGE, updatePayload);
+                io.to((socket as AppSocketUser).username).emit(SocketChannel.EDIT_MESSAGE, updatePayload);
                 console.log("EDIT_MESSAGE: Edit event emitted to users:", updatePayload);
             } catch (error: any) {
                 console.error("EDIT_MESSAGE_ERROR:", error);
@@ -285,13 +301,31 @@ export default function createSocketServer(httpServer: https.Server) {
                     return socket.emit("error", { message: "Missing messageID field" });
                 }
 
-                // Validate ObjectId format
-                if (!ObjectId.isValid(messageID)) {
-                    console.log("DELETE_MESSAGE: Invalid message ID format:", messageID);
-                    return socket.emit("error", { message: "Invalid message ID format" });
+                // Try to find message - first try as ObjectId, if that fails, try string match
+                let message = null;
+                if (ObjectId.isValid(messageID) && messageID.length === 24) {
+                    // Valid MongoDB ObjectId (24 characters)
+                    message = await Message.findById(new ObjectId(messageID));
+                } else {
+                    // Not a valid ObjectId - might be a different ID format
+                    // Try to find by converting to ObjectId if possible, or search by message content
+                    console.log("DELETE_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
+                    // Try as string comparison against _id.toString()
+                    // This won't work directly, so we need to fetch all messages and filter
+                    // But that's inefficient. Better to log and ask frontend to use correct ID
+                    return socket.emit("error", {
+                        message: `Invalid message ID format. Expected 24-character MongoDB ObjectId, got ${messageID.length}-character ID. Please use the _id field from the message.`
+                    });
                 }
 
-                const message = await Message.findById(new ObjectId(messageID));
+                if (!message) {
+                    // Try one more time with the string as-is (in case of casting issues)
+                    try {
+                        message = await Message.findOne({ _id: messageID });
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
                 if (!message) {
                     console.log("DELETE_MESSAGE: Message not found with ID:", messageID);
                     return socket.emit("error", { message: "Message not found" });
@@ -321,7 +355,9 @@ export default function createSocketServer(httpServer: https.Server) {
                     to: targetUser.username
                 };
 
-                socket.to(targetUser.username).to((socket as AppSocketUser).username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
+                // Emit to both users' rooms to ensure real-time updates
+                io.to(targetUser.username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
+                io.to((socket as AppSocketUser).username).emit(SocketChannel.DELETE_MESSAGE, deletePayload);
                 console.log("DELETE_MESSAGE: Delete event emitted to users:", deletePayload);
             } catch (error: any) {
                 console.error("DELETE_MESSAGE_ERROR:", error);
