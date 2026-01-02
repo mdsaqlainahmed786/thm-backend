@@ -931,12 +931,13 @@ const userCancelHotelBooking = async (request: Request, response: Response, next
         }
 
         const checkIn = booking.checkIn;
-        const freeCancelBy = moment();
+        const now = moment();
         const freeCancelThreshold = moment(checkIn).subtract(1, 'days');
+        const gracePeriodThreshold = moment((booking as any).createdAt).add(1, 'days');
 
-        const isFreeCancelValid = freeCancelThreshold.isAfter(freeCancelBy) && freeCancelThreshold.isBefore(checkIn);
+        const isFreeCancelValid = freeCancelThreshold.isAfter(now) || gracePeriodThreshold.isAfter(now);
         if (!isFreeCancelValid) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("please contact the property regarding this issue"), "please contact the property regarding this issue"))
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("please contact the business regarding this issue"), "please contact the business regarding this issue"))
         }
 
         if ([BookingStatus.CREATED.toString(), BookingStatus.PENDING.toString(), BookingStatus.CONFIRMED.toString()].includes(booking.status)) {
