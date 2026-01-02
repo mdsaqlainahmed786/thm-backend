@@ -218,10 +218,11 @@ const checkout = async (request: Request, response: Response, next: NextFunction
     try {
         const { id } = request.user;
         const { bookingID, roomID, quantity, bookedFor, guestDetails, promoCode, price } = request.body;
-        const [booking, room, businessTypeID, user] = await Promise.all([
+        const [booking, room, businessTypeHotel, businessTypeIDs, user] = await Promise.all([
             Booking.findOne({ bookingID: bookingID, status: BookingStatus.CREATED }),
             Room.findOne({ _id: roomID }),
-            BusinessType.distinct("_id", { $in: [BusinessTypeEnum.HOTEL, BusinessTypeEnum.HOME_STAYS] }),
+            BusinessType.findOne({ name: BusinessTypeEnum.HOTEL }),
+            BusinessType.distinct("_id", { name: { $in: [BusinessTypeEnum.HOTEL, BusinessTypeEnum.HOME_STAYS] } }),
             User.findOne({ _id: id })
         ]);
 
@@ -234,6 +235,8 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         if (!room) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Room not found"), "Room not found"));
         }
+        const businessProfile = await BusinessProfile.findOne({ _id: room.businessProfileID });
+        const isHotel = businessProfile && businessTypeHotel && businessProfile.businessTypeID.toString() === businessTypeHotel._id.toString();
         const availability = await checkRoomsAvailability(booking.businessProfileID, booking.checkIn.toString(), booking.checkOut.toString());
         const isRoomAvailable = await availability.filter((data) => data?.availableRooms >= quantity && data?._id?.toString() === roomID);
         console.log(availability);
@@ -253,9 +256,9 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         /*** Calculate price for checkout */
 
         let subtotal = booking.bookedRoom.price * booking.bookedRoom.quantity * nights;
+        let convinceCharges = isHotel ? (subtotal * 0.02) : 0;
         let gstRate = GST_PERCENTAGE;
-        let gst = (subtotal * gstRate) / 100;
-        let convinceCharges = 0;
+        let gst = ((subtotal + convinceCharges) * gstRate) / 100;
         let total = (gst + subtotal + convinceCharges);
         let discount = 0;
         const payment = {
@@ -300,7 +303,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
                     console.log("Maximum discount applied", discount);
                 }
                 subtotal = (subtotal - discount);
-                gst = (subtotal * 18) / 100;
+                gst = ((subtotal + convinceCharges) * GST_PERCENTAGE) / 100;
                 total = (gst + subtotal + convinceCharges);
                 Object.assign(payment, { discount, gst, total, promocode: promoCodeData });
                 booking.promoCode = promocode.code;
@@ -313,7 +316,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
                     console.log("Maximum discount applied", discount);
                 }
                 subtotal = (subtotal - discount);
-                gst = (subtotal * 18) / 100;
+                gst = ((subtotal + convinceCharges) * GST_PERCENTAGE) / 100;
                 total = (gst + subtotal + convinceCharges);
                 Object.assign(payment, { discount, gst, total, promocode: promoCodeData });
                 booking.promoCode = promocode.code;
@@ -346,7 +349,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         if (guestDetails && isString(guestDetails)) {
             booking.guestDetails = [JSON.parse(guestDetails)];
         }
-        booking.subTotal = subtotal;
+        booking.subTotal = subtotal + convinceCharges;
         booking.tax = gst;
         booking.convinceCharge = convinceCharges;
         booking.grandTotal = total;
@@ -355,7 +358,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
             booking.save(),
             BusinessProfile.aggregate([
                 {
-                    $match: { _id: room.businessProfileID, businessTypeID: { $in: businessTypeID } }
+                    $match: { _id: room.businessProfileID, businessTypeID: { $in: businessTypeIDs } }
                 },
                 addBusinessTypeInBusinessProfile().lookup,
                 addBusinessTypeInBusinessProfile().unwindLookup,
