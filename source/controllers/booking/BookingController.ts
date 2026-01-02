@@ -515,7 +515,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const dbQuery = { status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS] } };
+        const dbQuery = { status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS, BookingStatus.CANCELED_BY_USER] } };
         if (query !== undefined && query !== "") {
             Object.assign(dbQuery,
                 {
@@ -534,7 +534,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             Object.assign(dbQuery, {
                 status: {
                     $in: [BookingStatus.CREATED, BookingStatus.PENDING,
-                    BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS]
+                    BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS, BookingStatus.CANCELED_BY_USER]
                 }
             })
         }
@@ -921,6 +921,35 @@ const changeBookingStatus = async (request: Request, response: Response, next: N
     }
 
 }
+const userCancelHotelBooking = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request?.params?.id;
+        const { id } = request.user;
+        const booking = await Booking.findOne({ _id: ID, userID: id });
+        if (!booking) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(NOT_FOUND), NOT_FOUND));
+        }
+
+        const checkIn = booking.checkIn;
+        const freeCancelBy = moment();
+        const freeCancelThreshold = moment(checkIn).subtract(1, 'days');
+
+        const isFreeCancelValid = freeCancelThreshold.isAfter(freeCancelBy) && freeCancelThreshold.isBefore(checkIn);
+        if (!isFreeCancelValid) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("please contact the property regarding this issue"), "please contact the property regarding this issue"))
+        }
+
+        if ([BookingStatus.CREATED.toString(), BookingStatus.PENDING.toString(), BookingStatus.CONFIRMED.toString()].includes(booking.status)) {
+            booking.status = BookingStatus.CANCELED_BY_USER;
+            await booking.save();
+            return response.send(httpOk(null, "Your booking has been canceled successfully."));
+        }
+        const message = `The order has already been ${booking.status} and cannot be canceled.`;
+        return response.send(httpBadRequest(ErrorMessage.invalidRequest(message), message));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 const downloadInvoice = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const ID = request?.params?.id;
@@ -1209,7 +1238,7 @@ const bookBanquet = async (request: Request, response: Response, next: NextFunct
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { checkIn, checkout, confirmCheckout, index, show, cancelBooking, downloadInvoice, bookTable, bookBanquet, orderPayment, changeBookingStatus };
+export default { checkIn, checkout, confirmCheckout, index, show, cancelBooking, downloadInvoice, bookTable, bookBanquet, orderPayment, changeBookingStatus, userCancelHotelBooking };
 
 
 

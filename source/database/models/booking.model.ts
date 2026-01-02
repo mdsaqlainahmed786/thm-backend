@@ -14,6 +14,7 @@ export enum BookingStatus {
     CANCELED = "canceled",     // Booking has been canceled
     NO_SHOW = "no show",    // Customer did not show up for the booking
     CANCELED_BY_BUSINESS = "canceled by business", // Booking was canceled by the business
+    CANCELED_BY_USER = "canceled by user", // Booking was canceled by the user
 }
 export enum BookingType {
     BOOKING = "booking",

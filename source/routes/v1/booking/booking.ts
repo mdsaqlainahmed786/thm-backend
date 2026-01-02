@@ -9,6 +9,7 @@ const BookingEndpoints: Router = express.Router();
 BookingEndpoints.get('/', BookingController.index);
 BookingEndpoints.get('/:id', BookingController.show);
 BookingEndpoints.delete("/:id", BookingController.cancelBooking);
+BookingEndpoints.delete("/user/cancel/:id", BookingController.userCancelHotelBooking);
 BookingEndpoints.post('/check-in', checkInApiValidator, validateRequest, BookingController.checkIn);
 BookingEndpoints.post('/checkout', checkoutApiValidator, validateRequest, BookingController.checkout);
 BookingEndpoints.post('/checkout/confirm', confirmCheckoutApiValidator, validateRequest, BookingController.confirmCheckout);
