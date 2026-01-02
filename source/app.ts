@@ -23,6 +23,8 @@ export const allowedOrigins: Array<string> = [
     "https://www.thehotelmedia.com",
     "https://admin.thehotelmedia.com",
     "https://www.admin.thehotelmedia.com",
+    "https://hotels.thehotelmedia.com",
+    "https://www.hotels.thehotelmedia.com",
     "ec2-13-202-52-159.ap-south-1.compute.amazonaws.com",
     "13.202.52.159"
 ];
