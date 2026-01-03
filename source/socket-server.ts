@@ -435,13 +435,22 @@ export default function createSocketServer(httpServer: https.Server) {
                     ]);
                     Object.assign(findQuery, {
                         $or: [
-                            { userID: new ObjectId(ID), targetUserID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
-                            { targetUserID: new ObjectId(ID), userID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
+                            { userID: new ObjectId(ID), targetUserID: { $in: userIDs }, deletedByID: { $nin: [new ObjectId(ID)] } },
+                            { targetUserID: new ObjectId(ID), userID: { $in: userIDs }, deletedByID: { $nin: [new ObjectId(ID)] } },
                         ]
                     });
                 }
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socket-server.ts:443',message:'Before getChatCount call',data:{findQuery:JSON.stringify(findQuery),ID,String(ID),pageNumber,documentLimit},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
                 const totalDocuments = await MessagingController.getChatCount(findQuery, ID, pageNumber, documentLimit);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socket-server.ts:445',message:'After getChatCount, before fetchChatByUserID',data:{totalDocuments,ID:String(ID),pageNumber,documentLimit},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                // #endregion
                 const recentChatHistory = await MessagingController.fetchChatByUserID(findQuery, ID, pageNumber, documentLimit);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socket-server.ts:447',message:'After fetchChatByUserID',data:{recentChatHistoryCount:recentChatHistory.length,totalDocuments,totalPages:Math.ceil(totalDocuments / documentLimit) || 1,ID:String(ID)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+                // #endregion
                 const totalPages = Math.ceil(totalDocuments / documentLimit) || 1;
                 messages.totalMessages = totalDocuments;
                 messages.totalPages = totalPages;

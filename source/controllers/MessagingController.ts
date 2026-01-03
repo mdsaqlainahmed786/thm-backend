@@ -144,6 +144,9 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
 }
 
 function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessagingController.ts:146',message:'fetchChatByUserID entry',data:{userID:String(userID),pageNumber,documentLimit,query:JSON.stringify(query)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     return Message.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
@@ -207,7 +210,7 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 'as': 'usersRef'
             }
         },
-        { $unwind: '$usersRef' },
+        { $unwind: { path: '$usersRef', preserveNullAndEmptyArrays: false } },
         {
             $replaceRoot: { // Replace the root document with the merged document and other fields
                 newRoot: { $mergeObjects: ["$$ROOT", "$usersRef"] }
@@ -227,16 +230,24 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 usersRef: 0,
             }
         }
-    ])
+    ]).then(results => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessagingController.ts:231',message:'fetchChatByUserID results',data:{resultCount:results.length,userID:String(userID),pageNumber,documentLimit},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        return results;
+    })
 }
 
-function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    const chats: any = Message.aggregate([
+async function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessagingController.ts:233',message:'getChatCount entry',data:{userID:String(userID),pageNumber,documentLimit,query:JSON.stringify(query)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const chats: any[] = await Message.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
         {
             $addFields: {
-                sentByMe: { "$eq": [userID, "$userID"] }
+                sentByMe: { "$eq": [new ObjectId(userID), "$userID"] }
             }
         },
         {
@@ -263,12 +274,11 @@ function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumbe
             }
         },
         { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
         { $group: { _id: null, count: { $sum: 1 } } }
     ])
-
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MessagingController.ts:269',message:'getChatCount result',data:{count:chats?.[0]?.count ?? 0,chatsLength:chats?.length ?? 0,userID:String(userID),pageNumber,documentLimit},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     return chats?.[0]?.count as number ?? 0;
 }
 
