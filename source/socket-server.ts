@@ -487,9 +487,12 @@ export default function createSocketServer(httpServer: https.Server) {
                         { userID: new ObjectId(targetUser.id), targetUserID: new ObjectId(user.id), deletedByID: { $nin: [new ObjectId(user.id)] } }
                     ]
                 }
-                await Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true });
+                // Mark messages as seen asynchronously (don't block message fetch)
+                Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true }).catch((err) => {
+                    console.error('Error updating message seen status:', err);
+                });
                 const [totalMessages, conversations] = await Promise.all([
-                    Message.find(findQuery).countDocuments(),
+                    Message.countDocuments(findQuery),
                     MessagingController.fetchMessagesByUserID(findQuery, user.id, pageNumber, documentLimit),
                 ]);
                 const totalPages = Math.ceil(totalMessages / documentLimit) || 1;

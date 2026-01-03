@@ -30,7 +30,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
     return Message.aggregate([
         { $match: query },
         {
-            $sort: { createdAt: -1, id: 1 }
+            $sort: { createdAt: -1, _id: 1 }
         },
         {
             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -48,7 +48,17 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 'from': 'stories',
                 'let': { 'storyID': '$storyID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$storyID'] }, timeStamp: { $gte: storyTimeStamp } } },
+                    { 
+                        '$match': { 
+                            '$expr': { 
+                                '$and': [
+                                    { '$ne': ['$$storyID', null] },
+                                    { '$eq': ['$_id', '$$storyID'] }
+                                ]
+                            }, 
+                            timeStamp: { $gte: storyTimeStamp } 
+                        } 
+                    },
                 ],
                 'as': 'storiesRef'
             }
@@ -64,7 +74,16 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 'from': 'media',
                 'let': { 'mediaID': '$mediaID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$mediaID'] } } },
+                    { 
+                        '$match': { 
+                            '$expr': { 
+                                '$and': [
+                                    { '$ne': ['$$mediaID', null] },
+                                    { '$eq': ['$_id', '$$mediaID'] }
+                                ]
+                            }
+                        } 
+                    },
                     {
                         '$project': {
                             '_id': 0,

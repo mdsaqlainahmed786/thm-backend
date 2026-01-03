@@ -79,6 +79,15 @@ const MessageSchema: Schema = new Schema<IMessage>(
 MessageSchema.set('toObject', { virtuals: true });
 MessageSchema.set('toJSON', { virtuals: true });
 
+// Performance indexes for message queries
+MessageSchema.index({ userID: 1, createdAt: -1 });
+MessageSchema.index({ targetUserID: 1, createdAt: -1 });
+MessageSchema.index({ userID: 1, targetUserID: 1, createdAt: -1 });
+MessageSchema.index({ targetUserID: 1, userID: 1, createdAt: -1 });
+MessageSchema.index({ deletedByID: 1 });
+MessageSchema.index({ mediaID: 1 });
+MessageSchema.index({ storyID: 1 });
+
 export interface IMessageModel extends Model<IMessage> {
 }
 
