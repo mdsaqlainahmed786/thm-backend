@@ -10,7 +10,7 @@ import Post, { countPostDocument, fetchPosts, getPostQuery, getPostsCount, getSa
 import Like from "../database/models/like.model";
 import SavedPost from "../database/models/savedPost.model";
 import BusinessProfile, { addUserInBusinessProfile, fetchBusinessProfiles } from "../database/models/businessProfile.model";
-import UserConnection from "../database/models/userConnection.model";
+import UserConnection, { fetchUserFollowing } from "../database/models/userConnection.model";
 import User, { AccountType, activeUserQuery, addBusinessSubTypeInBusinessProfile, addBusinessTypeInBusinessProfile, getBlockedUsers } from "../database/models/user.model";
 import { ConnectionStatus } from "../database/models/userConnection.model";
 
@@ -74,7 +74,8 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
       savedByMe,
       joiningEvents,
       blockedUsers,
-      verifiedBusinessIDs
+      verifiedBusinessIDs,
+      followedUserIDs
     ] = await Promise.all([
       Like.distinct("postID", { userID: id, postID: { $ne: null } }),
       getSavedPost(id),
@@ -85,6 +86,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
         businessProfileID: { $ne: null },
       }),
       User.findOne({ _id: id }),
+      fetchUserFollowing(id), // Get list of users the current user is following
     ]);
 
     // Update user's home location (if provided)
@@ -106,7 +108,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
 
     // Fetch posts, total count, and suggestions
     const [documents, totalDocument, suggestions] = await Promise.all([
-      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
+      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs),
       countPostDocument(dbQuery),
       fetchBusinessProfiles(
         { _id: { $in: verifiedBusinessIDs } },

@@ -323,9 +323,11 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
 
         // Skip private account filter when user is viewing their own profile
         const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's profile and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
 
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
             Post.find(dbQuery).countDocuments(),
         ]);
 
@@ -470,10 +472,12 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
             Object.assign(dbQuery, { userID: user._id });
         }
         // Skip private account filter when user is viewing their own reviews
-        const skipPrivateAccountFilter = userID === id.toString();
+        const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's reviews and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
 
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

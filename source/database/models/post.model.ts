@@ -1,4 +1,5 @@
 import { Schema, Document, model, Types, PipelineStage } from "mongoose";
+import { ObjectId } from "mongodb";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
@@ -518,10 +519,13 @@ function locationBased(lat: number, lng: number): { sort: PipelineStage } {
         return { sort }
     }
 }
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean, followedUserIDs?: MongoID[]) {
 
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
+
+    // Convert followedUserIDs to ObjectIds for comparison
+    const followedUserObjectIds = followedUserIDs ? followedUserIDs.map(id => new ObjectId(id)) : [];
 
     // Build the aggregation pipeline
     const pipeline: any[] = [
@@ -565,23 +569,49 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
 
     // Conditionally add private account filter
     if (!skipPrivateAccountFilter) {
+        // Build filter conditions
+        const privateAccountConditions: any[] = [
+            { "postedBy.privateAccount": { $ne: true } },
+            { "postedBy.privateAccount": { $exists: false } }
+        ];
+
+        // If followedUserIDs is provided, allow posts from private accounts that are being followed
+        if (followedUserObjectIds.length > 0) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
+        const businessPrivateAccountConditions: any[] = [
+            { "postedBy.businessProfileRef": { $exists: false } },
+            { "postedBy.businessProfileRef": null },
+            { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
+            { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
+        ];
+
+        // If followedUserIDs is provided, allow posts from private business accounts that are being followed
+        // Note: Users follow the account owner (postedBy._id), not the business profile
+        if (followedUserObjectIds.length > 0) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
         pipeline.push({
             $match: {
                 $and: [
                     { "postedBy": { $ne: null } },
                     {
-                        $or: [
-                            { "postedBy.privateAccount": { $ne: true } },
-                            { "postedBy.privateAccount": { $exists: false } }
-                        ]
+                        $or: privateAccountConditions
                     },
                     {
-                        $or: [
-                            { "postedBy.businessProfileRef": { $exists: false } },
-                            { "postedBy.businessProfileRef": null },
-                            { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
-                            { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
-                        ]
+                        $or: businessPrivateAccountConditions
                     }
                 ]
             }
