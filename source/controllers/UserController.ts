@@ -321,8 +321,11 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
             );
         }
 
+        // Skip private account filter when user is viewing their own profile
+        const skipPrivateAccountFilter = userID === id;
+
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter),
             Post.find(dbQuery).countDocuments(),
         ]);
 
@@ -466,8 +469,11 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         } else {
             Object.assign(dbQuery, { userID: user._id });
         }
+        // Skip private account filter when user is viewing their own reviews
+        const skipPrivateAccountFilter = userID === id.toString();
+
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

@@ -518,126 +518,141 @@ function locationBased(lat: number, lng: number): { sort: PipelineStage } {
         return { sort }
     }
 }
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean) {
 
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
 
-    return Post.aggregate(
-        [
-            {
-                $geoNear: {
-                    near: { type: "Point", coordinates: [lng, lat] },
-                    spherical: true,
-                    query: match,
-                    distanceField: "distance"
-                }
-            },
-            {
-                $addFields: {
-                    distance: { $toInt: "$distance" },
-                    sortDate: {
-                        $dateToString: {
-                            format: "%Y-%m-%d",
-                            date: "$createdAt"
-                        }
+    // Build the aggregation pipeline
+    const pipeline: any[] = [
+        {
+            $geoNear: {
+                near: { type: "Point", coordinates: [lng, lat] },
+                spherical: true,
+                query: match,
+                distanceField: "distance"
+            }
+        },
+        {
+            $addFields: {
+                distance: { $toInt: "$distance" },
+                sortDate: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt"
                     }
                 }
-            },
-            locationBased(lat, lng).sort,
-            // {
-            //     $sort: {
-            //         sortDate: -1, distance: 1,
-            //     }
-            // },
-            {
-                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-            },
-            {
-                $limit: documentLimit
-            },
-            addMediaInPost().lookup,
-            addMediaInPost().sort_media,
-            addTaggedPeopleInPost().lookup,
-            addPostedByInPost().lookup,
-            addPostedByInPost().unwindLookup,
-            {
-                $match: {
-                    $and: [
-                        { "postedBy": { $ne: null } },
-                        {
-                            $or: [
-                                { "postedBy.privateAccount": { $ne: true } },
-                                { "postedBy.privateAccount": { $exists: false } }
-                            ]
-                        },
-                        {
-                            $or: [
-                                { "postedBy.businessProfileRef": { $exists: false } },
-                                { "postedBy.businessProfileRef": null },
-                                { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
-                                { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
-                            ]
-                        }
-                    ]
-                }
-            },
-            addAnonymousUserInPost().lookup,
-            addAnonymousUserInPost().unwindLookup,
-            addLikesInPost().lookup,
-            addLikesInPost().addLikeCount,
-            addCommentsInPost().lookup,
-            addCommentsInPost().addCommentCount,
-            addSharedCountInPost().lookup,
-            addSharedCountInPost().addSharedCount,
-            addReviewedBusinessProfileInPost().lookup,
-            addReviewedBusinessProfileInPost().unwindLookup,
-            addGoogleReviewedBusinessProfileInPost().lookup,
-            addGoogleReviewedBusinessProfileInPost().unwindLookup,
-            addInterestedPeopleInPost().lookup,
-            addInterestedPeopleInPost().addInterestedCount,
-            isLikedByMe(likedByMe),
-            isSavedByMe(savedByMe),
-            imJoining(joiningEvents),
-            {
-                $addFields: {
-                    reviewedBusinessProfileRef: {
-                        $cond: {
-                            if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
-                            then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
-                            else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
-                        }
+            }
+        },
+        locationBased(lat, lng).sort,
+        // {
+        //     $sort: {
+        //         sortDate: -1, distance: 1,
+        //     }
+        // },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit
+        },
+        addMediaInPost().lookup,
+        addMediaInPost().sort_media,
+        addTaggedPeopleInPost().lookup,
+        addPostedByInPost().lookup,
+        addPostedByInPost().unwindLookup,
+    ];
+
+    // Conditionally add private account filter
+    if (!skipPrivateAccountFilter) {
+        pipeline.push({
+            $match: {
+                $and: [
+                    { "postedBy": { $ne: null } },
+                    {
+                        $or: [
+                            { "postedBy.privateAccount": { $ne: true } },
+                            { "postedBy.privateAccount": { $exists: false } }
+                        ]
                     },
-                    postedBy: {
-                        $cond: {
-                            if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
-                            then: "$publicPostedBy", // Replace with publicPostedBy
-                            else: "$postedBy" // Keep the existing value if it exists
-                        }
+                    {
+                        $or: [
+                            { "postedBy.businessProfileRef": { $exists: false } },
+                            { "postedBy.businessProfileRef": null },
+                            { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
+                            { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
+                        ]
                     }
-                }
-            },
-            {
-                $unset: [
-                    "geoCoordinate",
-                    "distance",
-                    "sortDate",
-                    "publicPostedBy",
-                    "googleReviewedBusinessRef",
-                    "eventJoinsRef",
-                    "reviews",
-                    "isPublished",
-                    "sharedRef",
-                    "commentsRef",
-                    "likesRef",
-                    "tagged",
-                    "media",
-                    "updatedAt",
-                    "__v"
                 ]
             }
-        ]
-    ).exec();
+        });
+    } else {
+        // When skipping the filter, still ensure postedBy is not null
+        pipeline.push({
+            $match: {
+                "postedBy": { $ne: null }
+            }
+        });
+    }
+
+    pipeline.push(
+        addAnonymousUserInPost().lookup,
+        addAnonymousUserInPost().unwindLookup,
+        addLikesInPost().lookup,
+        addLikesInPost().addLikeCount,
+        addCommentsInPost().lookup,
+        addCommentsInPost().addCommentCount,
+        addSharedCountInPost().lookup,
+        addSharedCountInPost().addSharedCount,
+        addReviewedBusinessProfileInPost().lookup,
+        addReviewedBusinessProfileInPost().unwindLookup,
+        addGoogleReviewedBusinessProfileInPost().lookup,
+        addGoogleReviewedBusinessProfileInPost().unwindLookup,
+        addInterestedPeopleInPost().lookup,
+        addInterestedPeopleInPost().addInterestedCount,
+        isLikedByMe(likedByMe),
+        isSavedByMe(savedByMe),
+        imJoining(joiningEvents),
+        {
+            $addFields: {
+                reviewedBusinessProfileRef: {
+                    $cond: {
+                        if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                        then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                        else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                    }
+                },
+                postedBy: {
+                    $cond: {
+                        if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                        then: "$publicPostedBy", // Replace with publicPostedBy
+                        else: "$postedBy" // Keep the existing value if it exists
+                    }
+                }
+            }
+        },
+        {
+            $unset: [
+                "geoCoordinate",
+                "distance",
+                "sortDate",
+                "publicPostedBy",
+                "googleReviewedBusinessRef",
+                "eventJoinsRef",
+                "reviews",
+                "isPublished",
+                "sharedRef",
+                "commentsRef",
+                "likesRef",
+                "tagged",
+                "media",
+                "updatedAt",
+                "__v"
+            ]
+        }
+    );
+
+    return Post.aggregate(pipeline).exec();
 }
 
 export function countPostDocument(filter: { [key: string]: any; }) {
