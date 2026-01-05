@@ -525,7 +525,10 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
     lat = lat ? parseFloat(lat.toString()) : 0;
 
     // Convert followedUserIDs to ObjectIds for comparison
-    const followedUserObjectIds = followedUserIDs ? followedUserIDs.map(id => new ObjectId(id)) : [];
+    // Ensure followedUserIDs is an array before mapping
+    const followedUserObjectIds = (followedUserIDs && Array.isArray(followedUserIDs))
+        ? followedUserIDs.map(id => new ObjectId(id))
+        : [];
 
     // Build the aggregation pipeline
     const pipeline: any[] = [
