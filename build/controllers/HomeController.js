@@ -41,6 +41,7 @@ const basic_1 = require("../utils/helper/basic");
 const post_model_1 = __importStar(require("../database/models/post.model"));
 const like_model_1 = __importDefault(require("../database/models/like.model"));
 const businessProfile_model_1 = __importStar(require("../database/models/businessProfile.model"));
+const userConnection_model_1 = require("../database/models/userConnection.model");
 const user_model_1 = __importStar(require("../database/models/user.model"));
 const mongodb_1 = require("mongodb");
 const BusinessQuestionSeeder_1 = __importDefault(require("../database/seeders/BusinessQuestionSeeder"));
@@ -75,13 +76,14 @@ const feed = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         pageNumber = (0, basic_1.parseQueryParam)(pageNumber, 1);
         documentLimit = (0, basic_1.parseQueryParam)(documentLimit, 20);
         // Fetch all necessary data in parallel
-        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs] = yield Promise.all([
+        const [likedByMe, savedByMe, joiningEvents, blockedUsers, verifiedBusinessIDs, followedUserIDs] = yield Promise.all([
             like_model_1.default.distinct("postID", { userID: id, postID: { $ne: null } }),
             (0, post_model_1.getSavedPost)(id),
             eventJoin_model_1.default.distinct("postID", { userID: id, postID: { $ne: null } }),
             (0, user_model_1.getBlockedUsers)(id),
             user_model_1.default.distinct("businessProfileID", Object.assign(Object.assign({}, user_model_1.activeUserQuery), { businessProfileID: { $ne: null } })),
             user_model_1.default.findOne({ _id: id }),
+            (0, userConnection_model_1.fetchUserFollowing)(id), // Get list of users the current user is following
         ]);
         // Update user's home location (if provided)
         lat = lat || 0;
@@ -100,7 +102,7 @@ const feed = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         // Fetch posts, total count, and suggestions
         const [documents, totalDocument, suggestions] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs),
             (0, post_model_1.countPostDocument)(dbQuery),
             (0, businessProfile_model_1.fetchBusinessProfiles)({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng),
         ]);

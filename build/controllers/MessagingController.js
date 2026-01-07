@@ -63,7 +63,7 @@ function fetchMessagesByUserID(query, userID, pageNumber, documentLimit) {
     return message_model_1.default.aggregate([
         { $match: query },
         {
-            $sort: { createdAt: -1, id: 1 }
+            $sort: { createdAt: -1, _id: 1 }
         },
         {
             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -81,7 +81,17 @@ function fetchMessagesByUserID(query, userID, pageNumber, documentLimit) {
                 'from': 'stories',
                 'let': { 'storyID': '$storyID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$storyID'] }, timeStamp: { $gte: story_model_1.storyTimeStamp } } },
+                    {
+                        '$match': {
+                            '$expr': {
+                                '$and': [
+                                    { '$ne': ['$$storyID', null] },
+                                    { '$eq': ['$_id', '$$storyID'] }
+                                ]
+                            },
+                            timeStamp: { $gte: story_model_1.storyTimeStamp }
+                        }
+                    },
                 ],
                 'as': 'storiesRef'
             }
@@ -97,7 +107,16 @@ function fetchMessagesByUserID(query, userID, pageNumber, documentLimit) {
                 'from': 'media',
                 'let': { 'mediaID': '$mediaID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$mediaID'] } } },
+                    {
+                        '$match': {
+                            '$expr': {
+                                '$and': [
+                                    { '$ne': ['$$mediaID', null] },
+                                    { '$eq': ['$_id', '$$mediaID'] }
+                                ]
+                            }
+                        }
+                    },
                     {
                         '$project': {
                             '_id': 0,
@@ -163,6 +182,7 @@ function fetchMessagesByUserID(query, userID, pageNumber, documentLimit) {
         },
         {
             $project: {
+                _id: 1,
                 mediaRef: 0,
                 updatedAt: 0,
                 targetUserID: 0,
@@ -174,15 +194,12 @@ function fetchMessagesByUserID(query, userID, pageNumber, documentLimit) {
     ]);
 }
 function fetchChatByUserID(query, userID, pageNumber, documentLimit) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:146', message: 'fetchChatByUserID entry', data: { userID: String(userID), pageNumber, documentLimit, query: JSON.stringify(query) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
+    // #endregion
     return message_model_1.default.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
         {
             $addFields: {
                 sentByMe: { "$eq": ["$userID", new mongodb_1.ObjectId(userID)] }
@@ -211,6 +228,13 @@ function fetchChatByUserID(query, userID, pageNumber, documentLimit) {
                 newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
             }
         },
+        { $sort: { createdAt: -1 } },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit,
+        },
         {
             '$lookup': {
                 'from': 'users',
@@ -237,7 +261,7 @@ function fetchChatByUserID(query, userID, pageNumber, documentLimit) {
                 'as': 'usersRef'
             }
         },
-        { $unwind: '$usersRef' },
+        { $unwind: { path: '$usersRef', preserveNullAndEmptyArrays: false } },
         {
             $replaceRoot: {
                 newRoot: { $mergeObjects: ["$$ROOT", "$usersRef"] }
@@ -257,48 +281,58 @@ function fetchChatByUserID(query, userID, pageNumber, documentLimit) {
                 usersRef: 0,
             }
         }
-    ]);
+    ]).then(results => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:231', message: 'fetchChatByUserID results', data: { resultCount: results.length, userID: String(userID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' }) }).catch(() => { });
+        // #endregion
+        return results;
+    });
 }
 function getChatCount(query, userID, pageNumber, documentLimit) {
-    var _a, _b;
-    const chats = message_model_1.default.aggregate([
-        { $match: query },
-        { $sort: { createdAt: -1, _id: 1 } },
-        {
-            $addFields: {
-                sentByMe: { "$eq": [userID, "$userID"] }
-            }
-        },
-        {
-            $addFields: {
-                lookupID: { $cond: [{ $ne: ['$targetUserID', new mongodb_1.ObjectId(userID)] }, '$targetUserID', '$userID'] }, //Interchange $targetUserID when it is not equal to user id..
-            }
-        },
-        {
-            $group: {
-                _id: {
-                    lookupID: '$lookupID'
-                },
-                unseenCount: {
-                    $sum: {
-                        $cond: [{ $and: [{ $eq: ["$isSeen", false] }, { $eq: ["$sentByMe", false] }] }, 1, 0]
-                    }
-                },
-                document: { $first: '$$ROOT' },
-            }
-        },
-        {
-            $replaceRoot: {
-                newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
-            }
-        },
-        { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        { $group: { _id: null, count: { $sum: 1 } } }
-    ]);
-    return (_b = (_a = chats === null || chats === void 0 ? void 0 : chats[0]) === null || _a === void 0 ? void 0 : _a.count) !== null && _b !== void 0 ? _b : 0;
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:233', message: 'getChatCount entry', data: { userID: String(userID), pageNumber, documentLimit, query: JSON.stringify(query) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
+        // #endregion
+        const chats = yield message_model_1.default.aggregate([
+            { $match: query },
+            { $sort: { createdAt: -1, _id: 1 } },
+            {
+                $addFields: {
+                    sentByMe: { "$eq": [new mongodb_1.ObjectId(userID), "$userID"] }
+                }
+            },
+            {
+                $addFields: {
+                    lookupID: { $cond: [{ $ne: ['$targetUserID', new mongodb_1.ObjectId(userID)] }, '$targetUserID', '$userID'] }, //Interchange $targetUserID when it is not equal to user id..
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        lookupID: '$lookupID'
+                    },
+                    unseenCount: {
+                        $sum: {
+                            $cond: [{ $and: [{ $eq: ["$isSeen", false] }, { $eq: ["$sentByMe", false] }] }, 1, 0]
+                        }
+                    },
+                    document: { $first: '$$ROOT' },
+                }
+            },
+            {
+                $replaceRoot: {
+                    newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            { $group: { _id: null, count: { $sum: 1 } } }
+        ]);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:269', message: 'getChatCount result', data: { count: (_b = (_a = chats === null || chats === void 0 ? void 0 : chats[0]) === null || _a === void 0 ? void 0 : _a.count) !== null && _b !== void 0 ? _b : 0, chatsLength: (_c = chats === null || chats === void 0 ? void 0 : chats.length) !== null && _c !== void 0 ? _c : 0, userID: String(userID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
+        // #endregion
+        return (_e = (_d = chats === null || chats === void 0 ? void 0 : chats[0]) === null || _d === void 0 ? void 0 : _d.count) !== null && _e !== void 0 ? _e : 0;
+    });
 }
 const sendMediaMessage = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;

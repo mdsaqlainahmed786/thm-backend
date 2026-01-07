@@ -59,6 +59,7 @@ const EmailNotificationService_1 = __importDefault(require("../../services/Email
 const api_validation_1 = require("../../validation/rules/api-validation");
 const SocialProviders_1 = __importDefault(require("../../services/SocialProviders"));
 const uuid_1 = require("uuid");
+const moment_1 = __importDefault(require("moment"));
 const emailNotificationService = new EmailNotificationService_1.default();
 const login = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
@@ -122,22 +123,29 @@ const login = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                 hasAmenities = false;
             }
-            // COMMENTED OUT: Subscription check bypassed for testing
-            // if (!subscription) {
-            //     hasSubscription = false;
-            // }
-            // COMMENTED OUT: Subscription check bypassed for testing
-            // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
-            //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-            // }
-            // const now = new Date();
-            // if (subscription && subscription.expirationDate < now) {
-            //     hasSubscription = false;
-            //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }, `Your subscription expired.`));
-            // }
-            // Only check documents and amenities, not subscription
-            if (!isDocumentUploaded || !hasAmenities) {
+            // Check if account is within 11-month grace period
+            const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+            const isWithinGracePeriod = accountAgeInMonths < 11;
+            // Only enforce subscription checks if account is 11+ months old
+            // For accounts within grace period, keep hasSubscription = true
+            if (!isWithinGracePeriod) {
+                if (!subscription) {
+                    hasSubscription = false;
+                }
+                else {
+                    const now = new Date();
+                    if (subscription.expirationDate < now) {
+                        hasSubscription = false;
+                    }
+                }
+            }
+            if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
+            }
+            const now = new Date();
+            if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
+                hasSubscription = false;
+                return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired.`));
             }
         }
         if (!user.isApproved) {
@@ -247,22 +255,29 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                         hasAmenities = false;
                     }
-                    // COMMENTED OUT: Subscription check bypassed for testing
-                    // if (!subscription) {
-                    //     hasSubscription = false;
-                    // }
-                    // COMMENTED OUT: Subscription check bypassed for testing
-                    // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
-                    //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-                    // }
-                    // const now = new Date();
-                    // if (subscription && subscription.expirationDate < now) {
-                    //     hasSubscription = false;
-                    //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
-                    // }
-                    // Only check documents and amenities, not subscription
-                    if (!isDocumentUploaded || !hasAmenities) {
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        }
+                        else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
+                    }
+                    if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
+                    }
+                    const now = new Date();
+                    if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
+                        hasSubscription = false;
+                        return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired`));
                     }
                 }
                 if (!user.isApproved) {
@@ -359,22 +374,29 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                         hasAmenities = false;
                     }
-                    // COMMENTED OUT: Subscription check bypassed for testing
-                    // if (!subscription) {
-                    //     hasSubscription = false;
-                    // }
-                    // COMMENTED OUT: Subscription check bypassed for testing
-                    // if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
-                    //     return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, "Your profile is incomplete. Please take a moment to complete it."));
-                    // }
-                    // const now = new Date();
-                    // if (subscription && subscription.expirationDate < now) {
-                    //     hasSubscription = false;
-                    //     return response.send(httpForbidden({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, }, `Your subscription expired`));
-                    // }
-                    // Only check documents and amenities, not subscription
-                    if (!isDocumentUploaded || !hasAmenities) {
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        }
+                        else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
+                    }
+                    if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
+                    }
+                    const now = new Date();
+                    if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
+                        hasSubscription = false;
+                        return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired`));
                     }
                 }
                 if (!user.isApproved) {

@@ -5,5 +5,5 @@ import HomeController from "../../../controllers/admin/HomeController";
 const HomeEndpoints: Router = express.Router();
 HomeEndpoints.get('/home', HomeController.index);
 HomeEndpoints.get('/top-reports', HomeController.topReportedContent);
-HomeEndpoints.get('/business/:id/generate-qr', HomeController.generateReviewQRCode);
+// HomeEndpoints.get('/business/:id/generate-qr', HomeController.generateReviewQRCode);
 export default HomeEndpoints;

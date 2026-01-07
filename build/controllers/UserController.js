@@ -335,8 +335,12 @@ const userPosts = (request, response, next) => __awaiter(void 0, void 0, void 0,
         if (userID !== id && !inMyFollowing && user.privateAccount) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This account is Private. Follow this account to see their photos and videos."), "This account is Private. Follow this account to see their photos and videos."));
         }
+        // Skip private account filter when user is viewing their own profile
+        const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's profile and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
         const [documents, totalDocument] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
             post_model_1.default.find(dbQuery).countDocuments(),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -454,8 +458,12 @@ const userReviews = (request, response, next) => __awaiter(void 0, void 0, void 
         else {
             Object.assign(dbQuery, { userID: user._id });
         }
+        // Skip private account filter when user is viewing their own reviews
+        const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's reviews and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
         const [documents, totalDocument] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
             post_model_1.default.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

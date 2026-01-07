@@ -46,6 +46,7 @@ const authToken_model_1 = __importDefault(require("../database/models/authToken.
 const subscription_model_1 = require("../database/models/subscription.model");
 const businessProfile_model_1 = __importDefault(require("../database/models/businessProfile.model"));
 const businessType_model_1 = __importDefault(require("../database/models/businessType.model"));
+const moment_1 = __importDefault(require("moment"));
 function authenticateUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
@@ -66,17 +67,20 @@ function authenticateUser(request, response, next) {
                 if (auth_user && auth_user.isActivated && !auth_user.isDeleted) {
                     console.log(request.path);
                     //FIXME improve endpoint check
-                    // COMMENTED OUT: Subscription check bypassed for testing
-                    // const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
-                    // const now = new Date();
-                    // if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && !subscription) {
-                    //     console.error("ErrorMessage.NO_SUBSCRIPTION");
-                    //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.NO_SUBSCRIPTION), ErrorMessage.NO_SUBSCRIPTION));
-                    // }
-                    // if (!matchedEndpoints.includes(request.path) && auth_user.accountType === AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
-                    //     console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
-                    //     return response.status(403).send(httpForbidden(ErrorMessage.subscriptionExpired(ErrorMessage.SUBSCRIPTION_EXPIRED), ErrorMessage.SUBSCRIPTION_EXPIRED));
-                    // }
+                    const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
+                    const now = new Date();
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(auth_user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && !subscription) {
+                        console.error("ErrorMessage.NO_SUBSCRIPTION");
+                        return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.subscriptionExpired(error_1.ErrorMessage.NO_SUBSCRIPTION), error_1.ErrorMessage.NO_SUBSCRIPTION));
+                    }
+                    if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
+                        console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
+                        return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.subscriptionExpired(error_1.ErrorMessage.SUBSCRIPTION_EXPIRED), error_1.ErrorMessage.SUBSCRIPTION_EXPIRED));
+                    }
                     // Fetch business type if it's a business account
                     let businessTypeID = null;
                     let businessTypeName = null;

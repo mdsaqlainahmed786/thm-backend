@@ -73,6 +73,12 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 (0, story_model_1.addMediaInStory)().unwindLookup,
                 (0, story_model_1.addMediaInStory)().replaceRootAndMergeObjects,
                 (0, story_model_1.addMediaInStory)().project,
+                (0, story_model_1.addTaggedUsersInStory)().addFieldsBeforeUnwind,
+                (0, story_model_1.addTaggedUsersInStory)().unwind,
+                (0, story_model_1.addTaggedUsersInStory)().lookup,
+                (0, story_model_1.addTaggedUsersInStory)().addFields,
+                (0, story_model_1.addTaggedUsersInStory)().group,
+                (0, story_model_1.addTaggedUsersInStory)().replaceRoot,
                 {
                     '$lookup': {
                         'from': 'likes',
@@ -219,7 +225,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     var _b;
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, userTagged, userTaggedId, feelings, locationPositionX, locationPositionY, userTaggedPositionX, userTaggedPositionY } = request.body;
+        const { content, placeName, lat, lng, userTagged, userTaggedId, userTaggedPositionX, userTaggedPositionY, feelings, locationPositionX, locationPositionY } = request.body;
         const files = request.files;
         const images = files && files.images;
         const videos = files && files.videos;
@@ -261,10 +267,13 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         newStory.duration = duration;
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
-        newStory.locationPositionX = locationPositionX;
-        newStory.locationPositionY = locationPositionY;
-        newStory.userTaggedPositionX = userTaggedPositionX;
-        newStory.userTaggedPositionY = userTaggedPositionY;
+        // Set location position coordinates if provided
+        if (locationPositionX !== undefined) {
+            newStory.locationPositionX = typeof locationPositionX === 'string' ? parseFloat(locationPositionX) : locationPositionX;
+        }
+        if (locationPositionY !== undefined) {
+            newStory.locationPositionY = typeof locationPositionY === 'string' ? parseFloat(locationPositionY) : locationPositionY;
+        }
         // Set location only if all location fields are provided
         if (placeName && lat && lng) {
             newStory.location = {
@@ -273,12 +282,28 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 lng: typeof lng === 'string' ? parseFloat(lng) : lng
             };
         }
-        // Set userTagged and userTaggedId only if provided
-        if (userTagged) {
-            newStory.userTagged = userTagged;
-        }
+        // Handle single user tagging with position coordinates
         if (userTaggedId) {
             newStory.userTaggedId = userTaggedId;
+            if (userTagged) {
+                newStory.userTagged = userTagged;
+            }
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
+        }
+        else if (userTagged) {
+            // If only username is provided without ID, still save it
+            newStory.userTagged = userTagged;
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
         }
         const savedStory = yield newStory.save();
         return response.send((0, response_1.httpCreated)(savedStory.toObject(), 'Your story has been created successfully'));

@@ -44,6 +44,8 @@ const basic_2 = require("../../utils/helper/basic");
 const common_model_1 = require("./common.model");
 const common_1 = require("../../common");
 const story_model_1 = require("./story.model");
+const like_model_1 = require("./like.model");
+const view_model_1 = require("./view.model.");
 const post_model_1 = require("./post.model");
 const userConnection_model_1 = __importStar(require("./userConnection.model"));
 const blockedUser_model_1 = __importDefault(require("./blockedUser.model"));
@@ -121,7 +123,7 @@ const UserSchema = new mongoose_1.Schema({
         type: Boolean, default: false,
     },
     privateAccount: {
-        type: Boolean, default: true,
+        type: Boolean, default: false,
     },
     notificationEnabled: {
         type: Boolean, default: true,
@@ -388,6 +390,58 @@ function addStoriesInUser(likeIDs, viewedStories) {
                 (0, story_model_1.addMediaInStory)().unwindLookup,
                 (0, story_model_1.addMediaInStory)().replaceRootAndMergeObjects,
                 (0, story_model_1.addMediaInStory)().project,
+                (0, story_model_1.addTaggedUsersInStory)().addFieldsBeforeUnwind,
+                (0, story_model_1.addTaggedUsersInStory)().unwind,
+                (0, story_model_1.addTaggedUsersInStory)().lookup,
+                (0, story_model_1.addTaggedUsersInStory)().addFields,
+                (0, story_model_1.addTaggedUsersInStory)().group,
+                (0, story_model_1.addTaggedUsersInStory)().replaceRoot,
+                {
+                    '$lookup': {
+                        'from': 'likes',
+                        'let': { 'storyID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                            (0, like_model_1.addUserInLike)().lookup,
+                            (0, like_model_1.addUserInLike)().unwindLookup,
+                            (0, like_model_1.addUserInLike)().replaceRoot,
+                        ],
+                        'as': 'likesRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        likesRef: { $slice: ["$likesRef", 4] },
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'views',
+                        let: { storyID: '$_id' },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                            (0, view_model_1.addUserInView)().lookup,
+                            (0, view_model_1.addUserInView)().unwindLookup,
+                            (0, view_model_1.addUserInView)().replaceRoot,
+                        ],
+                        as: 'viewsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        viewsRef: { $slice: ["$viewsRef", 4] },
+                    }
+                },
             ],
             'as': 'storiesRef'
         }
@@ -651,8 +705,11 @@ function createUserAccount(data, sendOTP) {
         if (isApproved !== undefined && isApproved !== null && isApproved === false) {
             newUser.isApproved = isApproved; //The business account needs to be approved by the admin; the default value of 'isApproved' is true.
         }
-        if (privateAccount !== undefined && privateAccount !== null && privateAccount === false) {
-            newUser.privateAccount = privateAccount; // All business account is public account 
+        if (privateAccount !== undefined && privateAccount !== null) {
+            newUser.privateAccount = privateAccount;
+        }
+        else {
+            newUser.privateAccount = false; // Default to public account
         }
         if (socialIDs && (0, basic_2.isArray)(socialIDs)) {
             newUser.socialIDs = socialIDs;
@@ -689,7 +746,12 @@ function createBusinessProfile(data) {
         newBusinessProfile.website = website;
         newBusinessProfile.gstn = gstn;
         newBusinessProfile.placeID = placeID;
-        newBusinessProfile.privateAccount = privateAccount;
+        if (privateAccount !== undefined && privateAccount !== null) {
+            newBusinessProfile.privateAccount = privateAccount;
+        }
+        else {
+            newBusinessProfile.privateAccount = false; // Default to public account
+        }
         return yield newBusinessProfile.save();
     });
 }

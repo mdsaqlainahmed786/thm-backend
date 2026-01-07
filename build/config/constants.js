@@ -128,6 +128,8 @@ SocketChannel.IN_CHAT = "in chat";
 SocketChannel.LEAVE_CHAT = "leave chat";
 SocketChannel.IN_PRIVATE_CHAT = "in private chat";
 SocketChannel.LEAVE_PRIVATE_CHAT = "leave private chat";
+SocketChannel.EDIT_MESSAGE = "edit message";
+SocketChannel.DELETE_MESSAGE = "delete message";
 exports.CookiePolicy = { httpOnly: true, sameSite: "none" };
 class AwsS3AccessEndpoints {
     static getEndpoint(path) {
