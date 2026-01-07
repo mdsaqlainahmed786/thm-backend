@@ -7,6 +7,8 @@ import { isArray } from "../../utils/helper/basic";
 import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
 import { Language, MongoID, Role } from "../../common";
 import { addMediaInStory, addTaggedUsersInStory } from "./story.model";
+import { addUserInLike } from "./like.model";
+import { addUserInView } from "./view.model.";
 import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
@@ -419,6 +421,52 @@ export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: Mon
                 addTaggedUsersInStory().addFields,
                 addTaggedUsersInStory().group,
                 addTaggedUsersInStory().replaceRoot,
+                {
+                    '$lookup': {
+                        'from': 'likes',
+                        'let': { 'storyID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                            addUserInLike().lookup,
+                            addUserInLike().unwindLookup,
+                            addUserInLike().replaceRoot,
+                        ],
+                        'as': 'likesRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        likesRef: { $slice: ["$likesRef", 4] },
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'views',
+                        let: { storyID: '$_id' },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                            addUserInView().lookup,
+                            addUserInView().unwindLookup,
+                            addUserInView().replaceRoot,
+                        ],
+                        as: 'viewsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        viewsRef: { $slice: ["$viewsRef", 4] },
+                    }
+                },
             ],
             'as': 'storiesRef'
         }

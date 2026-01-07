@@ -194,7 +194,19 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, taggedUsers, feelings, locationPositionX, locationPositionY } = request.body;
+        const { 
+            content, 
+            placeName, 
+            lat, 
+            lng, 
+            userTagged, 
+            userTaggedId, 
+            userTaggedPositionX, 
+            userTaggedPositionY,
+            feelings, 
+            locationPositionX, 
+            locationPositionY 
+        } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -237,8 +249,14 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
-        newStory.locationPositionX = locationPositionX;
-        newStory.locationPositionY = locationPositionY;
+        
+        // Set location position coordinates if provided
+        if (locationPositionX !== undefined) {
+            newStory.locationPositionX = typeof locationPositionX === 'string' ? parseFloat(locationPositionX) : locationPositionX;
+        }
+        if (locationPositionY !== undefined) {
+            newStory.locationPositionY = typeof locationPositionY === 'string' ? parseFloat(locationPositionY) : locationPositionY;
+        }
 
         // Set location only if all location fields are provided
         if (placeName && lat && lng) {
@@ -249,29 +267,27 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             };
         }
 
-        // Handle multiple tagged users with their positions
-        // Parse taggedUsers if it comes as a JSON string from form-data
-        let parsedTaggedUsers: any[] = [];
-        if (taggedUsers) {
-            try {
-                parsedTaggedUsers = Array.isArray(taggedUsers)
-                    ? taggedUsers
-                    : typeof taggedUsers === 'string'
-                        ? JSON.parse(taggedUsers)
-                        : [];
-            } catch (err) {
-                console.error("Invalid taggedUsers format:", taggedUsers);
-                parsedTaggedUsers = [];
+        // Handle single user tagging with position coordinates
+        if (userTaggedId) {
+            newStory.userTaggedId = userTaggedId;
+            if (userTagged) {
+                newStory.userTagged = userTagged;
             }
-        }
-
-        if (parsedTaggedUsers && Array.isArray(parsedTaggedUsers) && parsedTaggedUsers.length > 0) {
-            newStory.taggedUsers = parsedTaggedUsers.map((tagged: any) => ({
-                userTagged: tagged.userTagged || tagged.username || '',
-                userTaggedId: tagged.userTaggedId || tagged.userId,
-                positionX: typeof tagged.positionX === 'string' ? parseFloat(tagged.positionX) : (tagged.positionX || 0),
-                positionY: typeof tagged.positionY === 'string' ? parseFloat(tagged.positionY) : (tagged.positionY || 0)
-            })).filter((tagged: any) => tagged.userTaggedId && tagged.userTagged); // Filter out invalid entries
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
+        } else if (userTagged) {
+            // If only username is provided without ID, still save it
+            newStory.userTagged = userTagged;
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
         }
 
         const savedStory = await newStory.save();
