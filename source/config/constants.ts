@@ -23,9 +23,11 @@ export abstract class AppConfig {
     static readonly ACCESS_TOKEN_EXPIRES_IN: string = process.env.ACCESS_TOKEN_EXPIRES_IN ?? "3m";
     static readonly REFRESH_TOKEN_EXPIRES_IN: string = process.env.REFRESH_TOKEN_EXPIRES_IN ?? "10d";
     static readonly USER_AUTH_TOKEN_COOKIE_KEY = 'SessionToken';
+    static readonly ADMIN_AUTH_TOKEN_COOKIE_KEY = 'AdminSessionToken';
     static readonly DEVICE_ID_COOKIE_KEY = "UserDeviceID";
 
     static readonly USER_AUTH_TOKEN_KEY = 'X-Access-Token';
+    static readonly ADMIN_AUTH_TOKEN_KEY = 'X-Admin-Access-Token';
 
     //Aws S3 Configurations
     static readonly AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAME!;

@@ -26,6 +26,16 @@ import { v4 } from 'uuid';
 import moment from "moment";
 
 const emailNotificationService = new EmailNotificationService();
+
+const getAuthKeys = (request: Request, role?: string) => {
+    const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+    const isAdmin = isAdminRoute || role === Role.ADMINISTRATOR;
+    return {
+        accessTokenKey: isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_KEY : AppConfig.USER_AUTH_TOKEN_KEY,
+        refreshTokenCookieKey: isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : AppConfig.USER_AUTH_TOKEN_COOKIE_KEY
+    };
+};
+
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
@@ -122,8 +132,9 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-        response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-        response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+        response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+        response.cookie(accessTokenKey, accessToken, CookiePolicy);
         return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -178,8 +189,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = await generateAccessToken(authenticateUser);
                     const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-                    response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-                    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, CookiePolicy);
                     return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
 
                 }
@@ -260,8 +272,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = await generateAccessToken(authenticateUser);
                 const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, CookiePolicy);
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
             } catch (error: any) {
                 // Handle MongoDB duplicate key error for phoneNumber
@@ -302,8 +315,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     await addUserDevicesConfig(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = await generateAccessToken(authenticateUser);
                     const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-                    response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-                    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, CookiePolicy);
                     return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
                 }
                 const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
@@ -342,7 +356,8 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                     businessProfileRef = businessProfile;
                     const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                     const accessToken = await generateAccessToken(authenticateUser, "15m");
-                    response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                    const { accessTokenKey } = getAuthKeys(request, user.role);
+                    response.cookie(accessTokenKey, accessToken, CookiePolicy);
                     if (!businessDocument || businessDocument.length === 0) {
                         isDocumentUploaded = false;
                     }
@@ -382,8 +397,9 @@ const socialLogin = async (request: Request, response: Response, next: NextFunct
                 const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = await generateAccessToken(authenticateUser);
                 const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, CookiePolicy);
                 return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
             } catch (error: any) {
                 // Handle MongoDB duplicate key error for phoneNumber
@@ -506,14 +522,16 @@ const verifyEmail = async (request: Request, response: Response, next: NextFunct
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = await generateAccessToken(authenticateUser, "15m");
-            response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+            const { accessTokenKey } = getAuthKeys(request, user.role);
+            response.cookie(accessTokenKey, accessToken, CookiePolicy);
             return response.send(httpOk({ ...savedUser.hideSensitiveData(), businessProfileRef, accessToken }, SuccessMessage.OTP_VERIFIED));
         } else {
             const authenticateUser: AuthenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = await generateAccessToken(authenticateUser);
             const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
-            response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-            response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+            const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+            response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+            response.cookie(accessTokenKey, accessToken, CookiePolicy);
             return response.send(httpOk({ ...user.hideSensitiveData(), accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
         }
     } catch (error: any) {
@@ -668,8 +686,9 @@ const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) =
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
 
-        res.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
-        res.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(req, user.role);
+        res.cookie(key2, refreshToken, CookiePolicy);
+        res.cookie(key1, accessToken, CookiePolicy);
 
         // 7️⃣ Final success response — EXACT format requested
         return res.status(200).json({
@@ -698,7 +717,7 @@ const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) =
 const logout = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const cookies = request?.cookies;
-        const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+        const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
         if (!refreshToken) {
             return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));
         }
@@ -718,9 +737,10 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
             await DevicesConfig.deleteMany({ userID: authToken.userID, deviceID: authToken.deviceID });
         }
         await authToken.deleteOne();
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, request.user?.role);
+        response.clearCookie(refreshTokenCookieKey, CookiePolicy);
         response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        response.clearCookie(accessTokenKey, CookiePolicy);
         return response.send(httpOk(null, SuccessMessage.LOGOUT_SUCCESS))
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -730,7 +750,7 @@ const logout = async (request: Request, response: Response, next: NextFunction) 
 
 const refreshToken = async (request: Request, response: Response, next: NextFunction) => {
     const cookies = request?.cookies;
-    const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+    const refreshToken = cookies[AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
     const deviceID = cookies[AppConfig.DEVICE_ID_COOKIE_KEY];
     if (!refreshToken) {
         return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));
@@ -751,9 +771,10 @@ const refreshToken = async (request: Request, response: Response, next: NextFunc
                 const userWithRole: AuthenticateUser = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID, role: userData.role }
                 const accessToken = await generateAccessToken(userWithRole);
                 const refreshToken = await generateRefreshToken(userWithRole, deviceID);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, userData.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
                 response.cookie(AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, CookiePolicy);
-                response.cookie(AppConfig.USER_AUTH_TOKEN_KEY, accessToken, CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, CookiePolicy);
                 return response.status(200).send(httpOk({ accessToken, refreshToken }, `Token Refreshed`));
             } else {
                 return response.status(403).send(httpUnauthorized(null, ErrorMessage.INSUFFICIENT_TO_GRANT_ACCESS));

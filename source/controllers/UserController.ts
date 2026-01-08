@@ -17,7 +17,7 @@ import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCou
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
 import Media, { MediaType } from '../database/models/media.model';
-import { MongoID } from '../common';
+import { MongoID, Role } from '../common';
 import { storeMedia } from './MediaController';
 import { deleteUnwantedFiles } from './MediaController';
 import PropertyPictures from '../database/models/propertyPicture.model';
@@ -591,10 +591,14 @@ const deactivateAccount = async (request: Request, response: Response, next: Nex
         }
         user.isActivated = false;
         await user.save();
-        // You can reactivate it anytime by logging back in.
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || request.user?.role === Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_KEY : AppConfig.USER_AUTH_TOKEN_KEY;
+
+        response.clearCookie(refreshTokenCookieKey, CookiePolicy);
         response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        response.clearCookie(accessTokenKey, CookiePolicy);
         return response.send(httpNoContent(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -609,9 +613,14 @@ const deleteAccount = async (request: Request, response: Response, next: NextFun
         }
         user.isDeleted = true;
         await user.save();
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || request.user?.role === Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_KEY : AppConfig.USER_AUTH_TOKEN_KEY;
+
+        response.clearCookie(refreshTokenCookieKey, CookiePolicy);
         response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        response.clearCookie(accessTokenKey, CookiePolicy);
         return response.send(httpNoContent(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

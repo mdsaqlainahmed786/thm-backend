@@ -50,6 +50,7 @@ const userConnection_model_1 = __importStar(require("../database/models/userConn
 const basic_1 = require("../utils/helper/basic");
 const like_model_1 = __importDefault(require("../database/models/like.model"));
 const media_model_1 = __importStar(require("../database/models/media.model"));
+const common_1 = require("../common");
 const MediaController_2 = require("./MediaController");
 const MediaController_3 = require("./MediaController");
 const propertyPicture_model_1 = __importDefault(require("../database/models/propertyPicture.model"));
@@ -565,7 +566,7 @@ const tagPeople = (request, response, next) => __awaiter(void 0, void 0, void 0,
     }
 });
 const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m;
+    var _m, _o;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -574,18 +575,21 @@ const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0,
         }
         user.isActivated = false;
         yield user.save();
-        // You can reactivate it anytime by logging back in.
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, constants_2.CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || ((_m = request.user) === null || _m === void 0 ? void 0 : _m.role) === common_1.Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
+        response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
         response.clearCookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, constants_2.CookiePolicy);
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, constants_2.CookiePolicy);
+        response.clearCookie(accessTokenKey, constants_2.CookiePolicy);
         return response.send((0, response_1.httpNoContent)(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _o;
+    var _p, _q;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -594,17 +598,21 @@ const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, voi
         }
         user.isDeleted = true;
         yield user.save();
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, constants_2.CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || ((_p = request.user) === null || _p === void 0 ? void 0 : _p.role) === common_1.Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
+        response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
         response.clearCookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, constants_2.CookiePolicy);
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, constants_2.CookiePolicy);
+        response.clearCookie(accessTokenKey, constants_2.CookiePolicy);
         return response.send((0, response_1.httpNoContent)(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _p;
+    var _r;
     try {
         const ID = request.params.id;
         const { id, accountType, businessProfileID } = request.user;
@@ -634,12 +642,12 @@ const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, 'User unblocked successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_p = error.message) !== null && _p !== void 0 ? _p : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_r = error.message) !== null && _r !== void 0 ? _r : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //TODO remove deleted and disabled user
 const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _q;
+    var _s;
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query } = request.query;
@@ -658,11 +666,11 @@ const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void
         return response.send((0, response_1.httpOkExtended)(documents, 'Blocked list fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_s = error.message) !== null && _s !== void 0 ? _s : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const address = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _r;
+    var _t;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { street, city, state, zipCode, country, phoneNumber, dialCode, lat, lng } = request.body;
@@ -704,7 +712,7 @@ const address = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpCreated)(savedUserAddress, 'Billing address added successfully.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_r = error.message) !== null && _r !== void 0 ? _r : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_t = error.message) !== null && _t !== void 0 ? _t : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };

@@ -43,8 +43,10 @@ AppConfig.APP_REFRESH_TOKEN_SECRET = process.env.APP_REFRESH_TOKEN_SECRET;
 AppConfig.ACCESS_TOKEN_EXPIRES_IN = (_c = process.env.ACCESS_TOKEN_EXPIRES_IN) !== null && _c !== void 0 ? _c : "3m";
 AppConfig.REFRESH_TOKEN_EXPIRES_IN = (_d = process.env.REFRESH_TOKEN_EXPIRES_IN) !== null && _d !== void 0 ? _d : "10d";
 AppConfig.USER_AUTH_TOKEN_COOKIE_KEY = 'SessionToken';
+AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY = 'AdminSessionToken';
 AppConfig.DEVICE_ID_COOKIE_KEY = "UserDeviceID";
 AppConfig.USER_AUTH_TOKEN_KEY = 'X-Access-Token';
+AppConfig.ADMIN_AUTH_TOKEN_KEY = 'X-Admin-Access-Token';
 //Aws S3 Configurations
 AppConfig.AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 AppConfig.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;

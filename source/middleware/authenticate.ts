@@ -12,11 +12,22 @@ import BusinessProfile from "../database/models/businessProfile.model";
 import BusinessType from "../database/models/businessType.model";
 import moment from "moment";
 export default async function authenticateUser(request: Request, response: Response, next: NextFunction) {
+    const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
     const cookies = request?.cookies;
-    const authKey = AppConfig.USER_AUTH_TOKEN_KEY;
-    const refreshTokenInCookie = cookies[authKey];
-    const refreshTokenInHeaders = request.headers[authKey.toLowerCase()];
-    const token = refreshTokenInCookie || refreshTokenInHeaders;
+
+    // Determine which token to use
+    let token: string | undefined;
+    let auth_user_id: string | undefined;
+
+    const adminToken = cookies[AppConfig.ADMIN_AUTH_TOKEN_KEY] || request.headers[AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()];
+    const userToken = cookies[AppConfig.USER_AUTH_TOKEN_KEY] || request.headers[AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()];
+
+    if (isAdminRoute) {
+        token = adminToken as string;
+    } else {
+        // On non-admin routes, prioritize user token, but allow admin token as fallback
+        token = (userToken || adminToken) as string;
+    }
     if (!token) {
         return response.status(401).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));
     }

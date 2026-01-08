@@ -61,6 +61,14 @@ const SocialProviders_1 = __importDefault(require("../../services/SocialProvider
 const uuid_1 = require("uuid");
 const moment_1 = __importDefault(require("moment"));
 const emailNotificationService = new EmailNotificationService_1.default();
+const getAuthKeys = (request, role) => {
+    const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+    const isAdmin = isAdminRoute || role === common_1.Role.ADMINISTRATOR;
+    return {
+        accessTokenKey: isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY,
+        refreshTokenCookieKey: isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY
+    };
+};
 const login = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -154,8 +162,9 @@ const login = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
         const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-        response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-        response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+        response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+        response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
     }
     catch (error) {
@@ -210,8 +219,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     yield (0, appDeviceConfig_model_1.addUserDevicesConfig)(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                     const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
                 }
                 const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
@@ -286,8 +296,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
             }
             catch (error) {
@@ -329,8 +340,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     yield (0, appDeviceConfig_model_1.addUserDevicesConfig)(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                     const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
                 }
                 const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
@@ -367,7 +379,8 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     businessProfileRef = businessProfile;
                     const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser, "15m");
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey } = getAuthKeys(request, user.role);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     if (!businessDocument || businessDocument.length === 0) {
                         isDocumentUploaded = false;
                     }
@@ -405,8 +418,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
             }
             catch (error) {
@@ -530,15 +544,17 @@ const verifyEmail = (request, response, next) => __awaiter(void 0, void 0, void 
             const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
             const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser, "15m");
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+            const { accessTokenKey } = getAuthKeys(request, user.role);
+            response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
             return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, accessToken }), success_1.SuccessMessage.OTP_VERIFIED));
         }
         else {
             const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
             const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+            const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+            response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+            response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
             return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
         }
     }
@@ -668,8 +684,9 @@ const verifyOtpLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         };
         const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
         const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-        res.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-        res.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(req, user.role);
+        res.cookie(key2, refreshToken, constants_2.CookiePolicy);
+        res.cookie(key1, accessToken, constants_2.CookiePolicy);
         // 7️⃣ Final success response — EXACT format requested
         return res.status(200).json({
             status: true,
@@ -689,10 +706,10 @@ const verifyOtpLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const logout = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _j;
+    var _j, _k;
     try {
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-        const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+        const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
         if (!refreshToken) {
             return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
         }
@@ -712,18 +729,19 @@ const logout = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
             yield appDeviceConfig_model_1.default.deleteMany({ userID: authToken.userID, deviceID: authToken.deviceID });
         }
         yield authToken.deleteOne();
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, (_j = request.user) === null || _j === void 0 ? void 0 : _j.role);
+        response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
         response.clearCookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, constants_2.CookiePolicy);
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, constants_2.CookiePolicy);
+        response.clearCookie(accessTokenKey, constants_2.CookiePolicy);
         return response.send((0, response_1.httpOk)(null, success_1.SuccessMessage.LOGOUT_SUCCESS));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const refreshToken = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-    const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+    const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
     const deviceID = cookies[constants_1.AppConfig.DEVICE_ID_COOKIE_KEY];
     if (!refreshToken) {
         return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
@@ -744,9 +762,10 @@ const refreshToken = (request, response, next) => __awaiter(void 0, void 0, void
                 const userWithRole = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID, role: userData.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(userWithRole);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(userWithRole, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, userData.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
                 response.cookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.status(200).send((0, response_1.httpOk)({ accessToken, refreshToken }, `Token Refreshed`));
             }
             else {

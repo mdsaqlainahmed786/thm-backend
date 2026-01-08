@@ -49,11 +49,20 @@ const businessType_model_1 = __importDefault(require("../database/models/busines
 const moment_1 = __importDefault(require("moment"));
 function authenticateUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-        const authKey = constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
-        const refreshTokenInCookie = cookies[authKey];
-        const refreshTokenInHeaders = request.headers[authKey.toLowerCase()];
-        const token = refreshTokenInCookie || refreshTokenInHeaders;
+        // Determine which token to use
+        let token;
+        let auth_user_id;
+        const adminToken = cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY] || request.headers[constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()];
+        const userToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_KEY] || request.headers[constants_1.AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()];
+        if (isAdminRoute) {
+            token = adminToken;
+        }
+        else {
+            // On non-admin routes, prioritize user token, but allow admin token as fallback
+            token = (userToken || adminToken);
+        }
         if (!token) {
             return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.unAuthenticatedRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
         }
