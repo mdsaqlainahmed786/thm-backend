@@ -162,7 +162,7 @@ const insights = async (request: Request, response: Response, next: NextFunction
                     $limit: 10
                 }
             ]).exec(),
-            fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10)
+            fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10, undefined, undefined, false, undefined, id)
         ]);
         const { engagementsData, engagements } = await fetchEngagedData(businessProfileID, id, groupFormat, labels, labelFormat);
         const responseData = {

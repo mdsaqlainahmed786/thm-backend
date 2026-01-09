@@ -327,7 +327,7 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
         const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
 
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             Post.find(dbQuery).countDocuments(),
         ]);
 
@@ -477,7 +477,7 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
 
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

@@ -26,7 +26,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         }
         const dbQuery = { ...getPostQuery, _id: { $in: savedByMe } };
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, false, undefined, id),
             countPostDocument(dbQuery),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

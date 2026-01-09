@@ -75,7 +75,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = await Promise.all([
-                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -114,7 +114,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = await Promise.all([
-                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -151,7 +151,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = await Promise.all([
-                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit),
+                fetchPosts(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 countPostDocument(dbQuery),
             ])
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

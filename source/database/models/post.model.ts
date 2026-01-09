@@ -519,7 +519,7 @@ function locationBased(lat: number, lng: number): { sort: PipelineStage } {
         return { sort }
     }
 }
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean, followedUserIDs?: MongoID[]) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean, followedUserIDs?: MongoID[], currentUserID?: MongoID) {
 
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
@@ -529,6 +529,9 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
     const followedUserObjectIds = (followedUserIDs && Array.isArray(followedUserIDs))
         ? followedUserIDs.map(id => new ObjectId(id))
         : [];
+
+    // Convert currentUserID to ObjectId for comparison
+    const currentUserObjectId = currentUserID ? new ObjectId(currentUserID) : null;
 
     // Build the aggregation pipeline
     const pipeline: any[] = [
@@ -578,12 +581,22 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             { "postedBy.privateAccount": { $exists: false } }
         ];
 
-        // If followedUserIDs is provided, allow posts from private accounts that are being followed
+        // Allow posts from private accounts that are being followed
         if (followedUserObjectIds.length > 0) {
             privateAccountConditions.push({
                 $and: [
                     { "postedBy.privateAccount": true },
                     { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
+        // Allow user's own posts even if their account is private
+        if (currentUserObjectId) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
                 ]
             });
         }
@@ -595,13 +608,23 @@ export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[],
             { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
         ];
 
-        // If followedUserIDs is provided, allow posts from private business accounts that are being followed
+        // Allow posts from private business accounts that are being followed
         // Note: Users follow the account owner (postedBy._id), not the business profile
         if (followedUserObjectIds.length > 0) {
             businessPrivateAccountConditions.push({
                 $and: [
                     { "postedBy.businessProfileRef.privateAccount": true },
                     { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
+        // Allow user's own business posts even if the business account is private
+        if (currentUserObjectId) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
                 ]
             });
         }

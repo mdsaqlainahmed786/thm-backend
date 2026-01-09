@@ -108,7 +108,7 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
 
     // Fetch posts, total count, and suggestions
     const [documents, totalDocument, suggestions] = await Promise.all([
-      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs),
+      fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs, id),
       countPostDocument(dbQuery),
       fetchBusinessProfiles(
         { _id: { $in: verifiedBusinessIDs } },
