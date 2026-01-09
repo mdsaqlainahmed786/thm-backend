@@ -38,7 +38,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const response_1 = require("../utils/response");
 const error_1 = require("../utils/response-message/error");
 const basic_1 = require("../utils/helper/basic");
-const post_model_1 = __importStar(require("../database/models/post.model"));
+const post_model_1 = require("../database/models/post.model");
 const like_model_1 = __importDefault(require("../database/models/like.model"));
 const businessProfile_model_1 = __importStar(require("../database/models/businessProfile.model"));
 const userConnection_model_1 = require("../database/models/userConnection.model");
@@ -102,7 +102,7 @@ const feed = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         Object.assign(dbQuery, { userID: { $nin: blockedUsers } });
         // Fetch posts, total count, and suggestions
         const [documents, totalDocument, suggestions] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, false, followedUserIDs, id),
             (0, post_model_1.countPostDocument)(dbQuery),
             (0, businessProfile_model_1.fetchBusinessProfiles)({ _id: { $in: verifiedBusinessIDs } }, pageNumber, 7, lat, lng),
         ]);
@@ -137,12 +137,11 @@ const feed = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         if (recentPost) {
             const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
             if (!postExists) {
-                const userPost = yield post_model_1.default.findOne({ _id: recentPost.postID }).populate([
-                    { path: "userID", select: "fullName userName profileImage city country accountType" },
-                    { path: "businessProfileID", select: "businessName businessLogo category" },
-                ]);
-                if (userPost)
-                    data.unshift(userPost);
+                // Use fetchPosts to ensure private account filtering and proper aggregation pipeline
+                const userPostArray = yield (0, post_model_1.fetchPosts)(Object.assign({ _id: new mongodb_1.ObjectId(recentPost.postID) }, post_model_1.getPostQuery), likedByMe, savedByMe, joiningEvents, 1, 1, lat, lng, false, followedUserIDs, id);
+                if (userPostArray && userPostArray.length > 0) {
+                    data.unshift(userPostArray[0]);
+                }
             }
             else {
                 data = [

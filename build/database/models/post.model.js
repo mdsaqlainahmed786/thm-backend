@@ -470,7 +470,7 @@ function locationBased(lat, lng) {
         return { sort };
     }
 }
-function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, skipPrivateAccountFilter, followedUserIDs) {
+function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, skipPrivateAccountFilter, followedUserIDs, currentUserID) {
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
     // Convert followedUserIDs to ObjectIds for comparison
@@ -478,6 +478,8 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
     const followedUserObjectIds = (followedUserIDs && Array.isArray(followedUserIDs))
         ? followedUserIDs.map(id => new mongodb_1.ObjectId(id))
         : [];
+    // Convert currentUserID to ObjectId for comparison
+    const currentUserObjectId = currentUserID ? new mongodb_1.ObjectId(currentUserID) : null;
     // Build the aggregation pipeline
     const pipeline = [
         {
@@ -524,12 +526,21 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
             { "postedBy.privateAccount": { $ne: true } },
             { "postedBy.privateAccount": { $exists: false } }
         ];
-        // If followedUserIDs is provided, allow posts from private accounts that are being followed
+        // Allow posts from private accounts that are being followed
         if (followedUserObjectIds.length > 0) {
             privateAccountConditions.push({
                 $and: [
                     { "postedBy.privateAccount": true },
                     { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+        // Allow user's own posts even if their account is private
+        if (currentUserObjectId) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
                 ]
             });
         }
@@ -539,13 +550,22 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
             { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
             { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
         ];
-        // If followedUserIDs is provided, allow posts from private business accounts that are being followed
+        // Allow posts from private business accounts that are being followed
         // Note: Users follow the account owner (postedBy._id), not the business profile
         if (followedUserObjectIds.length > 0) {
             businessPrivateAccountConditions.push({
                 $and: [
                     { "postedBy.businessProfileRef.privateAccount": true },
                     { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+        // Allow user's own business posts even if the business account is private
+        if (currentUserObjectId) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
                 ]
             });
         }

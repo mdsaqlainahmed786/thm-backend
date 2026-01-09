@@ -341,7 +341,7 @@ const userPosts = (request, response, next) => __awaiter(void 0, void 0, void 0,
         // Pass followedUserIDs when viewing another user's profile and following them
         const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
         const [documents, totalDocument] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             post_model_1.default.find(dbQuery).countDocuments(),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -464,7 +464,7 @@ const userReviews = (request, response, next) => __awaiter(void 0, void 0, void 
         // Pass followedUserIDs when viewing another user's reviews and following them
         const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
         const [documents, totalDocument] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs),
+            (0, post_model_1.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             post_model_1.default.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

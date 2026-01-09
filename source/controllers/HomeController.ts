@@ -155,11 +155,23 @@ const feed = async (request: Request, response: Response, next: NextFunction) =>
     if (recentPost) {
       const postExists = data.find(p => p._id.toString() === recentPost.postID.toString());
       if (!postExists) {
-        const userPost = await Post.findOne({ _id: recentPost.postID }).populate([
-          { path: "userID", select: "fullName userName profileImage city country accountType" },
-          { path: "businessProfileID", select: "businessName businessLogo category" },
-        ]);
-        if (userPost) data.unshift(userPost);
+        // Use fetchPosts to ensure private account filtering and proper aggregation pipeline
+        const userPostArray = await fetchPosts(
+          { _id: new ObjectId(recentPost.postID), ...getPostQuery },
+          likedByMe,
+          savedByMe,
+          joiningEvents,
+          1,
+          1,
+          lat,
+          lng,
+          false,
+          followedUserIDs,
+          id
+        );
+        if (userPostArray && userPostArray.length > 0) {
+          data.unshift(userPostArray[0]);
+        }
       } else {
         data = [
           postExists,

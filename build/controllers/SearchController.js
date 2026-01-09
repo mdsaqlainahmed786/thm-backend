@@ -96,7 +96,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = yield Promise.all([
-                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit),
+                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 (0, post_model_1.countPostDocument)(dbQuery),
             ]);
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -135,7 +135,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = yield Promise.all([
-                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit),
+                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 (0, post_model_1.countPostDocument)(dbQuery),
             ]);
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -172,7 +172,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 Object.assign(dbQuery, { userID: { $in: userIDs } });
             }
             [documents, totalDocument] = yield Promise.all([
-                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit),
+                (0, post_model_1.fetchPosts)(dbQuery, [], [], [], pageNumber, documentLimit, undefined, undefined, false, undefined, id),
                 (0, post_model_1.countPostDocument)(dbQuery),
             ]);
             totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

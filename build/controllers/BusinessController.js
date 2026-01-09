@@ -202,7 +202,7 @@ const insights = (request, response, next) => __awaiter(void 0, void 0, void 0, 
                     $limit: 10
                 }
             ]).exec(),
-            (0, post_model_1.fetchPosts)(Object.assign(Object.assign({}, post_model_1.getPostQuery), { userID: new mongodb_1.ObjectId(id) }), [], [], [], 1, 10)
+            (0, post_model_1.fetchPosts)(Object.assign(Object.assign({}, post_model_1.getPostQuery), { userID: new mongodb_1.ObjectId(id) }), [], [], [], 1, 10, undefined, undefined, false, undefined, id)
         ]);
         const { engagementsData, engagements } = yield fetchEngagedData(businessProfileID, id, groupFormat, labels, labelFormat);
         const responseData = {
