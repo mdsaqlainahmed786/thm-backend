@@ -687,8 +687,8 @@ const verifyOtpLogin = async (req: Request, res: Response, next: NextFunction) =
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
 
         const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(req, user.role);
-        res.cookie(key2, refreshToken, CookiePolicy);
-        res.cookie(key1, accessToken, CookiePolicy);
+        res.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
+        res.cookie(accessTokenKey, accessToken, CookiePolicy);
 
         // 7️⃣ Final success response — EXACT format requested
         return res.status(200).json({
