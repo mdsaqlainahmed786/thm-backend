@@ -46,7 +46,7 @@ const post_model_1 = __importStar(require("../database/models/post.model"));
 const dailyContentLimit_model_1 = __importDefault(require("../database/models/dailyContentLimit.model"));
 const basic_1 = require("../utils/helper/basic");
 const MediaController_1 = require("./MediaController");
-const media_model_1 = __importDefault(require("../database/models/media.model"));
+const media_model_1 = __importStar(require("../database/models/media.model"));
 const like_model_1 = __importStar(require("../database/models/like.model"));
 const savedPost_model_1 = __importDefault(require("../database/models/savedPost.model"));
 const reportedUser_model_1 = __importDefault(require("../database/models/reportedUser.model"));
@@ -507,7 +507,7 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         if (!id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
-        const post = yield post_model_1.default.findOne({ _id: new mongodb_1.ObjectId(postID) }).populate("media");
+        const post = yield post_model_1.default.findOne({ _id: new mongodb_1.ObjectId(postID) });
         if (!post) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
         }
@@ -527,20 +527,26 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         if (!post.media || post.media.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no media to publish as a story."), "This post has no media to publish as a story."));
         }
+        // Fetch all media to filter by type (images and videos only)
+        const allMedia = yield media_model_1.default.find({
+            _id: { $in: post.media },
+            mediaType: { $in: [media_model_1.MediaType.IMAGE, media_model_1.MediaType.VIDEO] }
+        });
+        if (allMedia.length === 0) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."), "This post has no images or videos to publish as a story."));
+        }
+        const mediaIDs = allMedia.map(m => m._id);
         const existingStories = yield story_model_1.default.find({
             userID: id,
-            mediaID: { $in: post.media },
+            mediaID: { $in: mediaIDs },
             timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         });
         const existingMediaIDs = new Set(existingStories.map(s => s.mediaID.toString()));
-        const newMedia = post.media.filter((media) => !existingMediaIDs.has(media.toString()));
+        const newMedia = allMedia.filter((media) => !existingMediaIDs.has(media._id.toString()));
         if (newMedia.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has already been shared as a story."), "This post has already been shared as a story."));
         }
-        const storyPromises = newMedia.map((mediaID) => __awaiter(void 0, void 0, void 0, function* () {
-            const media = yield media_model_1.default.findById(mediaID);
-            if (!media)
-                return null;
+        const storyPromises = newMedia.map((media) => __awaiter(void 0, void 0, void 0, function* () {
             const newStory = new story_model_1.default();
             newStory.userID = id;
             newStory.mediaID = media._id;

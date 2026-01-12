@@ -279,7 +279,16 @@ export function addMediaInPost() {
             'from': 'media',
             'let': { 'mediaIDs': '$media' },
             'pipeline': [
-                { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
+                {
+                    '$match': {
+                        '$expr': {
+                            '$and': [
+                                { '$ne': [{ '$ifNull': ['$$mediaIDs', []] }, []] },
+                                { '$in': ['$_id', { '$ifNull': ['$$mediaIDs', []] }] }
+                            ]
+                        }
+                    }
+                },
                 {
                     '$project': {
                         "_id": 1,
