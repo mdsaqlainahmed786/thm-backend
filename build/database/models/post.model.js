@@ -234,10 +234,7 @@ function addMediaInPost() {
                 {
                     '$match': {
                         '$expr': {
-                            '$and': [
-                                { '$ne': [{ '$ifNull': ['$$mediaIDs', []] }, []] },
-                                { '$in': ['$_id', { '$ifNull': ['$$mediaIDs', []] }] }
-                            ]
+                            '$in': ['$_id', { '$ifNull': ['$$mediaIDs', []] }]
                         }
                     }
                 },
@@ -248,7 +245,7 @@ function addMediaInPost() {
                         "mimeType": 1,
                         "sourceUrl": 1,
                         "thumbnailUrl": 1,
-                        "duration": 1,
+                        "duration": { '$ifNull': ["$duration", 0] },
                         "videoUrl": 1
                     }
                 }
@@ -259,7 +256,13 @@ function addMediaInPost() {
     const sort_media = {
         $addFields: {
             mediaRef: {
-                $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                $cond: {
+                    if: { $isArray: "$mediaRef" },
+                    then: {
+                        $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                    },
+                    else: []
+                }
             },
         }
     };
@@ -487,17 +490,21 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
         : [];
     // Convert currentUserID to ObjectId for comparison
     const currentUserObjectId = currentUserID ? new mongodb_1.ObjectId(currentUserID) : null;
+    // Check if we have valid coordinates for geoNear
+    const hasValidCoordinates = lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng);
     // Build the aggregation pipeline
-    const pipeline = [
-        {
+    const pipeline = [];
+    // Use $geoNear only when we have valid coordinates, otherwise use $match
+    if (hasValidCoordinates) {
+        pipeline.push({
             $geoNear: {
                 near: { type: "Point", coordinates: [lng, lat] },
                 spherical: true,
                 query: match,
                 distanceField: "distance"
             }
-        },
-        {
+        });
+        pipeline.push({
             $addFields: {
                 distance: { $toInt: "$distance" },
                 sortDate: {
@@ -507,25 +514,29 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
                     }
                 }
             }
-        },
-        locationBased(lat, lng).sort,
-        // {
-        //     $sort: {
-        //         sortDate: -1, distance: 1,
-        //     }
-        // },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit
-        },
-        addMediaInPost().lookup,
-        addMediaInPost().sort_media,
-        addTaggedPeopleInPost().lookup,
-        addPostedByInPost().lookup,
-        addPostedByInPost().unwindLookup,
-    ];
+        });
+    }
+    else {
+        // Use $match when coordinates are invalid
+        pipeline.push({
+            $match: match
+        });
+        pipeline.push({
+            $addFields: {
+                sortDate: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt"
+                    }
+                }
+            }
+        });
+    }
+    pipeline.push(locationBased(lat, lng).sort, {
+        $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+    }, {
+        $limit: documentLimit
+    }, addMediaInPost().lookup, addMediaInPost().sort_media, addTaggedPeopleInPost().lookup, addPostedByInPost().lookup, addPostedByInPost().unwindLookup);
     // Conditionally add private account filter
     if (!skipPrivateAccountFilter) {
         // Build filter conditions

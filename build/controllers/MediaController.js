@@ -106,13 +106,12 @@ function generateThumbnail(media, thumbnailFor, width, height) {
 exports.generateThumbnail = generateThumbnail;
 function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
     return __awaiter(this, void 0, void 0, function* () {
-        const fileList = [];
+        var _a;
         if (!files || files.length === 0)
             return [];
-        yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
-            var _a;
-            const fileObject = {
-                _id: new Types.ObjectId(),
+        const mediaPayloads = [];
+        for (const file of files) {
+            const media = {
                 businessProfileID,
                 userID,
                 fileName: file.originalname,
@@ -122,85 +121,81 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
                 width: 0,
                 height: 0,
                 duration: 0,
-                sourceUrl: "",
-                s3Key: "",
+                sourceUrl: file.location,
+                s3Key: file.key,
                 thumbnailUrl: "",
             };
-            let width = uploadedFor === "STORY" ? 1080 : 640;
-            let height = uploadedFor === "STORY" ? 1980 : 640;
+            const width = uploadedFor === "STORY" ? 1080 : 640;
+            const height = uploadedFor === "STORY" ? 1980 : 640;
             const cropSetting = {
                 width,
                 height,
                 fit: sharp_1.default.fit.inside,
                 withoutEnlargement: true,
             };
-            let thumbnail = null;
+            let thumbnailBuffer = null;
+            // ---------------- IMAGE ----------------
             if (file.mimetype.startsWith("image/")) {
-                Object.assign(fileObject, { mediaType: media_model_1.MediaType.IMAGE });
+                media.mediaType = media_model_1.MediaType.IMAGE;
                 const s3Object = yield s3Service.getS3Object(file.key);
                 const rawBuffer = yield ((_a = s3Object.Body) === null || _a === void 0 ? void 0 : _a.transformToByteArray());
                 if (!rawBuffer)
-                    throw new Error("Could not read image buffer from S3");
+                    throw new Error("Failed to read image buffer");
                 const sharpImage = (0, sharp_1.default)(rawBuffer);
                 const metadata = yield sharpImage.metadata();
-                if (metadata)
-                    Object.assign(fileObject, {
-                        width: metadata.width,
-                        height: metadata.height,
-                    });
-                thumbnail = yield sharpImage.resize(cropSetting).toBuffer();
+                if ((metadata === null || metadata === void 0 ? void 0 : metadata.width) && (metadata === null || metadata === void 0 ? void 0 : metadata.height)) {
+                    media.width = metadata.width;
+                    media.height = metadata.height;
+                }
+                thumbnailBuffer = yield sharpImage.resize(cropSetting).toBuffer();
             }
+            // ---------------- VIDEO ----------------
             if (file.mimetype.startsWith("video/")) {
-                Object.assign(fileObject, { mediaType: media_model_1.MediaType.VIDEO, videoUrl: file.location });
-                // Extract metadata from S3 video
+                media.mediaType = media_model_1.MediaType.VIDEO;
+                media.videoUrl = file.location;
                 const metadata = yield (0, file_uploading_1.readVideoMetadata)(file.key);
                 if (metadata) {
-                    Object.assign(fileObject, {
-                        width: metadata.width,
-                        height: metadata.height,
-                        duration: metadata.duration,
-                    });
+                    media.width = metadata.width;
+                    media.height = metadata.height;
+                    media.duration = metadata.duration;
                 }
-                const generatedThumbnailPath = yield (0, file_uploading_2.generateScreenshot)(file.key, file.filename, "jpeg");
-                if (generatedThumbnailPath) {
-                    const sharpImage = (0, sharp_1.default)(generatedThumbnailPath);
-                    thumbnail = yield sharpImage.resize(cropSetting).toBuffer();
-                    yield promises_1.default.unlink(generatedThumbnailPath).catch(() => { });
+                const screenshotPath = yield (0, file_uploading_2.generateScreenshot)(file.key, file.filename, "jpeg");
+                if (screenshotPath) {
+                    const sharpImage = (0, sharp_1.default)(screenshotPath);
+                    thumbnailBuffer = yield sharpImage.resize(cropSetting).toBuffer();
+                    yield promises_1.default.unlink(screenshotPath).catch(() => { });
                 }
-                yield fileProcessing_model_1.default.create({
-                    filePath: null,
-                    s3Key: file.key,
-                    mediaID: fileObject._id
-                });
             }
+            // ---------------- PDF ----------------
             if (file.mimetype === "application/pdf") {
-                Object.assign(fileObject, {
-                    mediaType: media_model_1.MediaType.PDF,
-                    thumbnailUrl: "https://png.pngtree.com/png-vector/20220606/ourmid/pngtree-pdf-file-icon-png-png-image_4899509.png",
-                });
-            }
-            Object.assign(fileObject, {
-                sourceUrl: file.location,
-                s3Key: file.key,
-            });
-            if (thumbnail) {
-                let thumbnailPath = (0, basic_1.addStringBeforeExtension)(file.key, `-${width}x${height}`);
-                thumbnailPath = thumbnailPath.replace(/\/{2,}/g, "/");
-                const uploadedThumbnailFile = yield s3Service.putS3Object(thumbnail, file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype, thumbnailPath);
-                if (uploadedThumbnailFile) {
-                    // @ts-ignore
-                    fileObject.thumbnailUrl = uploadedThumbnailFile.Location;
-                }
-            }
-            if (!fileObject.thumbnailUrl || fileObject.thumbnailUrl.trim() === "") {
-                fileObject.thumbnailUrl =
+                media.mediaType = media_model_1.MediaType.PDF;
+                media.thumbnailUrl =
                     "https://thehotelmedia.com/public/files/thm-logo.png";
             }
-            // ✅ Push only once per file
-            fileList.push(fileObject);
+            // ---------------- THUMBNAIL UPLOAD ----------------
+            if (thumbnailBuffer) {
+                let thumbKey = (0, basic_1.addStringBeforeExtension)(file.key, `-${width}x${height}`).replace(/\/{2,}/g, "/");
+                const uploadedThumb = yield s3Service.putS3Object(thumbnailBuffer, file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype, thumbKey);
+                if (uploadedThumb === null || uploadedThumb === void 0 ? void 0 : uploadedThumb.Location) {
+                    media.thumbnailUrl = uploadedThumb.Location;
+                }
+            }
+            if (!media.thumbnailUrl) {
+                media.thumbnailUrl =
+                    "https://thehotelmedia.com/public/files/thm-logo.png";
+            }
+            mediaPayloads.push(media);
+        }
+        // ✅ INSERT FIRST — MongoDB assigns REAL _id
+        const createdMedia = yield media_model_1.default.create(mediaPayloads);
+        // ✅ Create FileQueue ONLY after Media exists
+        yield Promise.all(createdMedia
+            .filter((m) => m.mediaType === media_model_1.MediaType.VIDEO)
+            .map((m) => fileProcessing_model_1.default.create({
+            s3Key: m.s3Key,
+            mediaID: m._id,
         })));
-        // ✅ Insert all media at once
-        return yield media_model_1.default.create(fileList);
+        return createdMedia;
     });
 }
 exports.storeMedia = storeMedia;

@@ -87,6 +87,16 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         if (!id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
+        // Validate video file size (100 MB limit)
+        const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+        if (videos && videos.length > 0) {
+            const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+            if (oversizedVideos.length > 0) {
+                yield (0, MediaController_1.deleteUnwantedFiles)(oversizedVideos);
+                yield (0, MediaController_1.deleteUnwantedFiles)(images);
+                return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"), "Video file size must not exceed 100 MB"));
+            }
+        }
         if (!content && (!mediaFiles || mediaFiles.length === 0)) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'));
         }
@@ -160,15 +170,48 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             newPost.geoCoordinate = { type: "Point", coordinates: EventController_1.lat_lng };
         }
         let mediaIDs = [];
-        if (mediaFiles && mediaFiles.length !== 0) {
-            // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
-            const mediaList = yield (0, MediaController_1.storeMedia)(mediaFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.POST, 'POST');
-            if (mediaList && mediaList.length !== 0) {
-                mediaIDs = mediaList.map(m => m._id);
+        let createdMediaList = [];
+        let savedPost = null;
+        try {
+            if (mediaFiles && mediaFiles.length !== 0) {
+                // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
+                const mediaList = yield (0, MediaController_1.storeMedia)(mediaFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.POST, 'POST');
+                if (mediaList && mediaList.length !== 0) {
+                    createdMediaList = mediaList; // Store for cleanup if post creation fails
+                    mediaIDs = mediaList.map(m => m._id);
+                    // CRITICAL: Validate that ALL media documents exist before saving the post
+                    // This prevents data integrity issues where posts reference non-existent media
+                    const existingMedia = yield media_model_1.default.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                    const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                    const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                    if (missingMediaIDs.length > 0) {
+                        console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                        console.error('Post creation aborted to prevent data integrity issues');
+                        // Cleanup: Delete orphaned media if validation fails
+                        yield Promise.all(createdMediaList.map(m => media_model_1.default.findByIdAndDelete(m._id).catch(() => { })));
+                        return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Failed to create media. Please try again."), "Media creation failed"));
+                    }
+                    // Double-check: Ensure we have the same number of media IDs as created
+                    if (mediaIDs.length !== existingMedia.length) {
+                        console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                        // Cleanup: Delete orphaned media if count mismatch
+                        yield Promise.all(createdMediaList.map(m => media_model_1.default.findByIdAndDelete(m._id).catch(() => { })));
+                        return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Media validation failed. Please try again."), "Media validation failed"));
+                    }
+                }
             }
+            newPost.media = mediaIDs;
+            savedPost = yield newPost.save();
+            // If we get here, post was created successfully - no cleanup needed
         }
-        newPost.media = mediaIDs;
-        const savedPost = yield newPost.save();
+        catch (postError) {
+            // CRITICAL: If post creation fails after media was created, cleanup orphaned media
+            if (createdMediaList.length > 0) {
+                console.error('CRITICAL: Post creation failed after media was created. Cleaning up orphaned media:', createdMediaList.map(m => m._id));
+                yield Promise.all(createdMediaList.map(m => media_model_1.default.findByIdAndDelete(m._id).catch(() => { })));
+            }
+            throw postError; // Re-throw to be caught by outer try-catch
+        }
         try {
             //@ts-ignore
             recentPostCache_1.UserRecentPostCache.set(request.user.id, newPost._id.toString());
@@ -367,6 +410,7 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
                 $match: { _id: new mongodb_1.ObjectId(postID) }
             },
             (0, post_model_1.addMediaInPost)().lookup,
+            (0, post_model_1.addMediaInPost)().sort_media,
             (0, post_model_1.addTaggedPeopleInPost)().lookup,
             {
                 '$lookup': {
