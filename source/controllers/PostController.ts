@@ -548,7 +548,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const post = await Post.findOne({ _id: new ObjectId(postID) }).populate("media");
+    const post = await Post.findOne({ _id: new ObjectId(postID) });
     if (!post) {
       return response.send(
         httpNotFoundOr404(
@@ -590,17 +590,33 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
+    // Fetch all media to filter by type (images and videos only)
+    const allMedia = await Media.find({
+      _id: { $in: post.media },
+      mediaType: { $in: [MediaType.IMAGE, MediaType.VIDEO] }
+    });
+
+    if (allMedia.length === 0) {
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."),
+          "This post has no images or videos to publish as a story."
+        )
+      );
+    }
+
+    const mediaIDs = allMedia.map(m => m._id);
 
     const existingStories = await Story.find({
       userID: id,
-      mediaID: { $in: post.media },
+      mediaID: { $in: mediaIDs },
       timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     });
 
     const existingMediaIDs = new Set(existingStories.map(s => s.mediaID.toString()));
 
-    const newMedia = post.media.filter(
-      (media: any) => !existingMediaIDs.has(media.toString())
+    const newMedia = allMedia.filter(
+      (media) => !existingMediaIDs.has(media._id.toString())
     );
 
     if (newMedia.length === 0) {
@@ -613,10 +629,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     }
 
 
-    const storyPromises = newMedia.map(async (mediaID: any) => {
-      const media = await Media.findById(mediaID);
-      if (!media) return null;
-
+    const storyPromises = newMedia.map(async (media) => {
       const newStory = new Story();
       newStory.userID = id;
       newStory.mediaID = media._id as MongoID;
