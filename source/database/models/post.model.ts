@@ -282,15 +282,13 @@ export function addMediaInPost() {
                 { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
                 {
                     '$project': {
-                        "userID": 0,
-                        "fileName": 0,
-                        "width": 0,
-                        "height": 0,
-                        "fileSize": 0,
-                        "s3Key": 0,
-                        "createdAt": 0,
-                        "updatedAt": 0,
-                        "__v": 0
+                        "_id": 1,
+                        "mediaType": 1,
+                        "mimeType": 1,
+                        "sourceUrl": 1,
+                        "thumbnailUrl": 1,
+                        "duration": 1,
+                        "videoUrl": 1
                     }
                 }
             ],
