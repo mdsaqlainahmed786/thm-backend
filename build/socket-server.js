@@ -436,11 +436,11 @@ function createSocketServer(httpServer) {
                     });
                 }
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:443', message: 'Before getChatCount call', data: { findQuery: JSON.stringify(findQuery), ID, String(ID) { }, pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) }).catch(() => { });
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:443', message: 'Before getChatCount call', data: { findQuery: JSON.stringify(findQuery), ID, IDString: String(ID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) }).catch(() => { });
                 // #endregion
                 const totalDocuments = yield MessagingController_1.default.getChatCount(findQuery, ID, pageNumber, documentLimit);
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:445', message: 'After getChatCount, before fetchChatByUserID', data: { totalDocuments, ID: String(ID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => { });
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:445', message: 'After getChatCount, before fetchChatByUserID', data: { totalDocuments, ID: String(ID), pageNumber, documentLimit: documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => { });
                 // #endregion
                 const recentChatHistory = yield MessagingController_1.default.fetchChatByUserID(findQuery, ID, pageNumber, documentLimit);
                 // #region agent log

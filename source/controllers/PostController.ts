@@ -162,7 +162,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
       // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
       const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
       if (mediaList && mediaList.length !== 0) {
-        mediaIDs = mediaList.map(m => m.id);
+        mediaIDs = mediaList.map(m => m._id as any as MongoID);
       }
     }
 
@@ -257,7 +257,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         AwsS3AccessEndpoints.POST,
         "POST"
       );
-      mediaList?.forEach((media) => mediaIDs.push(media.id));
+      mediaList?.forEach((media) => mediaIDs.push(media._id as any as MongoID));
     }
 
     // ✅ Safely parse deletedMedia (can come as string or array)

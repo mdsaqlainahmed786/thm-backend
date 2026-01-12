@@ -164,7 +164,7 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
             const mediaList = yield (0, MediaController_1.storeMedia)(mediaFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.POST, 'POST');
             if (mediaList && mediaList.length !== 0) {
-                mediaIDs = mediaList.map(m => m.id);
+                mediaIDs = mediaList.map(m => m._id);
             }
         }
         newPost.media = mediaIDs;
@@ -235,7 +235,7 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         let mediaIDs = post.media;
         if (mediaFiles === null || mediaFiles === void 0 ? void 0 : mediaFiles.length) {
             const mediaList = yield (0, MediaController_1.storeMedia)(mediaFiles, id, businessProfileID, constants_1.AwsS3AccessEndpoints.POST, "POST");
-            mediaList === null || mediaList === void 0 ? void 0 : mediaList.forEach((media) => mediaIDs.push(media.id));
+            mediaList === null || mediaList === void 0 ? void 0 : mediaList.forEach((media) => mediaIDs.push(media._id));
         }
         // ✅ Safely parse deletedMedia (can come as string or array)
         let parsedDeletedMedia = [];

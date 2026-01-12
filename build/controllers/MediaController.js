@@ -112,6 +112,7 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
         yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
             var _a;
             const fileObject = {
+                _id: new Types.ObjectId(),
                 businessProfileID,
                 userID,
                 fileName: file.originalname,
@@ -150,7 +151,7 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
                 thumbnail = yield sharpImage.resize(cropSetting).toBuffer();
             }
             if (file.mimetype.startsWith("video/")) {
-                Object.assign(fileObject, { mediaType: media_model_1.MediaType.VIDEO });
+                Object.assign(fileObject, { mediaType: media_model_1.MediaType.VIDEO, videoUrl: file.location });
                 // Extract metadata from S3 video
                 const metadata = yield (0, file_uploading_1.readVideoMetadata)(file.key);
                 if (metadata) {
@@ -169,6 +170,7 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
                 yield fileProcessing_model_1.default.create({
                     filePath: null,
                     s3Key: file.key,
+                    mediaID: fileObject._id
                 });
             }
             if (file.mimetype === "application/pdf") {

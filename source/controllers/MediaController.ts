@@ -21,52 +21,52 @@ import Post, { PostType } from "../database/models/post.model";
 const s3Service = new S3Service();
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
-    const s3Image = await s3Service.getS3Object(media.key);
-    const cropSetting: {} = { width: width, height: height, fit: "cover" };
-    if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
-        const body = s3Image.Body;
-        const rawToByteArray = await body.transformToByteArray();
-        const sharpImage = await sharp(rawToByteArray);
-        // const metadata = await sharpImage.metadata();
-        const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-        const thumbnailPath = addStringBeforeExtension(media.key, `-${width}-${height}`)
-        const s3Upload = await s3Service.putS3Object(thumbnail, media.mimetype, thumbnailPath);
-        return s3Upload;
-    }
-    return null;
-    // if (s3Image.Body && media.mimetype.startsWith('video/') && thumbnailFor === "video") {
-    //     const body = s3Image.Body;
-    //     const rawToByteArray = await body.transformToByteArray();
-    //     const thumbnailExtName = "png";
-    //     const screenshot = await generateScreenshotBuffer(rawToByteArray, media.key, thumbnailExtName).catch((error: any) => console.log(error));
-    //     if (screenshot) {
-    //         const sharpImage = await sharp(screenshot);
-    //         const metadata = await sharpImage.metadata();
-    //         let thumbnailPathT = path.parse(media.key);
-    //         width = metadata.width ?? 0;
-    //         height = metadata.height ?? 0;
-    //         // height: thumbnailHeight, fit: "contain"
-    //         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-    //         //key new thumbnail key 
-    //         const thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${thumbnailWidth}x${thumbnailHeight}`)
-    //         const thumbnailMimeType = `image/${thumbnailExtName}`;
-    //         const s3Upload = await putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
-    //         if (s3Upload && s3Upload.Location && s3Upload.Key) {
-    //             const imageData: ThumbnailMediaFile = {
-    //                 fileName: `${thumbnailPathT.name}.${thumbnailExtName}`,
-    //                 width: thumbnailWidth,
-    //                 height: thumbnailHeight,
-    //                 fileSize: media.size,
-    //                 mimeType: thumbnailMimeType,
-    //                 sourceUrl: s3Upload.Location,
-    //                 s3Key: s3Upload.Key,
-    //                 size: Size.THUMBNAIL
-    //             }
-    //             sizeArray.push(imageData)
-    //         }
-    //     }
-    // }
-    // return { width, height, sizeArray };
+  const s3Image = await s3Service.getS3Object(media.key);
+  const cropSetting: {} = { width: width, height: height, fit: "cover" };
+  if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
+    const body = s3Image.Body;
+    const rawToByteArray = await body.transformToByteArray();
+    const sharpImage = await sharp(rawToByteArray);
+    // const metadata = await sharpImage.metadata();
+    const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+    const thumbnailPath = addStringBeforeExtension(media.key, `-${width}-${height}`)
+    const s3Upload = await s3Service.putS3Object(thumbnail, media.mimetype, thumbnailPath);
+    return s3Upload;
+  }
+  return null;
+  // if (s3Image.Body && media.mimetype.startsWith('video/') && thumbnailFor === "video") {
+  //     const body = s3Image.Body;
+  //     const rawToByteArray = await body.transformToByteArray();
+  //     const thumbnailExtName = "png";
+  //     const screenshot = await generateScreenshotBuffer(rawToByteArray, media.key, thumbnailExtName).catch((error: any) => console.log(error));
+  //     if (screenshot) {
+  //         const sharpImage = await sharp(screenshot);
+  //         const metadata = await sharpImage.metadata();
+  //         let thumbnailPathT = path.parse(media.key);
+  //         width = metadata.width ?? 0;
+  //         height = metadata.height ?? 0;
+  //         // height: thumbnailHeight, fit: "contain"
+  //         const thumbnail = await sharpImage.resize(cropSetting).toBuffer();
+  //         //key new thumbnail key 
+  //         const thumbnailPath = addStringBeforeExtension(`${thumbnailPathT.dir}/${thumbnailPathT.name}.${thumbnailExtName}`, `-${thumbnailWidth}x${thumbnailHeight}`)
+  //         const thumbnailMimeType = `image/${thumbnailExtName}`;
+  //         const s3Upload = await putS3Object(thumbnail, thumbnailMimeType, thumbnailPath);
+  //         if (s3Upload && s3Upload.Location && s3Upload.Key) {
+  //             const imageData: ThumbnailMediaFile = {
+  //                 fileName: `${thumbnailPathT.name}.${thumbnailExtName}`,
+  //                 width: thumbnailWidth,
+  //                 height: thumbnailHeight,
+  //                 fileSize: media.size,
+  //                 mimeType: thumbnailMimeType,
+  //                 sourceUrl: s3Upload.Location,
+  //                 s3Key: s3Upload.Key,
+  //                 size: Size.THUMBNAIL
+  //             }
+  //             sizeArray.push(imageData)
+  //         }
+  //     }
+  // }
+  // return { width, height, sizeArray };
 }
 
 
@@ -84,6 +84,7 @@ async function storeMedia(
   await Promise.all(
     files.map(async (file) => {
       const fileObject = {
+        _id: new Types.ObjectId(),
         businessProfileID,
         userID,
         fileName: file.originalname,
@@ -130,7 +131,7 @@ async function storeMedia(
 
 
       if (file.mimetype.startsWith("video/")) {
-        Object.assign(fileObject, { mediaType: MediaType.VIDEO });
+        Object.assign(fileObject, { mediaType: MediaType.VIDEO, videoUrl: file.location });
 
         // Extract metadata from S3 video
         const metadata = await readVideoMetadata(file.key);
@@ -151,12 +152,13 @@ async function storeMedia(
         if (generatedThumbnailPath) {
           const sharpImage = sharp(generatedThumbnailPath);
           thumbnail = await sharpImage.resize(cropSetting).toBuffer();
-          await fileSystem.unlink(generatedThumbnailPath).catch(() => {});
+          await fileSystem.unlink(generatedThumbnailPath).catch(() => { });
         }
 
         await FileQueue.create({
           filePath: null,
           s3Key: file.key,
+          mediaID: (fileObject as any)._id
         });
       }
 
@@ -184,7 +186,7 @@ async function storeMedia(
         );
 
         if (uploadedThumbnailFile) {
-            // @ts-ignore
+          // @ts-ignore
           fileObject.thumbnailUrl = uploadedThumbnailFile.Location;
         }
       }
@@ -205,44 +207,44 @@ async function storeMedia(
 
 
 async function deleteUnwantedFiles(files: Express.Multer.File[]) {
-    try {
-        await Promise.all(files.map(async (file) => {
-            // await fileSystem.unlink(file.path)
-        }))
-    } catch (error: any) {
-        console.error(error)
-    }
+  try {
+    await Promise.all(files.map(async (file) => {
+      // await fileSystem.unlink(file.path)
+    }))
+  } catch (error: any) {
+    console.error(error)
+  }
 
 }
 
 const storeViews = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id, accountType, businessProfileID } = request.user;
-        const { postID, mediaID } = request.body;
-        const [post, isViewed, media] = await Promise.all([
-            Post.findOne({ _id: postID, media: { $in: [new ObjectId(mediaID)] } }),
-            View.findOne({ postID: postID, mediaID: mediaID, userID: id }),
-            Media.findOne({ _id: mediaID })
-        ])
-        if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
-        }
-        if (!media || media && media.mediaType !== MediaType.VIDEO) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
-        }
-        if (!isViewed) {
-            const newView = new View();
-            newView.userID = id;
-            newView.postID = postID;
-            newView.mediaID = mediaID;
-            newView.businessProfileID = businessProfileID ?? null;
-            const savedView = await newView.save();
-            return response.send(httpCreated(savedView, "View saved successfully"));
-        }
-        return response.send(httpNoContent(isViewed, 'View saved successfully'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const { id, accountType, businessProfileID } = request.user;
+    const { postID, mediaID } = request.body;
+    const [post, isViewed, media] = await Promise.all([
+      Post.findOne({ _id: postID, media: { $in: [new ObjectId(mediaID)] } }),
+      View.findOne({ postID: postID, mediaID: mediaID, userID: id }),
+      Media.findOne({ _id: mediaID })
+    ])
+    if (!post) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
     }
+    if (!media || media && media.mediaType !== MediaType.VIDEO) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Post media not found."), "Post media found."));
+    }
+    if (!isViewed) {
+      const newView = new View();
+      newView.userID = id;
+      newView.postID = postID;
+      newView.mediaID = mediaID;
+      newView.businessProfileID = businessProfileID ?? null;
+      const savedView = await newView.save();
+      return response.send(httpCreated(savedView, "View saved successfully"));
+    }
+    return response.send(httpNoContent(isViewed, 'View saved successfully'));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 export { storeMedia, generateThumbnail, deleteUnwantedFiles }
