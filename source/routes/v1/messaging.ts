@@ -9,8 +9,14 @@ const MessagingEndpoints: Router = express.Router();
 
 
 // s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }])
-MessagingEndpoints.post('/media-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
-MessagingEndpoints.post('/share-post-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), [...mediaMessageApiValidator, postIDValidationRule], validateRequest, MessagingController.sharingPostMediaMessage);
+//MessagingEndpoints.post('/media-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
+// ✅ Used when user shares an existing post
+MessagingEndpoints.post(
+    '/share-post-message',
+    [...mediaMessageApiValidator, postIDValidationRule],
+    validateRequest,
+    MessagingController.sharingPostMediaMessage
+);
 
 MessagingEndpoints.delete('/chat/:id', [paramIDValidationRule], validateRequest, MessagingController.deleteChat);
 MessagingEndpoints.post('/export-chat/:id', [paramIDValidationRule], validateRequest, MessagingController.exportChat);
