@@ -122,6 +122,8 @@ export function addMediaInStory() {
                         'thumbnailUrl': 1,
                         'mimeType': 1,
                         'duration': 1,
+                        'mediaType': 1,
+                        'videoUrl': 1,
                     }
                 }
             ],
@@ -148,6 +150,8 @@ export function addMediaInStory() {
             'createdAt': 1,
             'mimeType': 1,
             'sourceUrl': 1,
+            'videoUrl': 1,
+            'mediaType': 1,
             'likedByMe': 1,
             'duration': 1,
             'seenByMe': 1,

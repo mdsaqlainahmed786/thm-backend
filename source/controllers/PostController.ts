@@ -173,7 +173,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
     let mediaIDs: MongoID[] = [];
     let createdMediaList: any[] = [];
     let savedPost: any = null;
-    
+
     try {
       if (mediaFiles && mediaFiles.length !== 0) {
         // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
@@ -181,29 +181,29 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (mediaList && mediaList.length !== 0) {
           createdMediaList = mediaList; // Store for cleanup if post creation fails
           mediaIDs = mediaList.map(m => m._id as any as MongoID);
-          
+
           // CRITICAL: Validate that ALL media documents exist before saving the post
           // This prevents data integrity issues where posts reference non-existent media
           const existingMedia = await Media.find({ _id: { $in: mediaIDs } }).select('_id').lean();
           const existingMediaIDs = existingMedia.map(m => m._id.toString());
           const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
-          
+
           if (missingMediaIDs.length > 0) {
             console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
             console.error('Post creation aborted to prevent data integrity issues');
             // Cleanup: Delete orphaned media if validation fails
-            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => {})));
+            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
             return response.send(httpInternalServerError(
               ErrorMessage.invalidRequest("Failed to create media. Please try again."),
               "Media creation failed"
             ));
           }
-          
+
           // Double-check: Ensure we have the same number of media IDs as created
           if (mediaIDs.length !== existingMedia.length) {
             console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
             // Cleanup: Delete orphaned media if count mismatch
-            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => {})));
+            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
             return response.send(httpInternalServerError(
               ErrorMessage.invalidRequest("Media validation failed. Please try again."),
               "Media validation failed"
@@ -215,14 +215,14 @@ const store = async (request: Request, response: Response, next: NextFunction) =
       newPost.media = mediaIDs;
 
       savedPost = await newPost.save();
-      
+
       // If we get here, post was created successfully - no cleanup needed
-      
+
     } catch (postError: any) {
       // CRITICAL: If post creation fails after media was created, cleanup orphaned media
       if (createdMediaList.length > 0) {
         console.error('CRITICAL: Post creation failed after media was created. Cleaning up orphaned media:', createdMediaList.map(m => m._id));
-        await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => {})));
+        await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
       }
       throw postError; // Re-throw to be caught by outer try-catch
     }
