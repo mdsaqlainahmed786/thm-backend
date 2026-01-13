@@ -9,7 +9,7 @@ const MessagingEndpoints: Router = express.Router();
 
 
 // s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }])
-//MessagingEndpoints.post('/media-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
+MessagingEndpoints.post('/media-message', s3Upload(AwsS3AccessEndpoints.MESSAGING).fields([{ name: 'media', maxCount: 10 }]), mediaMessageApiValidator, validateRequest, MessagingController.sendMediaMessage);
 // Used when user shares an existing post
 MessagingEndpoints.post(
     '/share-post-message',
