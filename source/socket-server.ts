@@ -3,7 +3,7 @@ import https from "http";
 import { allowedOrigins } from "./app";
 import { SocketUser, AppSocketUser, MongoID } from "./common";
 import InMemorySessionStore from "./utils/sessionStore";
-import User, { activeUserQuery, addBusinessProfileInUser, IUser } from "./database/models/user.model";
+import User, { activeUserQuery, addBusinessProfileInUser, IUser, AccountType } from "./database/models/user.model";
 import { randomBytes } from 'crypto';
 import Post from "./database/models/post.model";
 import { SocketChannel } from "./config/constants";
@@ -21,7 +21,6 @@ import { createMessagePayload } from "./notification/FirebaseNotificationControl
 import { Message as FMessage } from "firebase-admin/lib/messaging/messaging-api";
 import { sendNotification } from "./notification/FirebaseNotificationController";
 import { NotificationType } from "./database/models/notification.model";
-import { AccountType } from "./database/models/anonymousUser.model";
 import BusinessProfile from "./database/models/businessProfile.model";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
@@ -37,17 +36,66 @@ export default function createSocketServer(httpServer: https.Server) {
     /** Auth middleware */
     io.use(async (socket, next) => {
         const username = socket.handshake.auth.username;
+        const userID = socket.handshake.auth.userID;
+        
+        // If userID is provided, use it as primary authentication (more reliable)
+        if (userID) {
+            const user = await User.findOne({ _id: userID });
+            if (!user) {
+                console.error("unauthorized - userID not found", socket.handshake.auth);
+                return next(new Error("unauthorized"));
+            }
+            
+            // Get the current username from the database
+            let currentUsername = user.username;
+            if (!currentUsername && user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (businessProfile) {
+                    currentUsername = businessProfile.username;
+                }
+            }
+            
+            if (!currentUsername) {
+                console.error("unauthorized - no username found", socket.handshake.auth);
+                return next(new Error("unauthorized"));
+            }
+            
+            (socket as AppSocketUser).sessionID = randomId();
+            (socket as AppSocketUser).username = currentUsername;
+            (socket as AppSocketUser).userID = user.id;
+            return next();
+        }
+        
+        // Fallback to username-based authentication
         if (!username) {
             console.error("invalid username", socket.handshake.auth);
             return next(new Error("invalid username"));
         }
-        const user = await User.findOne({ username: username });
+        
+        // Check User model first (for individual accounts)
+        let user = await User.findOne({ username: username });
+        let currentUsername = username;
+        
+        // If not found in User, check BusinessProfile (for business accounts)
+        if (!user) {
+            const businessProfile = await BusinessProfile.findOne({ username: username });
+            if (businessProfile) {
+                // Find the user associated with this business profile
+                user = await User.findOne({ businessProfileID: businessProfile._id });
+                // Use the username from BusinessProfile to ensure we have the latest
+                currentUsername = businessProfile.username;
+            }
+        } else {
+            // Use the username from User to ensure we have the latest
+            currentUsername = user.username || username;
+        }
+        
         if (!user) {
             console.error("unauthorized", socket.handshake.auth);
             return next(new Error("unauthorized"));
         }
         (socket as AppSocketUser).sessionID = randomId();
-        (socket as AppSocketUser).username = username;
+        (socket as AppSocketUser).username = currentUsername;
         (socket as AppSocketUser).userID = user.id;
         next();
     });
