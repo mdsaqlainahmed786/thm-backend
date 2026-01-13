@@ -29,7 +29,7 @@ import UserAddress from '../database/models/user-address.model';
 import { SuccessMessage } from '../utils/response-message/success';
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language, username } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -52,6 +52,16 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
                 businessProfileRef.gstn = gstn ?? businessProfileRef.gstn;
                 businessProfileRef.email = email ?? businessProfileRef.email;
                 businessProfileRef.privateAccount = privateAccount ?? businessProfileRef.privateAccount;
+
+                // Update username if provided and check for uniqueness
+                if (username && username !== "" && username !== businessProfileRef.username) {
+                    const existingBusinessProfile = await BusinessProfile.findOne({ username: username, _id: { $ne: businessProfileRef._id } });
+                    if (existingBusinessProfile) {
+                        return response.send(httpBadRequest(ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                    }
+                    businessProfileRef.username = username;
+                }
+
                 /**
                  * 
                  * Ensure the business or business sub type is exits or not
@@ -82,6 +92,16 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
+
+            // Update username if provided and check for uniqueness
+            if (username && username !== "" && username !== user.username) {
+                const existingUser = await User.findOne({ username: username, _id: { $ne: user._id } });
+                if (existingUser) {
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                }
+                user.username = username;
+            }
+
             const savedUser = await user.save();
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.PROFILE_UPDATE));
         }
