@@ -194,18 +194,18 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { 
-            content, 
-            placeName, 
-            lat, 
-            lng, 
-            userTagged, 
-            userTaggedId, 
-            userTaggedPositionX, 
+        const {
+            content,
+            placeName,
+            lat,
+            lng,
+            userTagged,
+            userTaggedId,
+            userTaggedPositionX,
             userTaggedPositionY,
-            feelings, 
-            locationPositionX, 
-            locationPositionY 
+            feelings,
+            locationPositionX,
+            locationPositionY
         } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
@@ -249,7 +249,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
 
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
-        
+
         // Set location position coordinates if provided
         if (locationPositionX !== undefined) {
             newStory.locationPositionX = typeof locationPositionX === 'string' ? parseFloat(locationPositionX) : locationPositionX;
@@ -304,6 +304,26 @@ const update = async (request: Request, response: Response, next: NextFunction) 
     }
 }
 
+/**
+ * Checks if an S3 key is still referenced by other Media documents
+ * This prevents deletion of shared S3 files when one Media document is deleted
+ * @param s3Key - The S3 key to check
+ * @param excludeMediaID - Media ID to exclude from the check (the one being deleted)
+ * @returns true if the S3 key is still in use by other Media documents, false otherwise
+ */
+async function isS3KeyStillReferenced(s3Key: string, excludeMediaID: MongoID): Promise<boolean> {
+    if (!s3Key) return false;
+
+    // Check if there are other Media documents with the same s3Key (excluding the one being deleted)
+    // If other Media documents exist with the same key, the S3 file is shared and should not be deleted
+    const otherMediaWithSameKey = await Media.findOne({
+        s3Key: s3Key,
+        _id: { $ne: excludeMediaID }
+    });
+
+    return !!otherMediaWithSameKey;
+}
+
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -313,15 +333,27 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found."), "Story not found."));
         }
         const media = await Media.findOne({ _id: story.mediaID });
-        if (media && media.s3Key) {
-            await Promise.all([
-                s3Service.deleteS3Object(media.s3Key),
-                s3Service.deleteS3Asset(media.thumbnailUrl),
+        if (media) {
+            // Check if the S3 key is still referenced by other Media documents
+            const s3KeyStillInUse = await isS3KeyStillReferenced(media.s3Key || '', media._id as MongoID);
+
+            // Prepare deletion tasks
+            const deletionTasks: Promise<any>[] = [
                 media.deleteOne(),
                 Like.deleteMany({ storyID: story._id }),
                 View.deleteMany({ storyID: story._id }),
                 Notification.deleteMany({ type: NotificationType.LIKE_A_STORY, "metadata.storyID": story._id })
-            ]);
+            ];
+
+            // Only delete S3 files if they're not still in use by other Media documents
+            if (media.s3Key && !s3KeyStillInUse) {
+                deletionTasks.push(
+                    s3Service.deleteS3Object(media.s3Key),
+                    s3Service.deleteS3Asset(media.thumbnailUrl)
+                );
+            }
+
+            await Promise.all(deletionTasks);
         }
         await story.deleteOne();
         return response.send(httpNoContent(null, 'Story removed.'));

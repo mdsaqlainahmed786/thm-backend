@@ -590,6 +590,33 @@ const storeViews = async (request: Request, response: Response, next: NextFuncti
   }
 }
 
+async function cloneMediaForStory(
+  media: any,
+  newOwnerID: MongoID,
+  businessProfileID?: MongoID | null
+) {
+  const clonedMedia = new Media({
+    businessProfileID: businessProfileID ?? null,
+    userID: newOwnerID,
+
+    fileName: media.fileName,
+    fileSize: media.fileSize,
+    mediaType: media.mediaType,
+    mimeType: media.mimeType,
+
+    width: media.width,
+    height: media.height,
+    duration: media.duration,
+
+    sourceUrl: media.sourceUrl,
+    thumbnailUrl: media.thumbnailUrl,
+    s3Key: media.s3Key,
+    parentMediaID: media._id, // traceability
+    usedIn: "STORY",
+  });
+
+  return clonedMedia.save();
+}
 
 
 const publishPostAsStory = async (request: Request, response: Response, next: NextFunction) => {
@@ -690,7 +717,12 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     const storyPromises = newMedia.map(async (media) => {
       const newStory = new Story();
       newStory.userID = id;
-      newStory.mediaID = media._id as MongoID;
+      const clonedMedia = await cloneMediaForStory(
+        media,
+        id,
+        businessProfileID
+      );
+      newStory.mediaID = clonedMedia._id as MongoID;      
       newStory.duration = media.duration || 10;
       (newStory as any).postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
 
