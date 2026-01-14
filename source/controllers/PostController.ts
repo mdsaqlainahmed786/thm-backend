@@ -1,5 +1,4 @@
 
-import { fetchUserFollowing } from "../database/models/userConnection.model";
 import { GeoCoordinate } from './../database/models/common.model';
 import { ObjectId } from 'mongodb';
 import { UserRecentPostCache } from '../utils/recentPostCache';
@@ -679,20 +678,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 5. Check following using Set for O(1) lookup
-    const myFollowingIDs = await fetchUserFollowing(id);
-    const followingSet = new Set(myFollowingIDs.map(f => String(f)));
-
-    if (!followingSet.has(String(post.userID))) {
-      return response.send(
-        httpBadRequest(
-          ErrorMessage.invalidRequest("You can only share posts from users you follow."),
-          "You can only share posts from users you follow."
-        )
-      );
-    }
-
-    // 6. Extract media IDs
+    // 5. Extract media IDs
     const mediaIDs = allMedia.map(m => String(m._id));
 
     // 7. Find stories already posted in last 24 hours
