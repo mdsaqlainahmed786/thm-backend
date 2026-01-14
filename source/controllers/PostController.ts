@@ -633,8 +633,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 1. Fetch post & media in one go
-    const post = await Post.findOne({ _id: postID }).populate("media").lean();
+    // 1. Fetch post
+    const post = await Post.findOne({ _id: new ObjectId(postID) }).lean();
     if (!post) {
       return response.send(
         httpNotFoundOr404(
@@ -654,11 +654,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 3. Check following using Set for O(1) lookup
-    const myFollowingIDs = await fetchUserFollowing(id);
-    const followingSet = new Set(myFollowingIDs.map(f => String(f)));
-
-    if (!followingSet.has(String(post.userID))) {
+    // 3. Check post media first (before other checks)
+    if (!post.media || !Array.isArray(post.media) || post.media.length === 0) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has no media to publish as a story."),
@@ -667,8 +664,13 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 4. Check post media
-    if (!post.media?.length) {
+    // 4. Fetch all media to filter by type (images and videos only)
+    const allMedia = await Media.find({
+      _id: { $in: post.media.map((m: any) => new ObjectId(m)) },
+      mediaType: { $in: [MediaType.IMAGE, MediaType.VIDEO] }
+    });
+
+    if (allMedia.length === 0) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."),
@@ -677,40 +679,41 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const mediaIDs = post.media.map((m: any) => String(m._id));
+    // 5. Check following using Set for O(1) lookup
+    const myFollowingIDs = await fetchUserFollowing(id);
+    const followingSet = new Set(myFollowingIDs.map(f => String(f)));
 
-    // 5. Find stories already posted in last 24 hours
+    if (!followingSet.has(String(post.userID))) {
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("You can only share posts from users you follow."),
+          "You can only share posts from users you follow."
+        )
+      );
+    }
+
+    // 6. Extract media IDs
+    const mediaIDs = allMedia.map(m => String(m._id));
+
+    // 7. Find stories already posted in last 24 hours
     const existingStories = await Story.find({
       userID: id,
       mediaID: { $in: mediaIDs },
       timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     }).lean();
 
-    const usedMediaIDSet = new Set(existingStories.map(s => String(s.mediaID)));
+    const existingMediaIDs = new Set(existingStories.map(s => String(s.mediaID)));
 
-    // 6. Filter new media IDs
-    const newMediaIDs = post.media.filter((m: any) => !usedMediaIDSet.has(String(m._id)));
-
-    if (!newMediaIDs.length) {
-      return response.send(
-        httpBadRequest(
-          ErrorMessage.invalidRequest("This post has already been shared as a story."),
-          "This post has already been shared as a story."
-        )
-      );
-    }
-
-    // 7. Fetch the actual Media documents
-    const newMedia = await Media.find({
-      _id: { $in: newMediaIDs },
-      mediaType: { $in: [MediaType.IMAGE, MediaType.VIDEO] }
-    });
+    // 8. Filter new media (exclude already shared media)
+    const newMedia = allMedia.filter(
+      (media) => !existingMediaIDs.has(String(media._id))
+    );
 
     if (newMedia.length === 0) {
       return response.send(
         httpBadRequest(
-          ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."),
-          "This post has no images or videos to publish as a story."
+          ErrorMessage.invalidRequest("This post has already been shared as a story."),
+          "This post has already been shared as a story."
         )
       );
     }
@@ -723,7 +726,7 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
         id,
         businessProfileID
       );
-      newStory.mediaID = clonedMedia._id as MongoID;      
+      newStory.mediaID = clonedMedia._id as MongoID;
       newStory.duration = media.duration || 10;
       (newStory as any).postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
 
