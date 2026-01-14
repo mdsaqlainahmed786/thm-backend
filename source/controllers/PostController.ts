@@ -606,7 +606,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const post = await Post.findOne({ _id: new ObjectId(postID) });
+    // 1. Fetch post & media in one go
+    const post = await Post.findOne({ _id: postID }).populate("media").lean();
     if (!post) {
       return response.send(
         httpNotFoundOr404(
@@ -616,8 +617,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-
-    if (post.userID.toString() === id.toString()) {
+    // 2. You cannot share your own post
+    if (String(post.userID) === String(id)) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("You cannot share your own post as a story."),
@@ -626,20 +627,11 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
-    // const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
+    // 3. Check following using Set for O(1) lookup
+    const myFollowingIDs = await fetchUserFollowing(id);
+    const followingSet = new Set(myFollowingIDs.map(f => String(f)));
 
-    // if (!isFollowing) {
-    //   return response.send(
-    //     httpForbidden(
-    //       ErrorMessage.invalidRequest("You can only share media from users you follow."),
-    //       "You can only share media from users you follow."
-    //     )
-    //   );
-    // }
-
-
-    if (!post.media || post.media.length === 0) {
+    if (!followingSet.has(String(post.userID))) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has no media to publish as a story."),
@@ -648,13 +640,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // Fetch all media to filter by type (images and videos only)
-    const allMedia = await Media.find({
-      _id: { $in: post.media },
-      mediaType: { $in: [MediaType.IMAGE, MediaType.VIDEO] }
-    });
-
-    if (allMedia.length === 0) {
+    // 4. Check post media
+    if (!post.media?.length) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."),
@@ -663,21 +650,21 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const mediaIDs = allMedia.map(m => m._id);
+    const mediaIDs = post.media.map((m: any) => String(m._id));
 
+    // 5. Find stories already posted in last 24 hours
     const existingStories = await Story.find({
       userID: id,
       mediaID: { $in: mediaIDs },
       timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-    });
+    }).lean();
 
-    const existingMediaIDs = new Set(existingStories.map(s => s.mediaID.toString()));
+    const usedMediaIDSet = new Set(existingStories.map(s => String(s.mediaID)));
 
-    const newMedia = allMedia.filter(
-      (media) => !existingMediaIDs.has(media._id.toString())
-    );
+    // 6. Filter new media IDs
+    const newMedia = post.media.filter((m: any) => !usedMediaIDSet.has(String(m._id)));
 
-    if (newMedia.length === 0) {
+    if (!newMedia.length) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has already been shared as a story."),
@@ -686,39 +673,27 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
+    // 7. Prepare story docs (no extra DB fetch required)
+    const storyDocs = newMedia.map((m: any) => ({
+      userID: id,
+      mediaID: m._id,
+      duration: m.duration || 10,
+      postID: post._id,
+      businessProfileID: accountType === AccountType.BUSINESS ? businessProfileID : undefined,
+      timeStamp: new Date()
+    }));
 
-    const storyPromises = newMedia.map(async (media) => {
-      const newStory = new Story();
-      newStory.userID = id;
-      newStory.mediaID = media._id as MongoID;
-      newStory.duration = media.duration || 10;
-      (newStory as any).postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
+    // 8. Insert all stories in one go (super fast)
+    const createdStories = await Story.insertMany(storyDocs);
 
-      if (accountType === AccountType.BUSINESS && businessProfileID) {
-        newStory.businessProfileID = businessProfileID;
-      }
+    return response.send(
+      httpCreated(createdStories, "Post published as story successfully.")
+    );
 
-      return newStory.save();
-    });
-
-    const createdStories = (await Promise.all(storyPromises)).filter(Boolean);
-
-    if (createdStories.length === 0) {
-      return response.send(
-        httpBadRequest(
-          ErrorMessage.invalidRequest("No valid new media found to publish as story."),
-          "No valid new media found to publish as story."
-        )
-      );
-    }
-
-    return response.send(httpCreated(createdStories, "Post published as story successfully."));
   } catch (error: any) {
     next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
   }
 };
-
-
 
 
 
