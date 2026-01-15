@@ -17,7 +17,8 @@ export enum NotificationType {
     MESSAGING = 'messaging',
     EVENT_JOIN = "event-join",
     BOOKING = "booking",
-    JOB = "job"
+    JOB = "job",
+    MARKETING = "marketing"
 }
 
 export interface INotification extends Document {

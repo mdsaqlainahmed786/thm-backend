@@ -4,6 +4,7 @@ import { AppConfig } from "./config/constants";
 import DBOptimization from "./cron/DbOptimizationCron";
 import THMFollow from "./cron/THMFollowCron";
 import THMRating from "./cron/THMRatingCron";
+import MarketingNotificationCron from "./cron/MarketingNotificationCron";
 import createSocketServer from "./socket-server";
 import { createClient } from "redis";
 const httpServer = https.createServer(ExpressApp);
@@ -14,6 +15,7 @@ httpServer.listen(AppConfig.PORT, async () => {
     DBOptimization.start();
     THMFollow.start();
     THMRating.start();
+    MarketingNotificationCron.start();
 });
 httpServer.timeout = 1200000;  // 2 Minutes
 
