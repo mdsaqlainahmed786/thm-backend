@@ -22,6 +22,8 @@ import { Message as FMessage } from "firebase-admin/lib/messaging/messaging-api"
 import { sendNotification } from "./notification/FirebaseNotificationController";
 import { NotificationType } from "./database/models/notification.model";
 import BusinessProfile from "./database/models/businessProfile.model";
+import { verify } from "jsonwebtoken";
+import { AppConfig } from "./config/constants";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
@@ -37,12 +39,30 @@ export default function createSocketServer(httpServer: https.Server) {
     io.use(async (socket, next) => {
         const username = socket.handshake.auth.username;
         const userID = socket.handshake.auth.userID;
+        // Also check query parameters and headers as fallback
+        const queryUserID = socket.handshake.query?.userID as string;
+        const headerUserID = socket.handshake.headers?.['userid'] as string;
+        const finalUserID = userID || queryUserID || headerUserID;
         
-        // If userID is provided, use it as primary authentication (more reliable)
-        if (userID) {
-            const user = await User.findOne({ _id: userID });
+        console.log("Socket auth attempt:", { 
+            username, 
+            userID: finalUserID, 
+            auth: socket.handshake.auth,
+            query: socket.handshake.query 
+        });
+        
+        // If userID is provided (from auth, query, or headers), use it as primary authentication (more reliable)
+        if (finalUserID) {
+            let user;
+            try {
+                user = await User.findOne({ _id: finalUserID });
+            } catch (error) {
+                console.error("Error finding user by ID:", error);
+                user = null;
+            }
+            
             if (!user) {
-                console.error("unauthorized - userID not found", socket.handshake.auth);
+                console.error("unauthorized - userID not found", { userID: finalUserID, auth: socket.handshake.auth });
                 return next(new Error("unauthorized"));
             }
             
@@ -56,19 +76,92 @@ export default function createSocketServer(httpServer: https.Server) {
             }
             
             if (!currentUsername) {
-                console.error("unauthorized - no username found", socket.handshake.auth);
+                console.error("unauthorized - no username found for userID", { userID: finalUserID, auth: socket.handshake.auth });
                 return next(new Error("unauthorized"));
             }
             
             (socket as AppSocketUser).sessionID = randomId();
             (socket as AppSocketUser).username = currentUsername;
             (socket as AppSocketUser).userID = user.id;
+            console.log("Socket authenticated successfully by userID:", { userID: finalUserID, username: currentUsername });
             return next();
+        }
+        
+        // Try to get userID from JWT token as fallback (from cookies or headers)
+        let tokenUserID: string | undefined;
+        try {
+            const cookies = socket.handshake.headers.cookie;
+            const headers = socket.handshake.headers;
+            
+            // Try to get token from cookies
+            let token: string | undefined;
+            if (cookies) {
+                const cookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.USER_AUTH_TOKEN_KEY}=([^;]*)`));
+                if (cookieMatch) {
+                    token = cookieMatch[1];
+                } else {
+                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.ADMIN_AUTH_TOKEN_KEY}=([^;]*)`));
+                    if (adminCookieMatch) {
+                        token = adminCookieMatch[1];
+                    }
+                }
+            }
+            
+            // Try to get token from headers if not in cookies
+            if (!token) {
+                token = headers[AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()] as string || 
+                        headers[AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()] as string;
+            }
+            
+            // Decode token to get userID
+            if (token) {
+                try {
+                    const decoded: any = verify(token, AppConfig.APP_ACCESS_TOKEN_SECRET);
+                    if (decoded && decoded.id) {
+                        tokenUserID = decoded.id;
+                        console.log("Found userID from JWT token:", tokenUserID);
+                    }
+                } catch (tokenError) {
+                    console.log("Token verification failed (may be expired):", tokenError);
+                }
+            }
+        } catch (error) {
+            console.log("Error extracting token from socket handshake:", error);
+        }
+        
+        // If we got userID from token, use it
+        if (tokenUserID) {
+            let user;
+            try {
+                user = await User.findOne({ _id: tokenUserID });
+            } catch (error) {
+                console.error("Error finding user by token userID:", error);
+                user = null;
+            }
+            
+            if (user && user.isActivated && !user.isDeleted) {
+                // Get the current username from the database
+                let currentUsername = user.username;
+                if (!currentUsername && user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                    const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                    if (businessProfile) {
+                        currentUsername = businessProfile.username;
+                    }
+                }
+                
+                if (currentUsername) {
+                    (socket as AppSocketUser).sessionID = randomId();
+                    (socket as AppSocketUser).username = currentUsername;
+                    (socket as AppSocketUser).userID = user.id;
+                    console.log("Socket authenticated successfully by JWT token:", { userID: tokenUserID, username: currentUsername });
+                    return next();
+                }
+            }
         }
         
         // Fallback to username-based authentication
         if (!username) {
-            console.error("invalid username", socket.handshake.auth);
+            console.error("invalid username - no username, userID, or valid token provided", socket.handshake.auth);
             return next(new Error("invalid username"));
         }
         
@@ -83,7 +176,9 @@ export default function createSocketServer(httpServer: https.Server) {
                 // Find the user associated with this business profile
                 user = await User.findOne({ businessProfileID: businessProfile._id });
                 // Use the username from BusinessProfile to ensure we have the latest
-                currentUsername = businessProfile.username;
+                if (user) {
+                    currentUsername = businessProfile.username;
+                }
             }
         } else {
             // Use the username from User to ensure we have the latest
@@ -91,12 +186,18 @@ export default function createSocketServer(httpServer: https.Server) {
         }
         
         if (!user) {
-            console.error("unauthorized", socket.handshake.auth);
+            console.error("unauthorized - username not found", { 
+                username, 
+                auth: socket.handshake.auth,
+                message: "Username may have been changed. Please reconnect with userID, updated username, or ensure you have a valid auth token."
+            });
             return next(new Error("unauthorized"));
         }
+        
         (socket as AppSocketUser).sessionID = randomId();
         (socket as AppSocketUser).username = currentUsername;
         (socket as AppSocketUser).userID = user.id;
+        console.log("Socket authenticated successfully by username:", { username: currentUsername, userID: user.id });
         next();
     });
     io.on("connection", (socket) => {
