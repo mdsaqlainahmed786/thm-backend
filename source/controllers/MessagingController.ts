@@ -309,7 +309,14 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         const { messageType, username, message } = request.body;
         const requestedUserID = request.user?.id;
         const sendedBy = await User.findOne({ _id: requestedUserID });
-        const sendTo = await User.findOne({ username: username });
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let sendTo = await User.findOne({ username: username });
+        if (!sendTo) {
+            const businessProfile = await BusinessProfile.findOne({ username: username });
+            if (businessProfile) {
+                sendTo = await User.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
         if (!sendedBy) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
@@ -373,7 +380,14 @@ const sharingPostMediaMessage = async (
         }
 
         const sender = await User.findById(id);
-        const receiver = await User.findOne({ username });
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let receiver = await User.findOne({ username });
+        if (!receiver) {
+            const businessProfile = await BusinessProfile.findOne({ username });
+            if (businessProfile) {
+                receiver = await User.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
 
         if (!sender || !receiver) {
             return response.send(
