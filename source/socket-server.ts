@@ -30,9 +30,19 @@ export default function createSocketServer(httpServer: https.Server) {
     console.info("Socket Server:::")
     const io = new Server(httpServer, {
         allowEIO3: true,
-        cors: { origin: allowedOrigins },
+        cors: { 
+            origin: allowedOrigins,
+            credentials: true, // Allow cookies to be sent
+            methods: ["GET", "POST"]
+        },
         pingInterval: 105000,
-        pingTimeout: 100000
+        pingTimeout: 100000,
+        cookie: {
+            name: "io",
+            httpOnly: true,
+            sameSite: "none",
+            secure: true
+        }
     });
 
     /** Auth middleware */
@@ -93,24 +103,34 @@ export default function createSocketServer(httpServer: https.Server) {
             const cookies = socket.handshake.headers.cookie;
             const headers = socket.handshake.headers;
             
-            // Try to get token from cookies
+            console.log("Token extraction - cookies:", cookies ? "present" : "missing", "headers keys:", Object.keys(headers || {}));
+            
+            // Try to get token from cookies (using cookie key names)
             let token: string | undefined;
             if (cookies) {
-                const cookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.USER_AUTH_TOKEN_KEY}=([^;]*)`));
-                if (cookieMatch) {
-                    token = cookieMatch[1];
+                // Try user session token cookie
+                const userCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.USER_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                if (userCookieMatch && userCookieMatch[1]) {
+                    token = decodeURIComponent(userCookieMatch[1]);
+                    console.log("Found user token in cookie");
                 } else {
-                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.ADMIN_AUTH_TOKEN_KEY}=([^;]*)`));
-                    if (adminCookieMatch) {
-                        token = adminCookieMatch[1];
+                    // Try admin session token cookie
+                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                    if (adminCookieMatch && adminCookieMatch[1]) {
+                        token = decodeURIComponent(adminCookieMatch[1]);
+                        console.log("Found admin token in cookie");
                     }
                 }
             }
             
-            // Try to get token from headers if not in cookies
+            // Try to get token from headers if not in cookies (using header key names)
             if (!token) {
-                token = headers[AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()] as string || 
-                        headers[AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()] as string;
+                const userHeaderToken = headers[AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()] as string;
+                const adminHeaderToken = headers[AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()] as string;
+                token = userHeaderToken || adminHeaderToken;
+                if (token) {
+                    console.log("Found token in headers");
+                }
             }
             
             // Decode token to get userID
@@ -120,13 +140,17 @@ export default function createSocketServer(httpServer: https.Server) {
                     if (decoded && decoded.id) {
                         tokenUserID = decoded.id;
                         console.log("Found userID from JWT token:", tokenUserID);
+                    } else {
+                        console.log("Token decoded but no userID found in payload");
                     }
-                } catch (tokenError) {
-                    console.log("Token verification failed (may be expired):", tokenError);
+                } catch (tokenError: any) {
+                    console.log("Token verification failed:", tokenError.message || tokenError);
                 }
+            } else {
+                console.log("No token found in cookies or headers");
             }
-        } catch (error) {
-            console.log("Error extracting token from socket handshake:", error);
+        } catch (error: any) {
+            console.log("Error extracting token from socket handshake:", error.message || error);
         }
         
         // If we got userID from token, use it
