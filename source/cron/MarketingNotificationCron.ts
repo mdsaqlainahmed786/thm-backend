@@ -64,28 +64,23 @@ async function sendMarketingNotifications() {
         console.log(`[MarketingNotificationCron] Starting marketing notification job at ${new Date().toISOString()}`);
 
         // TESTING MODE: Only send to specific user ID
-        const TEST_USER_ID = "68fda5ef31578f13fcb87ee7";
+        // const TEST_USER_ID = "68fda5ef31578f13fcb87ee7";
 
-        console.log(`[MarketingNotificationCron] TEST MODE: Targeting user ${TEST_USER_ID}`);
-
-        // Fetch devices for test user only
+        // Fetch all devices with valid notification tokens (all users)
         const allDevicesConfigs = await DevicesConfig.find({
-            userID: new ObjectId(TEST_USER_ID),
             notificationToken: { $exists: true, $ne: "" }
         });
 
-        console.log(`[MarketingNotificationCron] Found ${allDevicesConfigs.length} device(s) for test user`);
+        console.log(`[MarketingNotificationCron] Found ${allDevicesConfigs.length} device(s) across all users`);
 
         if (allDevicesConfigs.length === 0) {
-            console.log("[MarketingNotificationCron] No devices found for test user. Make sure the user has a valid notification token.");
+            console.log("[MarketingNotificationCron] No users with device tokens found.");
             return;
         }
 
-        if (allDevicesConfigs.length > 0) {
-            allDevicesConfigs.forEach((config, index) => {
-                console.log(`[MarketingNotificationCron] Device ${index + 1}: Platform=${config.devicePlatform}, Token=${config.notificationToken.substring(0, 20)}...`);
-            });
-        }
+        // Get unique user count for logging
+        const uniqueUserIDs = [...new Set(allDevicesConfigs.map(config => config.userID.toString()))];
+        console.log(`[MarketingNotificationCron] Sending to ${uniqueUserIDs.length} unique users`);
 
         // Get contextually relevant messages based on current date/time
         const relevantMessages = getContextuallyRelevantMessages();
