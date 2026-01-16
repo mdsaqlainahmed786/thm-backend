@@ -72,7 +72,12 @@ export const createMessagePayload = (token: string, title: string, description: 
                         "sound": "default",
                         "mutable-content": 1,
                         // "content-available": 1,
-                    }
+                    },
+                    // Custom data for iOS to handle navigation
+                    notificationID: notificationID,
+                    screen: type ?? "",
+                    image: image ?? "",
+                    profileImage: profileImage ?? ""
                 }
             }
         })
