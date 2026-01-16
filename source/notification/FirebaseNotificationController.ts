@@ -27,16 +27,21 @@ type NotificationData = {
     type?: string | undefined;
     image?: string | undefined;
     profileImage?: string | undefined;
+    route?: string | undefined; // Optional route/screen for navigation
 }
 export const createMessagePayload = (token: string, title: string, description: string, data: NotificationData) => {
-    const { notificationID, devicePlatform, type, image, profileImage } = data;
+    const { notificationID, devicePlatform, type, image, profileImage, route } = data;
+    // Use route if provided, otherwise fall back to type for screen
+    const screenValue = route ?? type ?? "";
     const message: Message = {
         token: token,
         data: {
             title: title,
             body: description,
             notificationID: notificationID,
-            screen: type ?? "",
+            screen: screenValue,
+            type: type ?? "", // Keep type for notification identification
+            route: route ?? "", // Explicit route field for navigation
             image: image ?? "",
             profileImage: profileImage ?? ""
         },
@@ -49,7 +54,9 @@ export const createMessagePayload = (token: string, title: string, description: 
                     title: title,
                     body: description,
                     notificationID: notificationID,
-                    screen: type,
+                    screen: screenValue,
+                    type: type ?? "",
+                    route: route ?? "",
                     image: image ?? "",
                     profileImage: profileImage ?? ""
                 },
@@ -75,7 +82,9 @@ export const createMessagePayload = (token: string, title: string, description: 
                     },
                     // Custom data for iOS to handle navigation
                     notificationID: notificationID,
-                    screen: type ?? "",
+                    screen: screenValue,
+                    type: type ?? "",
+                    route: route ?? "",
                     image: image ?? "",
                     profileImage: profileImage ?? ""
                 }

@@ -127,7 +127,8 @@ async function sendMarketingNotifications() {
                             {
                                 notificationID,
                                 devicePlatform: devicesConfig.devicePlatform,
-                                type: "feed", // Set screen to "feed" to navigate to feeds page
+                                type: NotificationType.MARKETING, // Keep type as MARKETING for identification
+                                route: "feed", // Explicit route to feeds page
                                 image: "",
                                 profileImage: ""
                             }
