@@ -171,6 +171,7 @@ export abstract class CronSchedule {
     static readonly EVERY_DAY_AT_00 = "0 0 * * *";
     static readonly ONLY_ON_MONDAY_AND_THURSDAY = "0 15 * * 1,4";
     static readonly MARKETING_NOTIFICATION_DAILY = "0 10 * * *"; // Daily at 10:00 AM
+    static readonly MARKETING_NOTIFICATION_EVERY_6_HOURS = "0 */6 * * *"; // Every 6 hours
 }
 
 export interface MarketingNotificationMessage {

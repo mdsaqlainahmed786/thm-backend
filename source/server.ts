@@ -16,19 +16,19 @@ httpServer.listen(AppConfig.PORT, async () => {
     THMFollow.start();
     THMRating.start();
     
-    // Start marketing notification cron (runs every 1 minute in test mode)
+    // Start marketing notification cron (runs every 6 hours)
     MarketingNotificationCron.start();
-    console.log(`[Server] MarketingNotificationCron started - will run every 1 minute`);
+    console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
     
-    // TESTING: Trigger notification immediately on server start
-    console.log(`[Server] TEST MODE: Triggering marketing notification immediately in 2 seconds...`);
+    // Trigger notification immediately on server start
+    console.log(`[Server] Triggering marketing notification immediately in 2 seconds...`);
     setTimeout(async () => {
         try {
             const { sendMarketingNotifications } = await import('./cron/MarketingNotificationCron');
             await sendMarketingNotifications();
-            console.log(`[Server] Immediate test notification completed`);
+            console.log(`[Server] Immediate notification completed`);
         } catch (error: any) {
-            console.error(`[Server] Error triggering immediate test notification:`, error.message);
+            console.error(`[Server] Error triggering immediate notification:`, error.message);
         }
     }, 2000); // Wait 2 seconds after server starts
 });

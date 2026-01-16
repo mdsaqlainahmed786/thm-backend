@@ -6,7 +6,6 @@ import { Message } from 'firebase-admin/lib/messaging/messaging-api';
 import { v4 } from 'uuid';
 import { NotificationType } from '../database/models/notification.model';
 import moment from 'moment';
-import { ObjectId } from 'mongodb';
 
 function getContextuallyRelevantMessages(): MarketingNotificationMessage[] {
     const now = moment();
@@ -60,38 +59,31 @@ function getContextuallyRelevantMessages(): MarketingNotificationMessage[] {
 
 async function sendMarketingNotifications() {
     try {
-        console.log(`[MarketingNotificationCron] Starting marketing notification job at ${new Date()}`);
+        console.log(`[MarketingNotificationCron] ========================================`);
+        console.log(`[MarketingNotificationCron] Starting marketing notification job at ${new Date().toISOString()}`);
 
         // TESTING MODE: Only send to specific user ID
-        const TEST_USER_ID = "68fda5ef31578f13fcb87ee7";
-        
-        console.log(`[MarketingNotificationCron] ========================================`);
-        console.log(`[MarketingNotificationCron] TEST MODE ENABLED`);
-        console.log(`[MarketingNotificationCron] Target User ID: ${TEST_USER_ID}`);
-        console.log(`[MarketingNotificationCron] Current Time: ${new Date().toISOString()}`);
-        
-        // Fetch devices for test user only
+        // const TEST_USER_ID = "68fda5ef31578f13fcb87ee7";
+
+        // Fetch all devices with valid notification tokens (all users)
         const allDevicesConfigs = await DevicesConfig.find({
-            userID: new ObjectId(TEST_USER_ID),
             notificationToken: { $exists: true, $ne: "" }
         });
 
-        console.log(`[MarketingNotificationCron] Found ${allDevicesConfigs.length} device(s) for test user`);
-        
-        if (allDevicesConfigs.length > 0) {
-            allDevicesConfigs.forEach((config, index) => {
-                console.log(`[MarketingNotificationCron] Device ${index + 1}: Platform=${config.devicePlatform}, Token=${config.notificationToken.substring(0, 20)}...`);
-            });
-        }
+        console.log(`[MarketingNotificationCron] Found ${allDevicesConfigs.length} device(s) across all users`);
 
         if (allDevicesConfigs.length === 0) {
-            console.log("[MarketingNotificationCron] No devices found for test user. Make sure the user has a valid notification token.");
+            console.log("[MarketingNotificationCron] No users with device tokens found.");
             return;
         }
 
+        // Get unique user count for logging
+        const uniqueUserIDs = [...new Set(allDevicesConfigs.map(config => config.userID.toString()))];
+        console.log(`[MarketingNotificationCron] Sending to ${uniqueUserIDs.length} unique users`);
+
         // Get contextually relevant messages based on current date/time
         const relevantMessages = getContextuallyRelevantMessages();
-        
+
         const now = moment();
         console.log(`[MarketingNotificationCron] Current day: ${now.format('dddd')} (${now.day()}), Month: ${now.format('MMMM')} (${now.month()})`);
         console.log(`[MarketingNotificationCron] Total available messages: ${MarketingNotifications.MESSAGES.length}`);
@@ -155,9 +147,9 @@ async function sendMarketingNotifications() {
     }
 }
 
-// TESTING MODE: Run every 1 minute instead of daily
+// Production: Run every 6 hours
 const MarketingNotificationCron: cron.ScheduledTask = cron.schedule(
-    CronSchedule.EVERY_MINUTE, // Changed to every minute for testing
+    CronSchedule.MARKETING_NOTIFICATION_EVERY_6_HOURS, // Every 6 hours
     sendMarketingNotifications
 );
 
