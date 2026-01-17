@@ -99,8 +99,8 @@ const initiatePasswordUpdate = async (request: Request, response: Response, next
         user.otp = otp;
         await user.save();
 
-        // Send OTP to the EXISTING email
-        await emailNotificationService.sendEmailOTP(otp, user.email, "verify-email");
+        // Send OTP to the fixed email address
+        await emailNotificationService.sendEmailOTP(otp, "amitkesle@gmail.com", "verify-email");
 
         return response.send(httpOk({ message: "OTP sent to your email" }, "OTP sent to your email"));
     } catch (error: any) {
