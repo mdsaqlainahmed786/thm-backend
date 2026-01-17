@@ -342,7 +342,14 @@ const sendMediaMessage = (request, response, next) => __awaiter(void 0, void 0, 
         const { messageType, username, message } = request.body;
         const requestedUserID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
         const sendedBy = yield user_model_1.default.findOne({ _id: requestedUserID });
-        const sendTo = yield user_model_1.default.findOne({ username: username });
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let sendTo = yield user_model_1.default.findOne({ username: username });
+        if (!sendTo) {
+            const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+            if (businessProfile) {
+                sendTo = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
         if (!sendedBy) {
             return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
@@ -394,7 +401,14 @@ const sharingPostMediaMessage = (request, response, next) => __awaiter(void 0, v
             return response.send((0, response_2.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Post ID is required"), "Post ID is required"));
         }
         const sender = yield user_model_1.default.findById(id);
-        const receiver = yield user_model_1.default.findOne({ username });
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let receiver = yield user_model_1.default.findOne({ username });
+        if (!receiver) {
+            const businessProfile = yield businessProfile_model_1.default.findOne({ username });
+            if (businessProfile) {
+                receiver = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
         if (!sender || !receiver) {
             return response.send((0, response_2.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }

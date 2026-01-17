@@ -21,6 +21,7 @@ var NotificationType;
     NotificationType["EVENT_JOIN"] = "event-join";
     NotificationType["BOOKING"] = "booking";
     NotificationType["JOB"] = "job";
+    NotificationType["MARKETING"] = "marketing";
 })(NotificationType || (exports.NotificationType = NotificationType = {}));
 const NotificationSchema = new mongoose_1.Schema({
     userID: {

@@ -53,33 +53,196 @@ const uuid_1 = require("uuid");
 const FirebaseNotificationController_1 = require("./notification/FirebaseNotificationController");
 const FirebaseNotificationController_2 = require("./notification/FirebaseNotificationController");
 const notification_model_1 = require("./database/models/notification.model");
-const anonymousUser_model_1 = require("./database/models/anonymousUser.model");
 const businessProfile_model_1 = __importDefault(require("./database/models/businessProfile.model"));
+const jsonwebtoken_1 = require("jsonwebtoken");
+const constants_2 = require("./config/constants");
 const sessionStore = new sessionStore_1.default();
 const randomId = () => (0, crypto_1.randomBytes)(15).toString("hex");
 function createSocketServer(httpServer) {
     console.info("Socket Server:::");
     const io = new socket_io_1.Server(httpServer, {
         allowEIO3: true,
-        cors: { origin: app_1.allowedOrigins },
+        cors: {
+            origin: app_1.allowedOrigins,
+            credentials: true, // Allow cookies to be sent
+            methods: ["GET", "POST"]
+        },
         pingInterval: 105000,
-        pingTimeout: 100000
+        pingTimeout: 100000,
+        cookie: {
+            name: "io",
+            httpOnly: true,
+            sameSite: "none",
+            secure: true
+        }
     });
     /** Auth middleware */
     io.use((socket, next) => __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         const username = socket.handshake.auth.username;
+        const userID = socket.handshake.auth.userID;
+        // Also check query parameters and headers as fallback
+        const queryUserID = (_a = socket.handshake.query) === null || _a === void 0 ? void 0 : _a.userID;
+        const headerUserID = (_b = socket.handshake.headers) === null || _b === void 0 ? void 0 : _b['userid'];
+        const finalUserID = userID || queryUserID || headerUserID;
+        console.log("Socket auth attempt:", {
+            username,
+            userID: finalUserID,
+            auth: socket.handshake.auth,
+            query: socket.handshake.query
+        });
+        // If userID is provided (from auth, query, or headers), use it as primary authentication (more reliable)
+        if (finalUserID) {
+            let user;
+            try {
+                user = yield user_model_1.default.findOne({ _id: finalUserID });
+            }
+            catch (error) {
+                console.error("Error finding user by ID:", error);
+                user = null;
+            }
+            if (!user) {
+                console.error("unauthorized - userID not found", { userID: finalUserID, auth: socket.handshake.auth });
+                return next(new Error("unauthorized"));
+            }
+            // Get the current username from the database
+            let currentUsername = user.username;
+            if (!currentUsername && user.accountType === user_model_1.AccountType.BUSINESS && user.businessProfileID) {
+                const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                if (businessProfile) {
+                    currentUsername = businessProfile.username;
+                }
+            }
+            if (!currentUsername) {
+                console.error("unauthorized - no username found for userID", { userID: finalUserID, auth: socket.handshake.auth });
+                return next(new Error("unauthorized"));
+            }
+            socket.sessionID = randomId();
+            socket.username = currentUsername;
+            socket.userID = user.id;
+            console.log("Socket authenticated successfully by userID:", { userID: finalUserID, username: currentUsername });
+            return next();
+        }
+        // Try to get userID from JWT token as fallback (from cookies or headers)
+        let tokenUserID;
+        try {
+            const cookies = socket.handshake.headers.cookie;
+            const headers = socket.handshake.headers;
+            console.log("Token extraction - cookies:", cookies ? "present" : "missing", "headers keys:", Object.keys(headers || {}));
+            // Try to get token from cookies (using cookie key names)
+            let token;
+            if (cookies) {
+                // Try user session token cookie
+                const userCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                if (userCookieMatch && userCookieMatch[1]) {
+                    token = decodeURIComponent(userCookieMatch[1]);
+                    console.log("Found user token in cookie");
+                }
+                else {
+                    // Try admin session token cookie
+                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                    if (adminCookieMatch && adminCookieMatch[1]) {
+                        token = decodeURIComponent(adminCookieMatch[1]);
+                        console.log("Found admin token in cookie");
+                    }
+                }
+            }
+            // Try to get token from headers if not in cookies (using header key names)
+            if (!token) {
+                const userHeaderToken = headers[constants_2.AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()];
+                const adminHeaderToken = headers[constants_2.AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()];
+                token = userHeaderToken || adminHeaderToken;
+                if (token) {
+                    console.log("Found token in headers");
+                }
+            }
+            // Decode token to get userID
+            if (token) {
+                try {
+                    const decoded = (0, jsonwebtoken_1.verify)(token, constants_2.AppConfig.APP_ACCESS_TOKEN_SECRET);
+                    if (decoded && decoded.id) {
+                        tokenUserID = decoded.id;
+                        console.log("Found userID from JWT token:", tokenUserID);
+                    }
+                    else {
+                        console.log("Token decoded but no userID found in payload");
+                    }
+                }
+                catch (tokenError) {
+                    console.log("Token verification failed:", tokenError.message || tokenError);
+                }
+            }
+            else {
+                console.log("No token found in cookies or headers");
+            }
+        }
+        catch (error) {
+            console.log("Error extracting token from socket handshake:", error.message || error);
+        }
+        // If we got userID from token, use it
+        if (tokenUserID) {
+            let user;
+            try {
+                user = yield user_model_1.default.findOne({ _id: tokenUserID });
+            }
+            catch (error) {
+                console.error("Error finding user by token userID:", error);
+                user = null;
+            }
+            if (user && user.isActivated && !user.isDeleted) {
+                // Get the current username from the database
+                let currentUsername = user.username;
+                if (!currentUsername && user.accountType === user_model_1.AccountType.BUSINESS && user.businessProfileID) {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                    if (businessProfile) {
+                        currentUsername = businessProfile.username;
+                    }
+                }
+                if (currentUsername) {
+                    socket.sessionID = randomId();
+                    socket.username = currentUsername;
+                    socket.userID = user.id;
+                    console.log("Socket authenticated successfully by JWT token:", { userID: tokenUserID, username: currentUsername });
+                    return next();
+                }
+            }
+        }
+        // Fallback to username-based authentication
         if (!username) {
-            console.error("invalid username", socket.handshake.auth);
+            console.error("invalid username - no username, userID, or valid token provided", socket.handshake.auth);
             return next(new Error("invalid username"));
         }
-        const user = yield user_model_1.default.findOne({ username: username });
+        // Check User model first (for individual accounts)
+        let user = yield user_model_1.default.findOne({ username: username });
+        let currentUsername = username;
+        // If not found in User, check BusinessProfile (for business accounts)
         if (!user) {
-            console.error("unauthorized", socket.handshake.auth);
+            const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+            if (businessProfile) {
+                // Find the user associated with this business profile
+                user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                // Use the username from BusinessProfile to ensure we have the latest
+                if (user) {
+                    currentUsername = businessProfile.username;
+                }
+            }
+        }
+        else {
+            // Use the username from User to ensure we have the latest
+            currentUsername = user.username || username;
+        }
+        if (!user) {
+            console.error("unauthorized - username not found", {
+                username,
+                auth: socket.handshake.auth,
+                message: "Username may have been changed. Please reconnect with userID, updated username, or ensure you have a valid auth token."
+            });
             return next(new Error("unauthorized"));
         }
         socket.sessionID = randomId();
-        socket.username = username;
+        socket.username = currentUsername;
         socket.userID = user.id;
+        console.log("Socket authenticated successfully by username:", { username: currentUsername, userID: user.id });
         next();
     }));
     io.on("connection", (socket) => {
@@ -91,9 +254,13 @@ function createSocketServer(httpServer) {
             inChatScreen: false,
         };
         console.log("Connection :::\n", socket.id, sessionUser);
-        // Persist session
-        sessionStore.saveSession(socket.username, sessionUser);
+        // Persist session using userID as key (more reliable than username)
+        const userIDString = String(socket.userID);
+        sessionStore.saveSession(userIDString, sessionUser);
+        // Also join room by username for backward compatibility
         socket.join(socket.username);
+        // Join room by userID as well for more reliable message delivery
+        socket.join(userIDString);
         socket.broadcast.emit(constants_1.SocketChannel.USER_CONNECTED, socket.username);
         socket.on(constants_1.SocketChannel.USERS, () => {
             onlineUsers(socket, socket.username);
@@ -111,13 +278,32 @@ function createSocketServer(httpServer) {
         });
         /**Done */
         socket.on(constants_1.SocketChannel.PRIVATE_MESSAGE, (data, next) => __awaiter(this, void 0, void 0, function* () {
-            const currentSession = sessionStore.findSession(data.to);
+            // Helper function to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = (username) => __awaiter(this, void 0, void 0, function* () {
+                let user = yield user_model_1.default.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+                    if (businessProfile) {
+                        user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            });
+            // Try to find session by username first, then by userID
+            let currentSession = sessionStore.findSessionByUsername(data.to);
+            if (!currentSession) {
+                // If not found by username, try to find by userID
+                const targetUser = yield findUserByUsername(data.to);
+                if (targetUser) {
+                    currentSession = sessionStore.findSession(String(targetUser._id));
+                }
+            }
             const isSeen = (currentSession === null || currentSession === void 0 ? void 0 : currentSession.chatWith) === socket.username;
             const inChatScreen = (currentSession === null || currentSession === void 0 ? void 0 : currentSession.inChatScreen) ? currentSession === null || currentSession === void 0 ? void 0 : currentSession.inChatScreen : false;
             const isOnline = currentSession ? true : false;
             try {
-                const sendedBy = yield user_model_1.default.findOne({ username: socket.username });
-                const sendTo = yield user_model_1.default.findOne({ username: data.to });
+                const sendedBy = yield findUserByUsername(socket.username);
+                const sendTo = yield findUserByUsername(data.to);
                 if (sendedBy && sendTo) {
                     const newMessage = new message_model_1.default();
                     newMessage.userID = sendedBy.id;
@@ -184,7 +370,12 @@ function createSocketServer(httpServer) {
                         isEdited: false
                     };
                     // Emit to both users (including sender) so they get the real messageID
-                    io.to(data.to).to(socket.username).emit(constants_1.SocketChannel.PRIVATE_MESSAGE, messageData);
+                    // Use both username and userID rooms for reliability
+                    const senderUserID = String(sendedBy._id);
+                    const receiverUserID = String(sendTo._id);
+                    io.to(data.to).to(socket.username)
+                        .to(senderUserID).to(receiverUserID)
+                        .emit(constants_1.SocketChannel.PRIVATE_MESSAGE, messageData);
                     let message = savedMessage.message;
                     switch (savedMessage.type) {
                         case message_model_1.MessageType.IMAGE:
@@ -227,7 +418,18 @@ function createSocketServer(httpServer) {
                     console.log("EDIT_MESSAGE: Missing required fields", { messageID, message: newMessageText });
                     return socket.emit("error", { message: "Missing messageID or message field" });
                 }
-                const user = yield user_model_1.default.findOne({ username: socket.username });
+                // Helper to find user by username (checks both User and BusinessProfile)
+                const findUserByUsername = (username) => __awaiter(this, void 0, void 0, function* () {
+                    let user = yield user_model_1.default.findOne({ username: username });
+                    if (!user) {
+                        const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+                        if (businessProfile) {
+                            user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                        }
+                    }
+                    return user;
+                });
+                const user = yield findUserByUsername(socket.username);
                 if (!user) {
                     return socket.emit("error", { message: "User not found" });
                 }
@@ -291,8 +493,12 @@ function createSocketServer(httpServer) {
                     to: targetUser.username
                 };
                 // Emit to both users' rooms to ensure real-time updates
-                io.to(targetUser.username).emit(constants_1.SocketChannel.EDIT_MESSAGE, updatePayload);
-                io.to(socket.username).emit(constants_1.SocketChannel.EDIT_MESSAGE, updatePayload);
+                // Use both username and userID rooms for reliability
+                const targetUserID = String(targetUser._id);
+                const senderUserID = String(user._id);
+                io.to(targetUser.username).to(targetUserID)
+                    .to(socket.username).to(senderUserID)
+                    .emit(constants_1.SocketChannel.EDIT_MESSAGE, updatePayload);
                 console.log("EDIT_MESSAGE: Edit event emitted to users:", updatePayload);
             }
             catch (error) {
@@ -312,7 +518,18 @@ function createSocketServer(httpServer) {
             console.log("DELETE_MESSAGE received - Raw args:", args);
             console.log("DELETE_MESSAGE received - Parsed data:", data, "from user:", socket.username);
             try {
-                const user = yield user_model_1.default.findOne({ username: socket.username });
+                // Helper to find user by username (checks both User and BusinessProfile)
+                const findUserByUsername = (username) => __awaiter(this, void 0, void 0, function* () {
+                    let user = yield user_model_1.default.findOne({ username: username });
+                    if (!user) {
+                        const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+                        if (businessProfile) {
+                            user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                        }
+                    }
+                    return user;
+                });
+                const user = yield findUserByUsername(socket.username);
                 if (!user) {
                     console.log("DELETE_MESSAGE: User not found");
                     return socket.emit("error", { message: "User not found" });
@@ -378,7 +595,12 @@ function createSocketServer(httpServer) {
                     to: targetUser.username
                 };
                 // Emit to both users' rooms to ensure real-time updates
-                io.to(targetUser.username).to(socket.username).emit(constants_1.SocketChannel.DELETE_MESSAGE, deletePayload);
+                // Use both username and userID rooms for reliability
+                const targetUserID = String(targetUser._id);
+                const senderUserID = String(user._id);
+                io.to(targetUser.username).to(targetUserID)
+                    .to(socket.username).to(senderUserID)
+                    .emit(constants_1.SocketChannel.DELETE_MESSAGE, deletePayload);
                 console.log("DELETE_MESSAGE: Delete event emitted to users:", deletePayload);
             }
             catch (error) {
@@ -466,9 +688,20 @@ function createSocketServer(httpServer) {
             pageNumber = data === null || data === void 0 ? void 0 : data.pageNumber;
             pageNumber = (0, basic_1.parseQueryParam)(pageNumber, 1);
             documentLimit = (0, basic_1.parseQueryParam)(documentLimit, 20);
+            // Helper to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = (username) => __awaiter(this, void 0, void 0, function* () {
+                let user = yield user_model_1.default.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+                    if (businessProfile) {
+                        user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            });
             const [user, targetUser] = yield Promise.all([
-                user_model_1.default.findOne({ username: socket.username }),
-                user_model_1.default.findOne({ username: username }),
+                findUserByUsername(socket.username),
+                findUserByUsername(username),
             ]);
             const messages = {
                 totalMessages: 0,
@@ -504,7 +737,8 @@ function createSocketServer(httpServer) {
         }));
         socket.on(constants_1.SocketChannel.IN_PRIVATE_CHAT, (username) => {
             console.log("in private chat", username);
-            sessionStore.saveSession(socket.username, {
+            const userIDString = String(socket.userID);
+            sessionStore.saveSession(userIDString, {
                 username: socket.username,
                 sessionID: socket.sessionID,
                 userID: socket.userID,
@@ -515,7 +749,8 @@ function createSocketServer(httpServer) {
         });
         socket.on(constants_1.SocketChannel.LEAVE_PRIVATE_CHAT, () => {
             console.log("leave private chat", socket.chatWith);
-            sessionStore.saveSession(socket.username, {
+            const userIDString = String(socket.userID);
+            sessionStore.saveSession(userIDString, {
                 username: socket.username,
                 sessionID: socket.sessionID,
                 userID: socket.userID,
@@ -525,7 +760,8 @@ function createSocketServer(httpServer) {
             console.log(sessionStore);
         });
         socket.on(constants_1.SocketChannel.IN_CHAT, () => {
-            sessionStore.saveSession(socket.username, {
+            const userIDString = String(socket.userID);
+            sessionStore.saveSession(userIDString, {
                 username: socket.username,
                 sessionID: socket.sessionID,
                 userID: socket.userID,
@@ -535,7 +771,8 @@ function createSocketServer(httpServer) {
             console.log("in chat screen");
         });
         socket.on(constants_1.SocketChannel.LEAVE_CHAT, () => {
-            sessionStore.saveSession(socket.username, {
+            const userIDString = String(socket.userID);
+            sessionStore.saveSession(userIDString, {
                 username: socket.username,
                 sessionID: socket.sessionID,
                 userID: socket.userID,
@@ -545,9 +782,20 @@ function createSocketServer(httpServer) {
             console.log("leave chat screen");
         });
         socket.on(constants_1.SocketChannel.MESSAGE_SEEN, (username) => __awaiter(this, void 0, void 0, function* () {
+            // Helper to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = (username) => __awaiter(this, void 0, void 0, function* () {
+                let user = yield user_model_1.default.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ username: username });
+                    if (businessProfile) {
+                        user = yield user_model_1.default.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            });
             const [targetUser, user] = yield Promise.all([
-                user_model_1.default.findOne({ username: username }),
-                user_model_1.default.findOne({ username: socket.username })
+                findUserByUsername(username),
+                findUserByUsername(socket.username)
             ]);
             if (targetUser && user) {
                 /**Update last seen */
@@ -562,7 +810,11 @@ function createSocketServer(httpServer) {
                 /**
                  * Target User
                  */
-                const isUserOnline = sessionStore.findSession(targetUser.username);
+                // Try to find session by userID first, then by username
+                let isUserOnline = sessionStore.findSession(String(targetUser._id));
+                if (!isUserOnline) {
+                    isUserOnline = sessionStore.findSessionByUsername(targetUser.username);
+                }
                 if (isUserOnline) {
                     lastSeen(socket, 'Online');
                 }
@@ -676,7 +928,9 @@ function createSocketServer(httpServer) {
         socket.on("disconnect", () => __awaiter(this, void 0, void 0, function* () {
             console.log("disconnect", socket.username);
             socket.broadcast.emit(constants_1.SocketChannel.USER_DISCONNECTED, socket.username);
-            sessionStore.destroySession(socket.username);
+            // Use userID for session destruction (more reliable)
+            const userIDString = String(socket.userID);
+            sessionStore.destroySession(userIDString);
             updateLastSeen(socket);
         }));
     });
@@ -766,7 +1020,7 @@ function sendMessageNotification(targetUserID, message, data) {
             let title = `${data.name || 'User'}`;
             const description = message;
             const accountType = (data === null || data === void 0 ? void 0 : data.accountType) || undefined;
-            if (accountType && accountType === anonymousUser_model_1.AccountType.BUSINESS && data && data.businessProfileID) {
+            if (accountType && accountType === user_model_1.AccountType.BUSINESS && data && data.businessProfileID) {
                 const businessProfile = yield businessProfile_model_1.default.findOne({ _id: data.businessProfileID });
                 if (businessProfile) {
                     title = `${businessProfile.name || 'User'}`;

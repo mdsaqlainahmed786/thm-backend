@@ -63,7 +63,7 @@ const success_1 = require("../utils/response-message/success");
 const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language, username } = request.body;
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
         if (!user) {
@@ -85,6 +85,14 @@ const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 
                 businessProfileRef.gstn = gstn !== null && gstn !== void 0 ? gstn : businessProfileRef.gstn;
                 businessProfileRef.email = email !== null && email !== void 0 ? email : businessProfileRef.email;
                 businessProfileRef.privateAccount = privateAccount !== null && privateAccount !== void 0 ? privateAccount : businessProfileRef.privateAccount;
+                // Update username if provided and check for uniqueness
+                if (username && username !== "" && username !== businessProfileRef.username) {
+                    const existingBusinessProfile = yield businessProfile_model_1.default.findOne({ username: username, _id: { $ne: businessProfileRef._id } });
+                    if (existingBusinessProfile) {
+                        return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                    }
+                    businessProfileRef.username = username;
+                }
                 /**
                  *
                  * Ensure the business or business sub type is exits or not
@@ -115,6 +123,14 @@ const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 
             user.acceptedTerms = acceptedTerms !== null && acceptedTerms !== void 0 ? acceptedTerms : user.acceptedTerms;
             user.privateAccount = privateAccount !== null && privateAccount !== void 0 ? privateAccount : user.privateAccount;
             user.notificationEnabled = notificationEnabled !== null && notificationEnabled !== void 0 ? notificationEnabled : user.notificationEnabled;
+            // Update username if provided and check for uniqueness
+            if (username && username !== "" && username !== user.username) {
+                const existingUser = yield user_model_2.default.findOne({ username: username, _id: { $ne: user._id } });
+                if (existingUser) {
+                    return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                }
+                user.username = username;
+            }
             const savedUser = yield user.save();
             return response.send((0, response_1.httpOk)(savedUser.hideSensitiveData(), success_1.SuccessMessage.PROFILE_UPDATE));
         }

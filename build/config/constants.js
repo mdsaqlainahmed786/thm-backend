@@ -24,7 +24,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 var _a, _b, _c, _d, _e, _f, _g, _h;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
+exports.MarketingNotifications = exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 class AppConfig {
@@ -179,3 +179,51 @@ CronSchedule.EVERY_TWO_MINUTE = "*/2 * * * *";
 CronSchedule.EVERY_TWO_HOURS = "0 */2 * * *";
 CronSchedule.EVERY_DAY_AT_00 = "0 0 * * *";
 CronSchedule.ONLY_ON_MONDAY_AND_THURSDAY = "0 15 * * 1,4";
+CronSchedule.MARKETING_NOTIFICATION_DAILY = "0 10 * * *"; // Daily at 10:00 AM
+CronSchedule.MARKETING_NOTIFICATION_EVERY_6_HOURS = "0 */6 * * *"; // Every 6 hours
+class MarketingNotifications {
+}
+exports.MarketingNotifications = MarketingNotifications;
+MarketingNotifications.MESSAGES = [
+    // Booking & Hotel Reservations - Anytime
+    { message: "🏨 Struggling to book hotels and reservations? We've got you covered! ✨" },
+    { message: "✈️ Your next adventure is just a tap away! Book hotels, rooms & stays instantly 🎯" },
+    { message: "🌟 Weekend plans? Discover amazing hotels and home stays near you 🏖️", isWeekend: true },
+    { message: "📞 No more calling hotels! Book rooms directly from your phone 📱" },
+    { message: "🔍 Planning a trip? Browse verified hotels with real guest reviews ⭐" },
+    { message: "⚡ Last-minute stay? Find available rooms in minutes, not hours! 🚀" },
+    { message: "🎒 Travel made simple. Book, review, and share your hotel experiences 🌍" },
+    // Social & Community Features - Anytime
+    { message: "👥 Join thousands sharing their travel stories! Your journey matters 📸" },
+    { message: "🔔 See what's happening in the hotel world. Follow travelers like you! ✈️" },
+    { message: "💬 Share your stay experience. Help others discover amazing places 🌟" },
+    { message: "🤝 Connect with fellow travelers. Share tips, reviews, and memories 📝" },
+    { message: "✨ Your travel story could inspire someone's next adventure! 🌈" },
+    // Events & Activities
+    { message: "🎉 Exciting events happening near you! Don't miss out on the fun 🎊" },
+    { message: "🏖️ Weekend getaway? Check out trending events and hotel deals! 💰", isWeekend: true },
+    { message: "🗓️ Discover local events and book your stay in one place! 🎯" },
+    // Reviews & Recommendations - Anytime
+    { message: "⭐ Real reviews from real guests. Make informed booking decisions! 💯" },
+    { message: "📝 Your honest review helps others find their perfect stay 🏨" },
+    { message: "👀 See what guests are saying. Trusted reviews for every property ⭐⭐⭐" },
+    // App Benefits & Features - Anytime
+    { message: "🎯 One app for everything travel! Book, share, connect, and explore 🌐" },
+    { message: "🚀 From booking to sharing. Your complete travel companion! ✈️" },
+    { message: "🎁 Why use 5 apps when one does it all? Book, review, and socialize! 💪" },
+    // { message: "👑 Premium features unlocked! Post unlimited, go ad-free 🚫📢" },
+    { message: "🌐 Your travel social network. Where bookings meet community! 🤝" },
+    // Time-based & Contextual
+    { message: "🎉 Friday vibes! Time to plan that weekend getaway! 🏖️", daysOfWeek: [5] }, // Friday only
+    { message: "🌅 New week, new adventures! Explore trending hotels 🏨", daysOfWeek: [1] }, // Monday only
+    { message: "☀️ Summer is here! Book your perfect vacation stay 🏖️", months: [5, 6, 7] }, // June, July, August
+    { message: "🎄 Holiday season approaching! Secure your bookings early ⏰", months: [10, 11] }, // November, December
+    // Engagement & Retention - Anytime
+    { message: "💔 We miss you! Come back and discover what's new ✨" },
+    { message: "📱 Your feed is waiting! See the latest from hotels you follow 🔔" },
+    { message: "🆕 New hotels added daily! Be the first to discover them 🌟" },
+    { message: "🎁 Special deals just for you! Check out exclusive offers 💰" },
+    // Business Features - Anytime
+    { message: "🏢 Hotel owners: Showcase your property to thousands of travelers! 📈" },
+    { message: "💼 Grow your business! Connect with guests and boost bookings 📊" }
+];

@@ -543,6 +543,27 @@ const storeViews = (request, response, next) => __awaiter(void 0, void 0, void 0
         next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
+function cloneMediaForStory(media, newOwnerID, businessProfileID) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const clonedMedia = new media_model_1.default({
+            businessProfileID: businessProfileID !== null && businessProfileID !== void 0 ? businessProfileID : null,
+            userID: newOwnerID,
+            fileName: media.fileName,
+            fileSize: media.fileSize,
+            mediaType: media.mediaType,
+            mimeType: media.mimeType,
+            width: media.width,
+            height: media.height,
+            duration: media.duration,
+            sourceUrl: media.sourceUrl,
+            thumbnailUrl: media.thumbnailUrl,
+            s3Key: media.s3Key,
+            parentMediaID: media._id, // traceability
+            usedIn: "STORY",
+        });
+        return clonedMedia.save();
+    });
+}
 const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _m;
     try {
@@ -551,49 +572,46 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         if (!id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
-        const post = yield post_model_1.default.findOne({ _id: new mongodb_1.ObjectId(postID) });
+        // 1. Fetch post
+        const post = yield post_model_1.default.findOne({ _id: new mongodb_1.ObjectId(postID) }).lean();
         if (!post) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
         }
-        if (post.userID.toString() === id.toString()) {
+        // 2. You cannot share your own post
+        if (String(post.userID) === String(id)) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("You cannot share your own post as a story."), "You cannot share your own post as a story."));
         }
-        // const myFollowingIDs = await fetchUserFollowing(id); // returns IDs I follow
-        // const isFollowing = myFollowingIDs.some(f => f.toString() === post.userID.toString());
-        // if (!isFollowing) {
-        //   return response.send(
-        //     httpForbidden(
-        //       ErrorMessage.invalidRequest("You can only share media from users you follow."),
-        //       "You can only share media from users you follow."
-        //     )
-        //   );
-        // }
-        if (!post.media || post.media.length === 0) {
+        // 3. Check post media first (before other checks)
+        if (!post.media || !Array.isArray(post.media) || post.media.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no media to publish as a story."), "This post has no media to publish as a story."));
         }
-        // Fetch all media to filter by type (images and videos only)
+        // 4. Fetch all media to filter by type (images and videos only)
         const allMedia = yield media_model_1.default.find({
-            _id: { $in: post.media },
+            _id: { $in: post.media.map((m) => new mongodb_1.ObjectId(m)) },
             mediaType: { $in: [media_model_1.MediaType.IMAGE, media_model_1.MediaType.VIDEO] }
         });
         if (allMedia.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."), "This post has no images or videos to publish as a story."));
         }
-        const mediaIDs = allMedia.map(m => m._id);
+        // 5. Extract media IDs
+        const mediaIDs = allMedia.map(m => String(m._id));
+        // 7. Find stories already posted in last 24 hours
         const existingStories = yield story_model_1.default.find({
             userID: id,
             mediaID: { $in: mediaIDs },
             timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-        });
-        const existingMediaIDs = new Set(existingStories.map(s => s.mediaID.toString()));
-        const newMedia = allMedia.filter((media) => !existingMediaIDs.has(media._id.toString()));
+        }).lean();
+        const existingMediaIDs = new Set(existingStories.map(s => String(s.mediaID)));
+        // 8. Filter new media (exclude already shared media)
+        const newMedia = allMedia.filter((media) => !existingMediaIDs.has(String(media._id)));
         if (newMedia.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has already been shared as a story."), "This post has already been shared as a story."));
         }
         const storyPromises = newMedia.map((media) => __awaiter(void 0, void 0, void 0, function* () {
             const newStory = new story_model_1.default();
             newStory.userID = id;
-            newStory.mediaID = media._id;
+            const clonedMedia = yield cloneMediaForStory(media, id, businessProfileID);
+            newStory.mediaID = clonedMedia._id;
             newStory.duration = media.duration || 10;
             newStory.postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
             if (accountType === user_model_1.AccountType.BUSINESS && businessProfileID) {

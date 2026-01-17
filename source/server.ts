@@ -4,7 +4,7 @@ import { AppConfig } from "./config/constants";
 import DBOptimization from "./cron/DbOptimizationCron";
 import THMFollow from "./cron/THMFollowCron";
 import THMRating from "./cron/THMRatingCron";
-import MarketingNotificationCron from "./cron/MarketingNotificationCron";
+// import MarketingNotificationCron from "./cron/MarketingNotificationCron";
 import createSocketServer from "./socket-server";
 import { createClient } from "redis";
 const httpServer = https.createServer(ExpressApp);
@@ -15,22 +15,22 @@ httpServer.listen(AppConfig.PORT, async () => {
     DBOptimization.start();
     THMFollow.start();
     THMRating.start();
-    
+
     // Start marketing notification cron (runs every 6 hours)
-    MarketingNotificationCron.start();
-    console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
-    
+    // MarketingNotificationCron.start();
+    // console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
+
     // Trigger notification immediately on server start
-    console.log(`[Server] Triggering marketing notification immediately in 2 seconds...`);
-    setTimeout(async () => {
-        try {
-            const { sendMarketingNotifications } = await import('./cron/MarketingNotificationCron');
-            await sendMarketingNotifications();
-            console.log(`[Server] Immediate notification completed`);
-        } catch (error: any) {
-            console.error(`[Server] Error triggering immediate notification:`, error.message);
-        }
-    }, 2000); // Wait 2 seconds after server starts
+    // console.log(`[Server] Triggering marketing notification immediately in 2 seconds...`);
+    // setTimeout(async () => {
+    //     try {
+    //         const { sendMarketingNotifications } = await import('./cron/MarketingNotificationCron');
+    //         await sendMarketingNotifications();
+    //         console.log(`[Server] Immediate notification completed`);
+    //     } catch (error: any) {
+    //         console.error(`[Server] Error triggering immediate notification:`, error.message);
+    //     }
+    // }, 2000); // Wait 2 seconds after server starts
 });
 httpServer.timeout = 1200000;  // 2 Minutes
 

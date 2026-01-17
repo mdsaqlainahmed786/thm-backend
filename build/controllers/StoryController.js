@@ -320,6 +320,26 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
+/**
+ * Checks if an S3 key is still referenced by other Media documents
+ * This prevents deletion of shared S3 files when one Media document is deleted
+ * @param s3Key - The S3 key to check
+ * @param excludeMediaID - Media ID to exclude from the check (the one being deleted)
+ * @returns true if the S3 key is still in use by other Media documents, false otherwise
+ */
+function isS3KeyStillReferenced(s3Key, excludeMediaID) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!s3Key)
+            return false;
+        // Check if there are other Media documents with the same s3Key (excluding the one being deleted)
+        // If other Media documents exist with the same key, the S3 file is shared and should not be deleted
+        const otherMediaWithSameKey = yield media_model_1.default.findOne({
+            s3Key: s3Key,
+            _id: { $ne: excludeMediaID }
+        });
+        return !!otherMediaWithSameKey;
+    });
+}
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _d;
     try {
@@ -330,15 +350,21 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Story not found."), "Story not found."));
         }
         const media = yield media_model_1.default.findOne({ _id: story.mediaID });
-        if (media && media.s3Key) {
-            yield Promise.all([
-                s3Service.deleteS3Object(media.s3Key),
-                s3Service.deleteS3Asset(media.thumbnailUrl),
+        if (media) {
+            // Check if the S3 key is still referenced by other Media documents
+            const s3KeyStillInUse = yield isS3KeyStillReferenced(media.s3Key || '', media._id);
+            // Prepare deletion tasks
+            const deletionTasks = [
                 media.deleteOne(),
                 like_model_1.default.deleteMany({ storyID: story._id }),
                 view_model_1.default.deleteMany({ storyID: story._id }),
                 notification_model_1.default.deleteMany({ type: notification_model_1.NotificationType.LIKE_A_STORY, "metadata.storyID": story._id })
-            ]);
+            ];
+            // Only delete S3 files if they're not still in use by other Media documents
+            if (media.s3Key && !s3KeyStillInUse) {
+                deletionTasks.push(s3Service.deleteS3Object(media.s3Key), s3Service.deleteS3Asset(media.thumbnailUrl));
+            }
+            yield Promise.all(deletionTasks);
         }
         yield story.deleteOne();
         return response.send((0, response_1.httpNoContent)(null, 'Story removed.'));
