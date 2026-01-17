@@ -11,6 +11,7 @@ const UserEndpoints = express_1.default.Router();
 UserEndpoints.get('/', UserController_1.default.index);
 UserEndpoints.get('/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, UserController_1.default.show);
 UserEndpoints.put('/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, UserController_1.default.update);
+UserEndpoints.post('/add-admin', api_validation_1.addAdminApiValidator, api_request_validator_1.validateRequest, UserController_1.default.addAdmin);
 // UserEndpoints.delete('/account', UserController.deleteAccount);
 // UserEndpoints.patch('/account/disable', UserController.deactivateAccount);
 exports.default = UserEndpoints;

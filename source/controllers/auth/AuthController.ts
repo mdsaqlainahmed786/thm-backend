@@ -24,6 +24,7 @@ import { Types } from '../../validation/rules/api-validation';
 import SocialProviders from '../../services/SocialProviders';
 import { v4 } from 'uuid';
 import moment from "moment";
+import { compare } from 'bcrypt';
 
 const emailNotificationService = new EmailNotificationService();
 
@@ -39,11 +40,29 @@ const getAuthKeys = (request: Request, role?: string) => {
 const login = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
-        const user = await User.findOne({ email: email });
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        
+        // If admin route, select adminPassword field as well
+        const userQuery = User.findOne({ email: email });
+        if (isAdminRoute) {
+            userQuery.select('+adminPassword');
+        }
+        const user = await userQuery;
+        
         if (!user) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
         }
-        const isMatch = await user.comparePassword(password);
+        
+        // For admin login, check adminPassword if it exists, otherwise check regular password
+        let isMatch = false;
+        if (isAdminRoute && user.role === Role.ADMINISTRATOR && user.adminPassword) {
+            // Compare with adminPassword
+            isMatch = await compare(password, user.adminPassword);
+        } else {
+            // Use regular password comparison
+            isMatch = await user.comparePassword(password);
+        }
+        
         if (!isMatch) {
             return response.status(200).send(httpForbidden(null, ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }

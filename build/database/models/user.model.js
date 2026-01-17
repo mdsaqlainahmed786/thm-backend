@@ -152,6 +152,11 @@ const UserSchema = new mongoose_1.Schema({
             type: [Number],
         }
     },
+    adminPassword: {
+        type: String,
+        default: null,
+        select: false // Don't select by default for security
+    },
 }, {
     timestamps: true
 });

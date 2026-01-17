@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.publicReviewApiValidator = exports.createPromoCodeApiValidator = exports.createRoomApiValidator = exports.bookBanquetApiValidator = exports.bookTableApiValidator = exports.confirmCheckoutApiValidator = exports.checkoutApiValidator = exports.createPricePresetApiValidator = exports.checkInApiValidator = exports.createAmenityApiValidator = exports.createSubscriptionPlanApiValidator = exports.joinEventApiValidator = exports.createQuestionApiValidator = exports.createContactApiValidator = exports.collectInsightsDataApiValidator = exports.buySubscriptionApiValidator = exports.subscriptionCheckoutApiValidator = exports.createAddressApiValidator = exports.createEventApiValidator = exports.EventType = exports.businessQuestionAnswerApiValidator = exports.mediaMessageApiValidator = exports.createReviewQuestionApiValidator = exports.businessQuestionsApiValidator = exports.resetPasswordApiValidator = exports.verifyOTPApiValidator = exports.mobileVerifyOTPApiValidator = exports.mobileRequestOTPApiValidator = exports.forgotPasswordApiValidator = exports.resendOTPApiValidator = exports.Types = exports.createCommentApiValidator = exports.savedPostApiValidator = exports.createLikesApiValidator = exports.verifyEmailApiValidator = exports.signUpApiValidator = exports.loginApiValidator = exports.messageValidationRule = exports.mediaIDValidationRule = exports.postIDValidationRule = exports.bookingStatusValidationRule = exports.paramIDValidationRule = exports.placeIDValidationRule = exports.bioValidationRule = exports.businessDialCodeValidationRule = exports.businessPhoneNumberValidationRule = exports.businessEmailValidationRule = exports.businessNameValidationRule = exports.businessSubTypeValidationRule = exports.businessTypeValidationRule = void 0;
-exports.createJobApiValidator = exports.createMediaViewsApiValidator = exports.socialLoginApiValidator = void 0;
+exports.addAdminApiValidator = exports.createJobApiValidator = exports.createMediaViewsApiValidator = exports.socialLoginApiValidator = void 0;
 const common_validation_1 = require("./../common-validation");
 const common_1 = require("../../common");
 const booking_model_1 = require("../../database/models/booking.model");
@@ -407,4 +407,8 @@ exports.createJobApiValidator = [
     common_validation_1.joiningDateValidationRule,
     common_validation_1.numberOfVacanciesValidationRule,
     common_validation_1.experienceValidationRule,
+];
+exports.addAdminApiValidator = [
+    common_validation_1.usernameValidationRule,
+    (0, express_validator_1.body)("adminPassword", "Admin password is optional.").optional().notEmpty().withMessage("Admin password cannot be empty if provided."),
 ];

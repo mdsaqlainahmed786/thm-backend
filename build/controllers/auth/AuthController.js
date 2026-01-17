@@ -60,6 +60,7 @@ const api_validation_1 = require("../../validation/rules/api-validation");
 const SocialProviders_1 = __importDefault(require("../../services/SocialProviders"));
 const uuid_1 = require("uuid");
 const moment_1 = __importDefault(require("moment"));
+const bcrypt_1 = require("bcrypt");
 const emailNotificationService = new EmailNotificationService_1.default();
 const getAuthKeys = (request, role) => {
     const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
@@ -73,11 +74,26 @@ const login = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     var _a;
     try {
         const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
-        const user = yield user_model_2.default.findOne({ email: email });
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        // If admin route, select adminPassword field as well
+        const userQuery = user_model_2.default.findOne({ email: email });
+        if (isAdminRoute) {
+            userQuery.select('+adminPassword');
+        }
+        const user = yield userQuery;
         if (!user) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
-        const isMatch = yield user.comparePassword(password);
+        // For admin login, check adminPassword if it exists, otherwise check regular password
+        let isMatch = false;
+        if (isAdminRoute && user.role === common_1.Role.ADMINISTRATOR && user.adminPassword) {
+            // Compare with adminPassword
+            isMatch = yield (0, bcrypt_1.compare)(password, user.adminPassword);
+        }
+        else {
+            // Use regular password comparison
+            isMatch = yield user.comparePassword(password);
+        }
         if (!isMatch) {
             return response.status(200).send((0, response_1.httpForbidden)(null, error_1.ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }

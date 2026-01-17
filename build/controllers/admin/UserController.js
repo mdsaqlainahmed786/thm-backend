@@ -45,6 +45,7 @@ const userConnection_model_1 = require("./../../database/models/userConnection.m
 const userConnection_model_2 = __importDefault(require("../../database/models/userConnection.model"));
 const businessProfile_model_1 = __importDefault(require("../../database/models/businessProfile.model"));
 const common_1 = require("../../common");
+const bcrypt_1 = require("bcrypt");
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -291,4 +292,39 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-exports.default = { index, store, update, destroy, show };
+const addAdmin = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _f;
+    try {
+        const { username, adminPassword } = request.body;
+        // Find user by username
+        const user = yield user_model_1.default.findOne({ username: username });
+        if (!user) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        // Check if user is already an administrator
+        if (user.role === common_1.Role.ADMINISTRATOR) {
+            return response.send((0, response_1.httpBadRequest)(null, "User is already an administrator"));
+        }
+        // Update role to administrator
+        user.role = common_1.Role.ADMINISTRATOR;
+        // Set adminPassword if provided, otherwise set to null
+        if (adminPassword && adminPassword.trim() !== "") {
+            // Hash the admin password before storing
+            const salt = yield (0, bcrypt_1.genSalt)(10);
+            user.adminPassword = yield (0, bcrypt_1.hash)(adminPassword, salt);
+        }
+        else {
+            user.adminPassword = null;
+        }
+        // Save the updated user
+        const savedUser = yield user.save();
+        // Remove sensitive data from response
+        const userResponse = savedUser.hideSensitiveData();
+        delete userResponse.adminPassword;
+        return response.send((0, response_1.httpAcceptedOrUpdated)(userResponse, "User successfully promoted to administrator"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+exports.default = { index, store, update, destroy, show, addAdmin };

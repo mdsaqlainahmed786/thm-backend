@@ -65,6 +65,7 @@ export interface Individual {
     geoCoordinate: GeoCoordinate;
     language: string;
     mobileVerified: boolean;
+    adminPassword?: string | null; // Password set by admin for administrator accounts
 }
 
 export interface Business {
@@ -157,6 +158,11 @@ const UserSchema: Schema = new Schema<IUser>(
             coordinates: {
                 type: [Number],
             }
+        },
+        adminPassword: {
+            type: String,
+            default: null,
+            select: false // Don't select by default for security
         },
 
     },
