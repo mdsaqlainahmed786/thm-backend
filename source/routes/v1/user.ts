@@ -15,9 +15,8 @@ UserEndpoints.get('/profile', UserController.profile);
 UserEndpoints.get('/profile/:id', [paramIDValidationRule], validateRequest, UserController.publicProfile);
 UserEndpoints.patch('/edit-profile', UserController.editProfile);
 UserEndpoints.post('/edit-profile-pic', s3Upload(AwsS3AccessEndpoints.USERS).fields([{ name: 'profilePic', maxCount: 1 }]), UserController.changeProfilePic);
-const propertyPictureUpload = s3Upload(AwsS3AccessEndpoints.USERS).array('images', 6);
 UserEndpoints.post('/business-profile/property-picture',
-    propertyPictureUpload,
+    s3Upload(AwsS3AccessEndpoints.USERS).fields([{ name: 'images', maxCount: 6 }]),
     UserController.businessPropertyPictures);
 UserEndpoints.post('/address', createAddressApiValidator, validateRequest, UserController.address);
 
