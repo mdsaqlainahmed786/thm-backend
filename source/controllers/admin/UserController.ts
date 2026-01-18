@@ -176,27 +176,13 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 };
 
 /**
- * Root-admin-only endpoint to fetch ALL users (no pagination).
- * Supports optional filters: ?query=...&accountType=...&role=...
+ * Root-admin-only endpoint to fetch ALL users with administrator role only.
  */
 const fetchAllUsers = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        let { query, accountType, role, sortOrder }: any = request.query;
-
-        const matchQuery: any = {};
-        if (accountType) matchQuery.accountType = accountType;
-        if (role) matchQuery.role = role;
-
-        if (query && query.trim() !== "") {
-            matchQuery.$or = [
-                { username: { $regex: query, $options: "i" } },
-                { name: { $regex: query, $options: "i" } },
-                { email: { $regex: query, $options: "i" } },
-                { phoneNumber: { $regex: query, $options: "i" } }
-            ];
-        }
-
-        const sortDirection = sortOrder === "asc" ? 1 : -1;
+        const matchQuery: any = {
+            role: Role.ADMINISTRATOR
+        };
 
         const pipeline: any[] = [
             { $match: matchQuery },
@@ -216,11 +202,11 @@ const fetchAllUsers = async (request: Request, response: Response, next: NextFun
                     __v: 0,
                 }
             },
-            { $sort: { createdAt: sortDirection } }
+            { $sort: { createdAt: -1 } }
         ];
 
         const documents = await User.aggregate(pipeline);
-        return response.send(httpOk(documents, "Users fetched."));
+        return response.send(httpOk(documents, "Administrators fetched."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -393,4 +379,50 @@ const addAdmin = async (request: Request, response: Response, next: NextFunction
     }
 }
 
-export default { index, fetchAllUsers, store, update, destroy, show, addAdmin };
+const demoteAdmin = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        let { id } = request.params;
+
+        // Find user by ID
+        const user = await User.findOne({ _id: id });
+        
+        if (!user) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND
+                )
+            );
+        }
+
+        // Check if user is an administrator
+        if (user.role !== Role.ADMINISTRATOR) {
+            return response.send(
+                httpBadRequest(
+                    null,
+                    "User is not an administrator"
+                )
+            );
+        }
+
+        // Update role to user
+        user.role = Role.USER;
+        // Clear adminPassword when demoting
+        user.adminPassword = null;
+
+        // Save the updated user
+        const savedUser = await user.save();
+
+        // Remove sensitive data from response
+        const userResponse = savedUser.hideSensitiveData();
+        delete (userResponse as any).adminPassword;
+
+        return response.send(
+            httpAcceptedOrUpdated(userResponse, "User successfully demoted from administrator to user")
+        );
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
+
+export default { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin };
