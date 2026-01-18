@@ -19,7 +19,7 @@ const constants_1 = require("./config/constants");
 const DbOptimizationCron_1 = __importDefault(require("./cron/DbOptimizationCron"));
 const THMFollowCron_1 = __importDefault(require("./cron/THMFollowCron"));
 const THMRatingCron_1 = __importDefault(require("./cron/THMRatingCron"));
-// import MarketingNotificationCron from "./cron/MarketingNotificationCron";
+const MarketingNotificationCron_1 = __importDefault(require("./cron/MarketingNotificationCron"));
 const socket_server_1 = __importDefault(require("./socket-server"));
 const redis_1 = require("redis");
 const httpServer = http_1.default.createServer(app_1.default);
@@ -31,8 +31,8 @@ httpServer.listen(constants_1.AppConfig.PORT, () => __awaiter(void 0, void 0, vo
     THMFollowCron_1.default.start();
     THMRatingCron_1.default.start();
     // Start marketing notification cron (runs every 6 hours)
-    // MarketingNotificationCron.start();
-    // console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
+    MarketingNotificationCron_1.default.start();
+    console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
     // Trigger notification immediately on server start
     // console.log(`[Server] Triggering marketing notification immediately in 2 seconds...`);
     // setTimeout(async () => {
