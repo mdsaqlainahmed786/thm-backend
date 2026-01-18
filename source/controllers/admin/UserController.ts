@@ -142,6 +142,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             {
                 $project: {
                     password: 0,
+                    otp: 0,
+                    adminPassword: 0,
                     updatedAt: 0,
                     __v: 0,
                     followersRef: 0
@@ -168,6 +170,57 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             httpOkExtended(documents, "User fetched.", pageNumber, totalPages, total)
         );
 
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
+/**
+ * Root-admin-only endpoint to fetch ALL users (no pagination).
+ * Supports optional filters: ?query=...&accountType=...&role=...
+ */
+const fetchAllUsers = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        let { query, accountType, role, sortOrder }: any = request.query;
+
+        const matchQuery: any = {};
+        if (accountType) matchQuery.accountType = accountType;
+        if (role) matchQuery.role = role;
+
+        if (query && query.trim() !== "") {
+            matchQuery.$or = [
+                { username: { $regex: query, $options: "i" } },
+                { name: { $regex: query, $options: "i" } },
+                { email: { $regex: query, $options: "i" } },
+                { phoneNumber: { $regex: query, $options: "i" } }
+            ];
+        }
+
+        const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+        const pipeline: any[] = [
+            { $match: matchQuery },
+            addBusinessProfileInUser().lookup,
+            {
+                $unwind: {
+                    path: addBusinessProfileInUser().unwindLookup.$unwind.path,
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    password: 0,
+                    otp: 0,
+                    adminPassword: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            },
+            { $sort: { createdAt: sortDirection } }
+        ];
+
+        const documents = await User.aggregate(pipeline);
+        return response.send(httpOk(documents, "Users fetched."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -340,4 +393,4 @@ const addAdmin = async (request: Request, response: Response, next: NextFunction
     }
 }
 
-export default { index, store, update, destroy, show, addAdmin };
+export default { index, fetchAllUsers, store, update, destroy, show, addAdmin };

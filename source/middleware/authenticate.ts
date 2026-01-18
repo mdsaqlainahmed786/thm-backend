@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { verify, sign, SignOptions } from "jsonwebtoken";
 import type { StringValue } from "ms";
-import { httpForbidden, httpUnauthorized } from "../utils/response";
+import { httpForbidden, httpInternalServerError, httpUnauthorized } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AppConfig } from "../config/constants";
 import User, { AccountType } from "../database/models/user.model";
@@ -99,6 +99,59 @@ export async function isAdministrator(request: Request, response: Response, next
         return response.status(401).send(httpUnauthorized(ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
     }
     return next();
+}
+
+/**
+ * Extra safety gate for highly-privileged admin-only endpoints.
+ * Requires: authenticated administrator AND email === admin@thehotelmedia.com
+ */
+export async function isTheHotelMediaRootAdmin(request: Request, response: Response, next: NextFunction) {
+    try {
+        const userID = request.user?.id;
+        if (!userID) {
+            return response.status(401).send(
+                httpUnauthorized(
+                    ErrorMessage.unAuthenticatedRequest(ErrorMessage.TOKEN_REQUIRED),
+                    ErrorMessage.TOKEN_REQUIRED
+                )
+            );
+        }
+
+        const user = await User.findOne({ _id: userID }).select('email role');
+        if (!user) {
+            return response.status(401).send(
+                httpUnauthorized(
+                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND
+                )
+            );
+        }
+
+        if (user.role !== Role.ADMINISTRATOR) {
+            return response.status(403).send(
+                httpForbidden(
+                    ErrorMessage.invalidRequest('You don\'t have the right permissions to access'),
+                    'You don\'t have the right permissions to access'
+                )
+            );
+        }
+
+        const isAllowedEmail = (user.email ?? '').toLowerCase() === 'admin@thehotelmedia.com';
+        if (!isAllowedEmail) {
+            return response.status(403).send(
+                httpForbidden(
+                    ErrorMessage.invalidRequest('You don\'t have the right permissions to access'),
+                    'You don\'t have the right permissions to access'
+                )
+            );
+        }
+
+        return next();
+    } catch (error: any) {
+        return response.status(500).send(
+            httpInternalServerError(error, error?.message ?? ErrorMessage.INTERNAL_SERVER_ERROR)
+        );
+    }
 }
 
 export async function isBusinessUser(request: Request, response: Response, next: NextFunction) {
