@@ -4,8 +4,8 @@ import AdminProfileController from "../../../controllers/admin/AdminProfileContr
 const AdminProfileEndpoints: Router = express.Router();
 
 // Email update routes
-AdminProfileEndpoints.post('/update-email/initiate', AdminProfileController.initiateEmailUpdate);
-AdminProfileEndpoints.post('/update-email/verify', AdminProfileController.verifyEmailUpdate);
+// AdminProfileEndpoints.post('/update-email/initiate', AdminProfileController.initiateEmailUpdate);
+// AdminProfileEndpoints.post('/update-email/verify', AdminProfileController.verifyEmailUpdate);
 
 // Password update routes
 AdminProfileEndpoints.post('/update-password/initiate', AdminProfileController.initiatePasswordUpdate);

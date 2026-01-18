@@ -510,8 +510,10 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     try {
         const { id, accountType, businessProfileID } = request.user;
 
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const images = files && files.images as Express.Multer.S3File[];
+        // Handle both .array() and .fields() formats for backward compatibility
+        const images = Array.isArray(request.files) 
+            ? request.files as Express.Multer.S3File[]
+            : (request.files as { [fieldname: string]: Express.Multer.File[] })?.images as Express.Multer.S3File[];
 
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
