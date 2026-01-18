@@ -510,16 +510,44 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     try {
         const { id, accountType, businessProfileID } = request.user;
 
-        // Handle both .array() and .fields() formats for backward compatibility
-        const images = Array.isArray(request.files) 
-            ? request.files as Express.Multer.S3File[]
-            : (request.files as { [fieldname: string]: Express.Multer.File[] })?.images as Express.Multer.S3File[];
+        // This endpoint allows multiple property pictures. The client may sometimes resend
+        // previous selections, so we defensively enforce limits here (and delete extras).
+        // Multer may provide files as:
+        // - Express.Multer.File[] (when using `.any()` / `.array()`)
+        // - { [fieldname]: Express.Multer.File[] } (when using `.fields()`)
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+
+        // Accept common variants from clients
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const imagesAll = allFiles.filter((f) => allowedFieldNames.has(f.fieldname));
+
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+
+        if (!imagesAll || imagesAll.length === 0) {
+            // If client sent files but under a wrong field name, help debug that quickly
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`),
+                `Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`
+            ));
+        }
+
+        // Enforce max 6 images; keep first 6, delete the rest (so API succeeds instead of crashing)
+        const MAX_PROPERTY_IMAGES = 6;
+        const images = imagesAll.slice(0, MAX_PROPERTY_IMAGES);
+        const extraImages = imagesAll.slice(MAX_PROPERTY_IMAGES);
+        if (extraImages.length > 0) {
+            await deleteUnwantedFiles(extraImages);
+        }
 
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        if (!images) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'))
         }
         if (accountType !== AccountType.BUSINESS && !businessProfileID) {
             await deleteUnwantedFiles(images);

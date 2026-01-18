@@ -16,7 +16,9 @@ UserEndpoints.get('/profile/:id', [paramIDValidationRule], validateRequest, User
 UserEndpoints.patch('/edit-profile', UserController.editProfile);
 UserEndpoints.post('/edit-profile-pic', s3Upload(AwsS3AccessEndpoints.USERS).fields([{ name: 'profilePic', maxCount: 1 }]), UserController.changeProfilePic);
 UserEndpoints.post('/business-profile/property-picture',
-    s3Upload(AwsS3AccessEndpoints.USERS).fields([{ name: 'images', maxCount: 6 }]),
+    // NOTE: use `.any()` to prevent Multer from hard-failing when the client accidentally sends
+    // more than the allowed max images. We enforce max count in the controller and delete extras.
+    s3Upload(AwsS3AccessEndpoints.USERS).any(),
     UserController.businessPropertyPictures);
 UserEndpoints.post('/address', createAddressApiValidator, validateRequest, UserController.address);
 
