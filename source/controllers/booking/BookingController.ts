@@ -256,7 +256,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         /*** Calculate price for checkout */
 
         let subtotal = booking.bookedRoom.price * booking.bookedRoom.quantity * nights;
-        let convinceCharges = isHotel ? (subtotal * 0.02) : 0;
+        let convinceCharges = subtotal * 0.02;
         let gstRate = GST_PERCENTAGE;
         let gst = ((subtotal + convinceCharges) * gstRate) / 100;
         let total = (gst + subtotal + convinceCharges);

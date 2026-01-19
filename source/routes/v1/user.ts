@@ -18,7 +18,8 @@ UserEndpoints.post('/edit-profile-pic', s3Upload(AwsS3AccessEndpoints.USERS).fie
 UserEndpoints.post('/business-profile/property-picture',
     // NOTE: use `.any()` to prevent Multer from hard-failing when the client accidentally sends
     // more than the allowed max images. We enforce max count in the controller and delete extras.
-    s3Upload(AwsS3AccessEndpoints.USERS).any(),
+    // Store these under the business-property prefix (cleaner separation than USERS).
+    s3Upload(AwsS3AccessEndpoints.BUSINESS_PROPERTY).any(),
     UserController.businessPropertyPictures);
 UserEndpoints.post('/address', createAddressApiValidator, validateRequest, UserController.address);
 

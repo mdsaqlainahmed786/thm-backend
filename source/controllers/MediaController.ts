@@ -207,8 +207,15 @@ async function storeMedia(
 
 async function deleteUnwantedFiles(files: Express.Multer.File[]) {
   try {
-    await Promise.all(files.map(async (file) => {
-      // await fileSystem.unlink(file.path)
+    await Promise.all(files.map(async (file: any) => {
+      // S3 uploads (multer-s3)
+      if (file?.key) {
+        await s3Service.deleteS3Object(file.key).catch(() => { });
+      }
+      // Disk uploads (multer diskStorage)
+      if (file?.path) {
+        await fileSystem.unlink(file.path).catch(() => { });
+      }
     }))
   } catch (error: any) {
     console.error(error)

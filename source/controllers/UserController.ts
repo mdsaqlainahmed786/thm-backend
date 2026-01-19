@@ -538,10 +538,59 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
             ));
         }
 
-        // Enforce max 6 images; keep first 6, delete the rest (so API succeeds instead of crashing)
-        const MAX_PROPERTY_IMAGES = 6;
-        const images = imagesAll.slice(0, MAX_PROPERTY_IMAGES);
-        const extraImages = imagesAll.slice(MAX_PROPERTY_IMAGES);
+        // Enforce max TOTAL property pictures (not just per-request) and dedupe retries.
+        // We dedupe by (fileName, fileSize, mimeType) which is stable across retries for the same file.
+        const MAX_TOTAL_PROPERTY_IMAGES = 6;
+
+        // 1) Deduplicate within this request (clients sometimes include the same file multiple times)
+        const requestSeen = new Set<string>();
+        const requestDuplicates: Express.Multer.S3File[] = [];
+        const requestUnique: Express.Multer.S3File[] = [];
+        for (const f of imagesAll) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (requestSeen.has(sig)) requestDuplicates.push(f);
+            else {
+                requestSeen.add(sig);
+                requestUnique.push(f);
+            }
+        }
+        if (requestDuplicates.length > 0) {
+            await deleteUnwantedFiles(requestDuplicates);
+        }
+
+        // 2) Deduplicate against existing property pictures for this business profile
+        const existingPropertyPictures = await PropertyPictures.find({ businessProfileID: businessProfileID }, 'mediaID').lean();
+        const existingMediaIDs = existingPropertyPictures.map((p: any) => p.mediaID).filter(Boolean);
+        const existingMedia = existingMediaIDs.length > 0
+            ? await Media.find({ _id: { $in: existingMediaIDs } }, 'fileName fileSize mimeType').lean()
+            : [];
+        const existingSignatures = new Set<string>(
+            (existingMedia as any[]).map((m) => `${m.fileName}|${m.fileSize}|${m.mimeType}`)
+        );
+
+        const alreadyHave: Express.Multer.S3File[] = [];
+        const candidates: Express.Multer.S3File[] = [];
+        for (const f of requestUnique) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (existingSignatures.has(sig)) alreadyHave.push(f);
+            else candidates.push(f);
+        }
+        if (alreadyHave.length > 0) {
+            // Delete re-uploaded duplicates to avoid wasting S3 storage
+            await deleteUnwantedFiles(alreadyHave);
+        }
+
+        const remainingSlots = Math.max(0, MAX_TOTAL_PROPERTY_IMAGES - existingMediaIDs.length);
+        if (remainingSlots === 0) {
+            if (candidates.length > 0) await deleteUnwantedFiles(candidates);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`),
+                `You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`
+            ));
+        }
+
+        const images = candidates.slice(0, remainingSlots);
+        const extraImages = candidates.slice(remainingSlots);
         if (extraImages.length > 0) {
             await deleteUnwantedFiles(extraImages);
         }
@@ -561,7 +610,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
             businessProfileID?: MongoID;
             mediaID: MongoID;
         }[] = [];
-        let coverImage = "";
+        let coverImage: string | null = null;
         if (images && images.length !== 0) {
             const imageList = await storeMedia(images, id, businessProfileID, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
@@ -573,11 +622,17 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
                 }));
             }
         }
-        const [propertyPictures] = await Promise.all([
-            PropertyPictures.create(newPropertyPictures),
-            BusinessProfile.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage })
-        ]);
-        return response.send(httpCreated(propertyPictures, 'Property pictures uploaded successfully'));
+
+        const updates: Promise<any>[] = [];
+        if (newPropertyPictures.length > 0) {
+            updates.push(PropertyPictures.create(newPropertyPictures));
+        }
+        if (coverImage) {
+            updates.push(BusinessProfile.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage }));
+        }
+        const results = updates.length > 0 ? await Promise.all(updates) : [];
+        const createdPropertyPictures = results.find((r) => Array.isArray(r)) ?? [];
+        return response.send(httpCreated(createdPropertyPictures, 'Property pictures uploaded successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
