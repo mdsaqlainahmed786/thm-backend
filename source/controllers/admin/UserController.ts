@@ -16,8 +16,8 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
         if (!id) {
             return response.send(
-                httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), 
-                ErrorMessage.USER_NOT_FOUND)
+                httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND)
             );
         }
 
@@ -39,7 +39,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             ];
         }
 
-       
+
         if (accountType === AccountType.BUSINESS) {
             const businessQuery: any = {};
 
@@ -62,46 +62,46 @@ const index = async (request: Request, response: Response, next: NextFunction) =
         if (sortBy === "inActive") {
             matchQuery.isActivated = false;
         }
-        
+
         if (sortBy === "unVerified") {
             matchQuery.isVerified = false;
         }
-        
+
         if (sortBy === "disapproved") {
             matchQuery.isApproved = false;
         }
-        
+
         // Sorting
         const sortDirection = sortOrder === "asc" ? 1 : -1;
         const isSortFollowers = sortBy === "followers";
         const sortObject = isSortFollowers
             ? { followersCount: sortDirection, createdAt: -1 }
             : { createdAt: -1 };
-            const now = new Date();
-            if (sortBy === "created_last_1_hour") {
-                matchQuery.createdAt = { $gte: new Date(now.getTime() - 1 * 60 * 60 * 1000) };
-            }
-            
-            if (sortBy === "created_last_1_day") {
-                matchQuery.createdAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
-            }
-            
-            if (sortBy === "created_last_1_week") {
-                matchQuery.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
-            }
-            
-            if (sortBy === "created_last_1_month") {
-                matchQuery.createdAt = { $gte: new Date(now.setMonth(now.getMonth() - 1)) };
-            }
-            
-            if (sortBy === "created_last_1_year") {
-                matchQuery.createdAt = { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) };
-            }
-            
+        const now = new Date();
+        if (sortBy === "created_last_1_hour") {
+            matchQuery.createdAt = { $gte: new Date(now.getTime() - 1 * 60 * 60 * 1000) };
+        }
+
+        if (sortBy === "created_last_1_day") {
+            matchQuery.createdAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+        }
+
+        if (sortBy === "created_last_1_week") {
+            matchQuery.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        }
+
+        if (sortBy === "created_last_1_month") {
+            matchQuery.createdAt = { $gte: new Date(now.setMonth(now.getMonth() - 1)) };
+        }
+
+        if (sortBy === "created_last_1_year") {
+            matchQuery.createdAt = { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) };
+        }
+
         const pipeline: any[] = [
             { $match: matchQuery },
 
-            
+
             addBusinessProfileInUser().lookup,
             {
                 $unwind: {
@@ -110,7 +110,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 }
             },
 
-            
+
             {
                 $lookup: {
                     from: "userconnections",
@@ -131,14 +131,14 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 }
             },
 
-            
+
             {
                 $addFields: {
                     followersCount: { $size: "$followersRef" }
                 }
             },
 
-            
+
             {
                 $project: {
                     password: 0,
@@ -150,15 +150,15 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 }
             },
 
-            
+
             { $sort: sortObject },
 
-            
+
             { $skip: (pageNumber - 1) * documentLimit },
             { $limit: documentLimit }
         ];
 
-            
+
         const [documents, total] = await Promise.all([
             User.aggregate(pipeline),
             User.countDocuments(matchQuery)
@@ -332,7 +332,7 @@ const addAdmin = async (request: Request, response: Response, next: NextFunction
 
         // Find user by username
         const user = await User.findOne({ username: username });
-        
+
         if (!user) {
             return response.send(
                 httpNotFoundOr404(
@@ -385,7 +385,7 @@ const demoteAdmin = async (request: Request, response: Response, next: NextFunct
 
         // Find user by ID
         const user = await User.findOne({ _id: id });
-        
+
         if (!user) {
             return response.send(
                 httpNotFoundOr404(

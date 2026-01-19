@@ -106,22 +106,53 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newRoom.children = children;
         newRoom.adults = adults;
         newRoom.totalRooms = totalRooms;
+        
+        // Validate images before proceeding
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Room images is required."), "Room images is required."))
+        }
+
+        // Save the room FIRST to get a valid _id
+        const savedRoom = await newRoom.save();
+
         /**
          * Handle Room Images 
+         * Process images after room is saved to ensure we have a valid roomID
          */
-        if (mediaFiles && mediaFiles.length !== 0) {
+        try {
             await Promise.all(mediaFiles.map(async (mediaFile, index) => {
-                const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324);
-                const newRoomImage = new RoomImage();
-                newRoomImage.roomID = newRoom.id;
-                newRoomImage.isCoverImage = index === 0 ? true : false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
-                const savedRoomImage = await newRoomImage.save();
-                return savedRoomImage.id;
+                try {
+                    // Generate thumbnail with error handling - if it fails, use original image
+                    const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
+                        console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                        return null; // Return null if thumbnail generation fails
+                    });
+                    
+                    const newRoomImage = new RoomImage();
+                    newRoomImage.roomID = savedRoom._id; // Use saved room's _id
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
+                    const savedRoomImage = await newRoomImage.save();
+                    return savedRoomImage.id;
+                } catch (error: any) {
+                    // Log error but don't fail the entire operation for a single image
+                    console.error(`Error processing room image ${index}:`, error);
+                    // Still create the room image record with the original URL if thumbnail fails
+                    const newRoomImage = new RoomImage();
+                    newRoomImage.roomID = savedRoom._id;
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                    await newRoomImage.save().catch((saveError) => {
+                        console.error(`Failed to save room image ${index}:`, saveError);
+                    });
+                }
             }));
-        } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Room images is required."), "Room images is required."))
+        } catch (error: any) {
+            // If all images fail, we still have the room saved, but log the error
+            console.error("Error processing room images:", error);
+            // Continue - room is already saved
         }
 
         // // Mark dates as unavailable
@@ -134,8 +165,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         //     current.setDate(current.getDate() + 1);
         // }
 
-
-        const savedAmenity = await newRoom.save();
+        const savedAmenity = savedRoom;
         return response.send(httpCreated(savedAmenity, CREATED));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -173,16 +203,41 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.roomType = roomType ?? room.roomType;
         room.totalRooms = totalRooms ?? room.totalRooms;
         if (mediaFiles && mediaFiles.length !== 0) {
-            await Promise.all(mediaFiles.map(async (mediaFile, index) => {
-                const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324);
-                const newRoomImage = new RoomImage();
-                newRoomImage.roomID = room.id;
-                newRoomImage.isCoverImage = false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
-                const savedRoomImage = await newRoomImage.save();
-                return savedRoomImage.id;
-            }));
+            try {
+                await Promise.all(mediaFiles.map(async (mediaFile, index) => {
+                    try {
+                        // Generate thumbnail with error handling - if it fails, use original image
+                        const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
+                            console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                            return null; // Return null if thumbnail generation fails
+                        });
+                        
+                        const newRoomImage = new RoomImage();
+                        newRoomImage.roomID = room._id; // Use room's _id
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
+                        const savedRoomImage = await newRoomImage.save();
+                        return savedRoomImage.id;
+                    } catch (error: any) {
+                        // Log error but don't fail the entire operation for a single image
+                        console.error(`Error processing room image ${index}:`, error);
+                        // Still create the room image record with the original URL if thumbnail fails
+                        const newRoomImage = new RoomImage();
+                        newRoomImage.roomID = room._id;
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                        await newRoomImage.save().catch((saveError) => {
+                            console.error(`Failed to save room image ${index}:`, saveError);
+                        });
+                    }
+                }));
+            } catch (error: any) {
+                // If all images fail, we still have the room updated, but log the error
+                console.error("Error processing room images:", error);
+                // Continue - room is already updated
+            }
         }
         const [savedRoom, pricePresets] = await Promise.all([
             room.save(),
