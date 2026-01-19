@@ -395,6 +395,16 @@ const demoteAdmin = async (request: Request, response: Response, next: NextFunct
             );
         }
 
+        // Prevent demoting the root admin
+        if (user.email === 'admin@thehotelmedia.com') {
+            return response.send(
+                httpBadRequest(
+                    null,
+                    "Root admin cannot be demoted"
+                )
+            );
+        }
+
         // Check if user is an administrator
         if (user.role !== Role.ADMINISTRATOR) {
             return response.send(
