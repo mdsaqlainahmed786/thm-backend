@@ -17,8 +17,13 @@ httpServer.listen(AppConfig.PORT, async () => {
     THMRating.start();
 
     // Start marketing notification cron (runs every 6 hours)
-    MarketingNotificationCron.start();
-    console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
+    // Only start if not already running to prevent duplicates
+    if (!MarketingNotificationCron.running) {
+        MarketingNotificationCron.start();
+        console.log(`[Server] MarketingNotificationCron started - will run every 6 hours`);
+    } else {
+        console.log(`[Server] MarketingNotificationCron is already running - skipping start`);
+    }
 
     // Trigger notification immediately on server start
     // console.log(`[Server] Triggering marketing notification immediately in 2 seconds...`);

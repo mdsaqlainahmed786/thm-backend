@@ -8,6 +8,9 @@ import { NotificationType } from '../database/models/notification.model';
 import moment from 'moment';
 import { ObjectId } from 'mongodb';
 
+// Lock to prevent concurrent executions
+let isExecuting = false;
+
 function getContextuallyRelevantMessages(): MarketingNotificationMessage[] {
     const now = moment();
     const currentDayOfWeek = now.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
@@ -59,6 +62,15 @@ function getContextuallyRelevantMessages(): MarketingNotificationMessage[] {
 }
 
 async function sendMarketingNotifications() {
+    // Prevent concurrent executions
+    if (isExecuting) {
+        console.log(`[MarketingNotificationCron] ========================================`);
+        console.log(`[MarketingNotificationCron] WARNING: Previous execution still in progress. Skipping this run to prevent duplicates.`);
+        console.log(`[MarketingNotificationCron] ========================================`);
+        return;
+    }
+
+    isExecuting = true;
     try {
         console.log(`[MarketingNotificationCron] ========================================`);
         console.log(`[MarketingNotificationCron] Starting marketing notification job at ${new Date().toISOString()}`);
@@ -146,13 +158,19 @@ async function sendMarketingNotifications() {
         console.error("[MarketingNotificationCron] ERROR during marketing notification process:", error.message);
         console.error("[MarketingNotificationCron] Stack:", error.stack);
         console.error("[MarketingNotificationCron] ========================================");
+    } finally {
+        // Always release the lock, even if there was an error
+        isExecuting = false;
     }
 }
 
 // Production: Run every 6 hours
 const MarketingNotificationCron: cron.ScheduledTask = cron.schedule(
     CronSchedule.MARKETING_NOTIFICATION_EVERY_6_HOURS, // Every 6 hours
-    sendMarketingNotifications
+    sendMarketingNotifications,
+    {
+        scheduled: false // Don't start automatically - we'll start it manually in server.ts
+    }
 );
 
 // Export the function for manual triggering
