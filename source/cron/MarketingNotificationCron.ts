@@ -119,12 +119,33 @@ async function sendMarketingNotifications() {
         const description = selectedMessage;
         const notificationID = v4();
 
-        // Send notifications to all devices
+        // Group devices by userID to send only one notification per user
+        const devicesByUser = new Map<string, typeof allDevicesConfigs[0]>();
+        allDevicesConfigs.forEach((devicesConfig) => {
+            const userIDStr = devicesConfig.userID.toString();
+            // Use the most recent device (by createdAt) for each user, or first one if no timestamp
+            if (!devicesByUser.has(userIDStr)) {
+                devicesByUser.set(userIDStr, devicesConfig);
+            } else {
+                const existing = devicesByUser.get(userIDStr);
+                // Prefer device with more recent updatedAt timestamp
+                const existingTime = existing?.updatedAt?.getTime() || 0;
+                const currentTime = devicesConfig?.updatedAt?.getTime() || 0;
+                if (currentTime > existingTime) {
+                    devicesByUser.set(userIDStr, devicesConfig);
+                }
+            }
+        });
+
+        const uniqueDevices = Array.from(devicesByUser.values());
+        console.log(`[MarketingNotificationCron] Sending to ${uniqueDevices.length} unique users (one notification per user)`);
+
+        // Send notifications - one per user
         let successCount = 0;
         let failureCount = 0;
 
         await Promise.allSettled(
-            allDevicesConfigs.map(async (devicesConfig) => {
+            uniqueDevices.map(async (devicesConfig) => {
                 try {
                     if (devicesConfig?.notificationToken) {
                         const message: Message = createMessagePayload(

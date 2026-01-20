@@ -20,7 +20,7 @@ import S3Service from "../services/S3Service";
 const s3Service = new S3Service();
 
 function sanitizeImage(request: Request, file: any, cb: any) {
-    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".pdf", ".doc", ".docx", ".mov"];
+    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".mp4", ".pdf", ".doc", ".docx", ".mov"];
 
     const fileExtension = path.extname(file.originalname.toLowerCase());
     const isAllowedExt = fileExts.includes(fileExtension);
