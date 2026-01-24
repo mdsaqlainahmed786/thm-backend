@@ -491,16 +491,82 @@ const userReviews = (request, response, next) => __awaiter(void 0, void 0, void 
     }
 });
 const businessPropertyPictures = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _k;
+    var _k, _l, _m;
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const files = request.files;
-        const images = files && files.images;
+        // This endpoint allows multiple property pictures. The client may sometimes resend
+        // previous selections, so we defensively enforce limits here (and delete extras).
+        // Multer may provide files as:
+        // - Express.Multer.File[] (when using `.any()` / `.array()`)
+        // - { [fieldname]: Express.Multer.File[] } (when using `.fields()`)
+        const allFiles = Array.isArray(request.files)
+            ? request.files
+            : Object.values((_k = request.files) !== null && _k !== void 0 ? _k : {})
+                .flat();
+        // Accept common variants from clients
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const imagesAll = allFiles.filter((f) => allowedFieldNames.has(f.fieldname));
+        if (unexpectedFiles.length > 0) {
+            yield (0, MediaController_3.deleteUnwantedFiles)(unexpectedFiles);
+        }
+        if (!imagesAll || imagesAll.length === 0) {
+            // If client sent files but under a wrong field name, help debug that quickly
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`), `Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`));
+        }
+        // Enforce max TOTAL property pictures (not just per-request) and dedupe retries.
+        // We dedupe by (fileName, fileSize, mimeType) which is stable across retries for the same file.
+        const MAX_TOTAL_PROPERTY_IMAGES = 6;
+        // 1) Deduplicate within this request (clients sometimes include the same file multiple times)
+        const requestSeen = new Set();
+        const requestDuplicates = [];
+        const requestUnique = [];
+        for (const f of imagesAll) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (requestSeen.has(sig))
+                requestDuplicates.push(f);
+            else {
+                requestSeen.add(sig);
+                requestUnique.push(f);
+            }
+        }
+        if (requestDuplicates.length > 0) {
+            yield (0, MediaController_3.deleteUnwantedFiles)(requestDuplicates);
+        }
+        // 2) Deduplicate against existing property pictures for this business profile
+        const existingPropertyPictures = yield propertyPicture_model_1.default.find({ businessProfileID: businessProfileID }, 'mediaID').lean();
+        const existingMediaIDs = existingPropertyPictures.map((p) => p.mediaID).filter(Boolean);
+        const existingMedia = existingMediaIDs.length > 0
+            ? yield media_model_1.default.find({ _id: { $in: existingMediaIDs } }, 'fileName fileSize mimeType').lean()
+            : [];
+        const existingSignatures = new Set(existingMedia.map((m) => `${m.fileName}|${m.fileSize}|${m.mimeType}`));
+        const alreadyHave = [];
+        const candidates = [];
+        for (const f of requestUnique) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (existingSignatures.has(sig))
+                alreadyHave.push(f);
+            else
+                candidates.push(f);
+        }
+        if (alreadyHave.length > 0) {
+            // Delete re-uploaded duplicates to avoid wasting S3 storage
+            yield (0, MediaController_3.deleteUnwantedFiles)(alreadyHave);
+        }
+        const remainingSlots = Math.max(0, MAX_TOTAL_PROPERTY_IMAGES - existingMediaIDs.length);
+        if (remainingSlots === 0) {
+            if (candidates.length > 0)
+                yield (0, MediaController_3.deleteUnwantedFiles)(candidates);
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`), `You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`));
+        }
+        const images = candidates.slice(0, remainingSlots);
+        const extraImages = candidates.slice(remainingSlots);
+        if (extraImages.length > 0) {
+            yield (0, MediaController_3.deleteUnwantedFiles)(extraImages);
+        }
         if (!accountType && !id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
-        }
-        if (!images) {
-            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'));
         }
         if (accountType !== user_model_2.AccountType.BUSINESS && !businessProfileID) {
             yield (0, MediaController_3.deleteUnwantedFiles)(images);
@@ -510,7 +576,7 @@ const businessPropertyPictures = (request, response, next) => __awaiter(void 0, 
          * Handle media
          */
         let newPropertyPictures = [];
-        let coverImage = "";
+        let coverImage = null;
         if (images && images.length !== 0) {
             const imageList = yield (0, MediaController_2.storeMedia)(images, id, businessProfileID, constants_1.AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
@@ -522,19 +588,24 @@ const businessPropertyPictures = (request, response, next) => __awaiter(void 0, 
                 }));
             }
         }
-        const [propertyPictures] = yield Promise.all([
-            propertyPicture_model_1.default.create(newPropertyPictures),
-            businessProfile_model_1.default.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage })
-        ]);
-        return response.send((0, response_1.httpCreated)(propertyPictures, 'Property pictures uploaded successfully'));
+        const updates = [];
+        if (newPropertyPictures.length > 0) {
+            updates.push(propertyPicture_model_1.default.create(newPropertyPictures));
+        }
+        if (coverImage) {
+            updates.push(businessProfile_model_1.default.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage }));
+        }
+        const results = updates.length > 0 ? yield Promise.all(updates) : [];
+        const createdPropertyPictures = (_l = results.find((r) => Array.isArray(r))) !== null && _l !== void 0 ? _l : [];
+        return response.send((0, response_1.httpCreated)(createdPropertyPictures, 'Property pictures uploaded successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //FIXME add blocked users 
 const tagPeople = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _l;
+    var _o;
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query } = request.query;
@@ -578,11 +649,11 @@ const tagPeople = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpOkExtended)(documents, 'Tagged fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m, _o;
+    var _p, _q;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -592,7 +663,7 @@ const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0,
         user.isActivated = false;
         yield user.save();
         const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
-        const isAdmin = isAdminRoute || ((_m = request.user) === null || _m === void 0 ? void 0 : _m.role) === common_1.Role.ADMINISTRATOR;
+        const isAdmin = isAdminRoute || ((_p = request.user) === null || _p === void 0 ? void 0 : _p.role) === common_1.Role.ADMINISTRATOR;
         const refreshTokenCookieKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
         const accessTokenKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
         response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
@@ -601,11 +672,11 @@ const deactivateAccount = (request, response, next) => __awaiter(void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _p, _q;
+    var _r, _s;
     try {
         const { id } = request.user;
         const user = yield user_model_2.default.findOne({ _id: id });
@@ -615,7 +686,7 @@ const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, voi
         user.isDeleted = true;
         yield user.save();
         const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
-        const isAdmin = isAdminRoute || ((_p = request.user) === null || _p === void 0 ? void 0 : _p.role) === common_1.Role.ADMINISTRATOR;
+        const isAdmin = isAdminRoute || ((_r = request.user) === null || _r === void 0 ? void 0 : _r.role) === common_1.Role.ADMINISTRATOR;
         const refreshTokenCookieKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
         const accessTokenKey = isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
         response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
@@ -624,11 +695,11 @@ const deleteAccount = (request, response, next) => __awaiter(void 0, void 0, voi
         return response.send((0, response_1.httpNoContent)(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_q = error.message) !== null && _q !== void 0 ? _q : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_s = error.message) !== null && _s !== void 0 ? _s : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _r;
+    var _t;
     try {
         const ID = request.params.id;
         const { id, accountType, businessProfileID } = request.user;
@@ -658,12 +729,12 @@ const blockUser = (request, response, next) => __awaiter(void 0, void 0, void 0,
         return response.send((0, response_1.httpNoContent)(null, 'User unblocked successfully'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_r = error.message) !== null && _r !== void 0 ? _r : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_t = error.message) !== null && _t !== void 0 ? _t : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //TODO remove deleted and disabled user
 const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _s;
+    var _u;
     try {
         const { id } = request.user;
         let { pageNumber, documentLimit, query } = request.query;
@@ -682,11 +753,11 @@ const blockedUsers = (request, response, next) => __awaiter(void 0, void 0, void
         return response.send((0, response_1.httpOkExtended)(documents, 'Blocked list fetched.', pageNumber, totalPagesCount, totalDocument));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_s = error.message) !== null && _s !== void 0 ? _s : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_u = error.message) !== null && _u !== void 0 ? _u : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const address = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _t;
+    var _v;
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { street, city, state, zipCode, country, phoneNumber, dialCode, lat, lng } = request.body;
@@ -728,7 +799,7 @@ const address = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpCreated)(savedUserAddress, 'Billing address added successfully.'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_t = error.message) !== null && _t !== void 0 ? _t : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_v = error.message) !== null && _v !== void 0 ? _v : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { editProfile, profile, publicProfile, changeProfilePic, businessDocumentUpload, businessDocument, userPosts, userPostMedia, userReviews, businessPropertyPictures, tagPeople, deactivateAccount, deleteAccount, blockUser, blockedUsers, address };

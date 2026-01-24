@@ -30,6 +30,7 @@ const amenity_1 = __importDefault(require("./booking/amenity"));
 const room_1 = __importDefault(require("./booking/room"));
 const price_preset_1 = __importDefault(require("./booking/price-preset"));
 const bank_1 = __importDefault(require("./booking/bank"));
+const room_image_1 = __importDefault(require("./booking/room-image"));
 const authenticate_2 = require("../../middleware/authenticate");
 const ApiEndpoints = express_1.default.Router();
 ApiEndpoints.use('', home_api_1.default);
@@ -54,6 +55,7 @@ ApiEndpoints.use('/booking', booking_1.default);
 ApiEndpoints.use('/hotels', authenticate_1.default, authenticate_2.isBusinessUser, hotel_1.default);
 ApiEndpoints.use('/amenities', authenticate_1.default, authenticate_2.isBusinessUser, amenity_1.default);
 ApiEndpoints.use('/rooms', authenticate_1.default, room_1.default);
+ApiEndpoints.use('/room-images', authenticate_1.default, room_image_1.default);
 ApiEndpoints.use('/price-preset', authenticate_1.default, authenticate_2.isBusinessUser, price_preset_1.default);
 ApiEndpoints.use('/banks', bank_1.default);
 //Admin Routes

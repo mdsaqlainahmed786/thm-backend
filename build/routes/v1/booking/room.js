@@ -10,10 +10,16 @@ const api_request_validator_1 = require("../../../middleware/api-request-validat
 const file_uploading_1 = require("../../../middleware/file-uploading");
 const constants_1 = require("../../../config/constants");
 const authenticate_1 = require("../../../middleware/authenticate");
+const multer_error_handler_1 = require("../../../middleware/multer-error-handler");
 const RoomEndpoints = express_1.default.Router();
+// Create multer middleware instances
+// NOTE: use `.any()` to prevent Multer from hard-failing when the client sends
+// field names in different formats (e.g., 'images' vs 'images[]' on macOS).
+// We enforce field name validation and max count in the controller.
+const roomImageUpload = (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.ROOMS).any();
 RoomEndpoints.get('/', RoomController_1.default.index);
 RoomEndpoints.get('/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, RoomController_1.default.show);
-RoomEndpoints.post('/', authenticate_1.isBusinessUser, (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.ROOMS).fields([{ name: 'images', maxCount: 5 }]), api_validation_1.createRoomApiValidator, api_request_validator_1.validateRequest, RoomController_1.default.store);
+RoomEndpoints.post('/', authenticate_1.isBusinessUser, (0, multer_error_handler_1.wrapMulterMiddleware)(roomImageUpload), api_validation_1.createRoomApiValidator, api_request_validator_1.validateRequest, RoomController_1.default.store);
 RoomEndpoints.delete('/:id', authenticate_1.isBusinessUser, [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, RoomController_1.default.destroy);
-RoomEndpoints.put('/:id', authenticate_1.isBusinessUser, (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.ROOMS).fields([{ name: 'images', maxCount: 5 }]), [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, RoomController_1.default.update);
+RoomEndpoints.put('/:id', authenticate_1.isBusinessUser, (0, multer_error_handler_1.wrapMulterMiddleware)(roomImageUpload), [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, RoomController_1.default.update);
 exports.default = RoomEndpoints;

@@ -203,7 +203,14 @@ function deleteUnwantedFiles(files) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             yield Promise.all(files.map((file) => __awaiter(this, void 0, void 0, function* () {
-                // await fileSystem.unlink(file.path)
+                // S3 uploads (multer-s3)
+                if (file === null || file === void 0 ? void 0 : file.key) {
+                    yield s3Service.deleteS3Object(file.key).catch(() => { });
+                }
+                // Disk uploads (multer diskStorage)
+                if (file === null || file === void 0 ? void 0 : file.path) {
+                    yield promises_1.default.unlink(file.path).catch(() => { });
+                }
             })));
         }
         catch (error) {

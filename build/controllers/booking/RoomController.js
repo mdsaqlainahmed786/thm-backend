@@ -107,13 +107,37 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b, _c;
+    var _b, _c, _d;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files;
-        const mediaFiles = files && files.images;
-        let businessProfile = businessProfileID || ((_b = request === null || request === void 0 ? void 0 : request.body) === null || _b === void 0 ? void 0 : _b.businessProfileID);
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles = Array.isArray(request.files)
+            ? request.files
+            : Object.values((_b = request.files) !== null && _b !== void 0 ? _b : {})
+                .flat();
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname));
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            yield (0, MediaController_1.deleteUnwantedFiles)(unexpectedFiles);
+        }
+        // Validate field name - provide helpful error if wrong field name was used
+        if (allFiles.length > 0 && mediaFiles.length === 0) {
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`), `Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`));
+        }
+        // Enforce max count of 5 images
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            yield (0, MediaController_1.deleteUnwantedFiles)(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
+        let businessProfile = businessProfileID || ((_c = request === null || request === void 0 ? void 0 : request.body) === null || _c === void 0 ? void 0 : _c.businessProfileID);
         if (!businessProfile) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Business profile id is required"), "Business profile id is required"));
         }
@@ -141,23 +165,51 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         newRoom.children = children;
         newRoom.adults = adults;
         newRoom.totalRooms = totalRooms;
+        // Validate images before proceeding
+        if (!validMediaFiles || validMediaFiles.length === 0) {
+            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Room images is required."), "Room images is required."));
+        }
+        // Save the room FIRST to get a valid _id
+        const savedRoom = yield newRoom.save();
         /**
          * Handle Room Images
+         * Process images after room is saved to ensure we have a valid roomID
          */
-        if (mediaFiles && mediaFiles.length !== 0) {
-            yield Promise.all(mediaFiles.map((mediaFile, index) => __awaiter(void 0, void 0, void 0, function* () {
-                const mediaFileThumbnail = yield (0, MediaController_1.generateThumbnail)(mediaFile, "image", 486, 324);
-                const newRoomImage = new roomImage_model_1.default();
-                newRoomImage.roomID = newRoom.id;
-                newRoomImage.isCoverImage = index === 0 ? true : false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = (mediaFileThumbnail === null || mediaFileThumbnail === void 0 ? void 0 : mediaFileThumbnail.Location) || mediaFile.location;
-                const savedRoomImage = yield newRoomImage.save();
-                return savedRoomImage.id;
+        try {
+            yield Promise.all(validMediaFiles.map((mediaFile, index) => __awaiter(void 0, void 0, void 0, function* () {
+                try {
+                    // Generate thumbnail with error handling - if it fails, use original image
+                    const mediaFileThumbnail = yield (0, MediaController_1.generateThumbnail)(mediaFile, "image", 486, 324).catch((error) => {
+                        console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                        return null; // Return null if thumbnail generation fails
+                    });
+                    const newRoomImage = new roomImage_model_1.default();
+                    newRoomImage.roomID = savedRoom._id; // Use saved room's _id
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = (mediaFileThumbnail === null || mediaFileThumbnail === void 0 ? void 0 : mediaFileThumbnail.Location) || mediaFile.location;
+                    const savedRoomImage = yield newRoomImage.save();
+                    return savedRoomImage.id;
+                }
+                catch (error) {
+                    // Log error but don't fail the entire operation for a single image
+                    console.error(`Error processing room image ${index}:`, error);
+                    // Still create the room image record with the original URL if thumbnail fails
+                    const newRoomImage = new roomImage_model_1.default();
+                    newRoomImage.roomID = savedRoom._id;
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                    yield newRoomImage.save().catch((saveError) => {
+                        console.error(`Failed to save room image ${index}:`, saveError);
+                    });
+                }
             })));
         }
-        else {
-            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Room images is required."), "Room images is required."));
+        catch (error) {
+            // If all images fail, we still have the room saved, but log the error
+            console.error("Error processing room images:", error);
+            // Continue - room is already saved
         }
         // // Mark dates as unavailable
         // const current = new Date(checkIn);
@@ -168,21 +220,40 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         //     );
         //     current.setDate(current.getDate() + 1);
         // }
-        const savedAmenity = yield newRoom.save();
+        const savedAmenity = savedRoom;
         return response.send((0, response_1.httpCreated)(savedAmenity, CREATED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _d, _e;
+    var _e, _f, _g;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const ID = (_d = request === null || request === void 0 ? void 0 : request.params) === null || _d === void 0 ? void 0 : _d.id;
+        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files;
-        const mediaFiles = files && files.images;
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles = Array.isArray(request.files)
+            ? request.files
+            : Object.values((_f = request.files) !== null && _f !== void 0 ? _f : {})
+                .flat();
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname));
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            yield (0, MediaController_1.deleteUnwantedFiles)(unexpectedFiles);
+        }
+        // Enforce max count of 5 images for updates
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            yield (0, MediaController_1.deleteUnwantedFiles)(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
         const query = { _id: ID };
         if (accountType === user_model_1.AccountType.BUSINESS && businessProfileID) {
             Object.assign({ businessProfileID: businessProfileID });
@@ -206,17 +277,43 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         room.adults = adults !== null && adults !== void 0 ? adults : room.adults;
         room.roomType = roomType !== null && roomType !== void 0 ? roomType : room.roomType;
         room.totalRooms = totalRooms !== null && totalRooms !== void 0 ? totalRooms : room.totalRooms;
-        if (mediaFiles && mediaFiles.length !== 0) {
-            yield Promise.all(mediaFiles.map((mediaFile, index) => __awaiter(void 0, void 0, void 0, function* () {
-                const mediaFileThumbnail = yield (0, MediaController_1.generateThumbnail)(mediaFile, "image", 486, 324);
-                const newRoomImage = new roomImage_model_1.default();
-                newRoomImage.roomID = room.id;
-                newRoomImage.isCoverImage = false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = (mediaFileThumbnail === null || mediaFileThumbnail === void 0 ? void 0 : mediaFileThumbnail.Location) || mediaFile.location;
-                const savedRoomImage = yield newRoomImage.save();
-                return savedRoomImage.id;
-            })));
+        if (validMediaFiles && validMediaFiles.length !== 0) {
+            try {
+                yield Promise.all(validMediaFiles.map((mediaFile, index) => __awaiter(void 0, void 0, void 0, function* () {
+                    try {
+                        // Generate thumbnail with error handling - if it fails, use original image
+                        const mediaFileThumbnail = yield (0, MediaController_1.generateThumbnail)(mediaFile, "image", 486, 324).catch((error) => {
+                            console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                            return null; // Return null if thumbnail generation fails
+                        });
+                        const newRoomImage = new roomImage_model_1.default();
+                        newRoomImage.roomID = room._id; // Use room's _id
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = (mediaFileThumbnail === null || mediaFileThumbnail === void 0 ? void 0 : mediaFileThumbnail.Location) || mediaFile.location;
+                        const savedRoomImage = yield newRoomImage.save();
+                        return savedRoomImage.id;
+                    }
+                    catch (error) {
+                        // Log error but don't fail the entire operation for a single image
+                        console.error(`Error processing room image ${index}:`, error);
+                        // Still create the room image record with the original URL if thumbnail fails
+                        const newRoomImage = new roomImage_model_1.default();
+                        newRoomImage.roomID = room._id;
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                        yield newRoomImage.save().catch((saveError) => {
+                            console.error(`Failed to save room image ${index}:`, saveError);
+                        });
+                    }
+                })));
+            }
+            catch (error) {
+                // If all images fail, we still have the room updated, but log the error
+                console.error("Error processing room images:", error);
+                // Continue - room is already updated
+            }
         }
         const [savedRoom, pricePresets] = yield Promise.all([
             room.save(),
@@ -228,14 +325,14 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpAcceptedOrUpdated)(savedRoom, UPDATED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _f, _g;
+    var _h, _j;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const ID = (_f = request === null || request === void 0 ? void 0 : request.params) === null || _f === void 0 ? void 0 : _f.id;
+        const ID = (_h = request === null || request === void 0 ? void 0 : request.params) === null || _h === void 0 ? void 0 : _h.id;
         const query = { _id: ID };
         if (accountType === user_model_1.AccountType.BUSINESS && businessProfileID) {
             Object.assign({ businessProfileID: businessProfileID });
@@ -249,11 +346,11 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, DELETED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h;
+    var _k;
     try {
         let { id } = request.params;
         const dbQuery = { _id: new mongodb_1.ObjectId(id) };
@@ -342,7 +439,7 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         return response.send((0, response_1.httpOk)(room[0], RETRIEVED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, store, update, destroy, show };

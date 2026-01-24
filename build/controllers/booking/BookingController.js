@@ -284,7 +284,7 @@ const checkout = (request, response, next) => __awaiter(void 0, void 0, void 0, 
         booking.bookedFor = bookedFor !== null && bookedFor !== void 0 ? bookedFor : booking.bookedFor;
         /*** Calculate price for checkout */
         let subtotal = booking.bookedRoom.price * booking.bookedRoom.quantity * nights;
-        let convinceCharges = isHotel ? (subtotal * 0.02) : 0;
+        let convinceCharges = subtotal * 0.02;
         let gstRate = exports.GST_PERCENTAGE;
         let gst = ((subtotal + convinceCharges) * gstRate) / 100;
         let total = (gst + subtotal + convinceCharges);

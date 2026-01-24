@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateAccessToken = exports.generateRefreshToken = exports.isBusinessUser = exports.isAdministrator = void 0;
+exports.generateAccessToken = exports.generateRefreshToken = exports.isBusinessUser = exports.isTheHotelMediaRootAdmin = exports.isAdministrator = void 0;
 const jsonwebtoken_1 = require("jsonwebtoken");
 const response_1 = require("../utils/response");
 const error_1 = require("../utils/response-message/error");
@@ -140,6 +140,37 @@ function isAdministrator(request, response, next) {
     });
 }
 exports.isAdministrator = isAdministrator;
+/**
+ * Extra safety gate for highly-privileged admin-only endpoints.
+ * Requires: authenticated administrator AND email === admin@thehotelmedia.com
+ */
+function isTheHotelMediaRootAdmin(request, response, next) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
+        try {
+            const userID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
+            if (!userID) {
+                return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.unAuthenticatedRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
+            }
+            const user = yield user_model_1.default.findOne({ _id: userID }).select('email role');
+            if (!user) {
+                return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+            }
+            if (user.role !== common_1.Role.ADMINISTRATOR) {
+                return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
+            }
+            const isAllowedEmail = ((_b = user.email) !== null && _b !== void 0 ? _b : '').toLowerCase() === 'admin@thehotelmedia.com';
+            if (!isAllowedEmail) {
+                return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
+            }
+            return next();
+        }
+        catch (error) {
+            return response.status(500).send((0, response_1.httpInternalServerError)(error, (_c = error === null || error === void 0 ? void 0 : error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        }
+    });
+}
+exports.isTheHotelMediaRootAdmin = isTheHotelMediaRootAdmin;
 function isBusinessUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;

@@ -9,7 +9,10 @@ import { wrapMulterMiddleware } from "../../../middleware/multer-error-handler";
 const RoomEndpoints: Router = express.Router();
 
 // Create multer middleware instances
-const roomImageUpload = s3Upload(AwsS3AccessEndpoints.ROOMS).fields([{ name: 'images', maxCount: 5 }]);
+// NOTE: use `.any()` to prevent Multer from hard-failing when the client sends
+// field names in different formats (e.g., 'images' vs 'images[]' on macOS).
+// We enforce field name validation and max count in the controller.
+const roomImageUpload = s3Upload(AwsS3AccessEndpoints.ROOMS).any();
 
 RoomEndpoints.get('/', RoomController.index);
 RoomEndpoints.get('/:id', [paramIDValidationRule], validateRequest, RoomController.show);

@@ -5,7 +5,7 @@ import { isArray, parseQueryParam } from "../../utils/helper/basic";
 import Amenity from '../../database/models/amenity.model';
 import Room, { addAmenitiesInRoom, addRoomImagesInRoom } from "../../database/models/room.model";
 import BusinessProfile from "../../database/models/businessProfile.model";
-import { generateThumbnail } from "../MediaController";
+import { generateThumbnail, deleteUnwantedFiles } from "../MediaController";
 import RoomImage from "../../database/models/roomImage.model";
 import AccountReach from "../../database/models/accountReach.model";
 import { AccountType, addAmenitiesInBusinessProfile } from "../../database/models/user.model";
@@ -75,8 +75,41 @@ const store = async (request: Request, response: Response, next: NextFunction) =
     try {
         const { id, accountType, businessProfileID, role } = request.user;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const mediaFiles = files && files.images as Express.Multer.S3File[];
+        
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+        
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname)) as Express.Multer.S3File[];
+        
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+        
+        // Validate field name - provide helpful error if wrong field name was used
+        if (allFiles.length > 0 && mediaFiles.length === 0) {
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`),
+                `Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`
+            ));
+        }
+        
+        // Enforce max count of 5 images
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            await deleteUnwantedFiles(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
+        
         let businessProfile = businessProfileID || request?.body?.businessProfileID;
         if (!businessProfile) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Business profile id is required"), "Business profile id is required"))
@@ -108,7 +141,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newRoom.totalRooms = totalRooms;
         
         // Validate images before proceeding
-        if (!mediaFiles || mediaFiles.length === 0) {
+        if (!validMediaFiles || validMediaFiles.length === 0) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Room images is required."), "Room images is required."))
         }
 
@@ -120,7 +153,7 @@ const store = async (request: Request, response: Response, next: NextFunction) =
          * Process images after room is saved to ensure we have a valid roomID
          */
         try {
-            await Promise.all(mediaFiles.map(async (mediaFile, index) => {
+            await Promise.all(validMediaFiles.map(async (mediaFile, index) => {
                 try {
                     // Generate thumbnail with error handling - if it fails, use original image
                     const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
@@ -176,8 +209,31 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         const { id, accountType, businessProfileID, role } = request.user;
         const ID = request?.params?.id;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const mediaFiles = files && files.images as Express.Multer.S3File[];
+        
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+        
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname)) as Express.Multer.S3File[];
+        
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+        
+        // Enforce max count of 5 images for updates
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            await deleteUnwantedFiles(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
 
         const query = { _id: ID };
         if (accountType === AccountType.BUSINESS && businessProfileID) {
@@ -202,9 +258,9 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.adults = adults ?? room.adults;
         room.roomType = roomType ?? room.roomType;
         room.totalRooms = totalRooms ?? room.totalRooms;
-        if (mediaFiles && mediaFiles.length !== 0) {
+        if (validMediaFiles && validMediaFiles.length !== 0) {
             try {
-                await Promise.all(mediaFiles.map(async (mediaFile, index) => {
+                await Promise.all(validMediaFiles.map(async (mediaFile, index) => {
                     try {
                         // Generate thumbnail with error handling - if it fails, use original image
                         const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
