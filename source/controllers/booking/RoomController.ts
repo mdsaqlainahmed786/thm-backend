@@ -120,7 +120,18 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
         let amenitiesArray: string[] = [];
         if (amenities && isArray(amenities)) {
-            amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenities } }) as string[];
+            // Convert string IDs to ObjectIds for MongoDB query
+            const amenityObjectIds = amenities.map((id: any) => {
+                try {
+                    return new ObjectId(id);
+                } catch (error) {
+                    return null;
+                }
+            }).filter((id: any) => id !== null);
+            
+            if (amenityObjectIds.length > 0) {
+                amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenityObjectIds } }) as string[];
+            }
         }
         // const room = await checkAvailability(roomType, checkIn, checkOut);
 
@@ -249,7 +260,18 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.title = title ?? room.title;
         let amenitiesArray: string[] = [];
         if (amenities && isArray(amenities)) {
-            amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenities } }) as string[];
+            // Convert string IDs to ObjectIds for MongoDB query
+            const amenityObjectIds = amenities.map((id: any) => {
+                try {
+                    return new ObjectId(id);
+                } catch (error) {
+                    return null;
+                }
+            }).filter((id: any) => id !== null);
+            
+            if (amenityObjectIds.length > 0) {
+                amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenityObjectIds } }) as string[];
+            }
             room.amenities = amenitiesArray.length !== 0 ? amenitiesArray : room.amenities;
         }
         room.bedType = bedType ?? room.bedType;
