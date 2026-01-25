@@ -578,9 +578,14 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.POST_NOT_FOUND), error_1.ErrorMessage.POST_NOT_FOUND));
         }
         // 2. You cannot share your own post
-        if (String(post.userID) === String(id)) {
-            return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("You cannot share your own post as a story."), "You cannot share your own post as a story."));
-        }
+        // if (String(post.userID) === String(id)) {
+        //   return response.send(
+        //     httpBadRequest(
+        //       ErrorMessage.invalidRequest("You cannot share your own post as a story."),
+        //       "You cannot share your own post as a story."
+        //     )
+        //   );
+        // }
         // 3. Check post media first (before other checks)
         if (!post.media || !Array.isArray(post.media) || post.media.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("This post has no media to publish as a story."), "This post has no media to publish as a story."));

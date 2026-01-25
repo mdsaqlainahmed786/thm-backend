@@ -644,14 +644,14 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     }
 
     // 2. You cannot share your own post
-    if (String(post.userID) === String(id)) {
-      return response.send(
-        httpBadRequest(
-          ErrorMessage.invalidRequest("You cannot share your own post as a story."),
-          "You cannot share your own post as a story."
-        )
-      );
-    }
+    // if (String(post.userID) === String(id)) {
+    //   return response.send(
+    //     httpBadRequest(
+    //       ErrorMessage.invalidRequest("You cannot share your own post as a story."),
+    //       "You cannot share your own post as a story."
+    //     )
+    //   );
+    // }
 
     // 3. Check post media first (before other checks)
     if (!post.media || !Array.isArray(post.media) || post.media.length === 0) {
