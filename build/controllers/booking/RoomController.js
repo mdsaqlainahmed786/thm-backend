@@ -91,9 +91,18 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                 {
                     $limit: documentLimit
                 },
+                (0, room_model_1.addAmenitiesInRoom)().lookup,
+                {
+                    $addFields: {
+                        amenities: {
+                            $ifNull: ['$amenitiesRef', []]
+                        }
+                    }
+                },
                 {
                     $project: {
                         __v: 0,
+                        amenitiesRef: 0,
                     }
                 },
             ]),
@@ -146,8 +155,39 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
         }
         let amenitiesArray = [];
-        if (amenities && (0, basic_1.isArray)(amenities)) {
-            amenitiesArray = (yield amenity_model_1.default.distinct("_id", { _id: { $in: amenities } }));
+        if (amenities) {
+            // Handle different formats: array, JSON string, or comma-separated string
+            let parsedAmenities = [];
+            if ((0, basic_1.isArray)(amenities)) {
+                parsedAmenities = amenities;
+            }
+            else if (typeof amenities === 'string') {
+                try {
+                    // Try parsing as JSON first
+                    const parsed = JSON.parse(amenities);
+                    parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
+                }
+                catch (_e) {
+                    // If not JSON, try comma-separated string
+                    parsedAmenities = amenities.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                }
+            }
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id) => {
+                    try {
+                        return new mongodb_1.ObjectId(id);
+                    }
+                    catch (error) {
+                        return null;
+                    }
+                }).filter((id) => id !== null);
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = yield amenity_model_1.default.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity) => amenity._id);
+                }
+            }
         }
         // const room = await checkAvailability(roomType, checkIn, checkOut);
         // if (!room) return res.status(404).json({ message: "No available rooms" });
@@ -220,24 +260,43 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         //     );
         //     current.setDate(current.getDate() + 1);
         // }
-        const savedAmenity = savedRoom;
-        return response.send((0, response_1.httpCreated)(savedAmenity, CREATED));
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = yield room_model_1.default.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            (0, room_model_1.addAmenitiesInRoom)().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
+        return response.send((0, response_1.httpCreated)(roomWithAmenities[0] || savedRoom, CREATED));
     }
     catch (error) {
         next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f, _g;
+    var _f, _g, _h;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const ID = (_e = request === null || request === void 0 ? void 0 : request.params) === null || _e === void 0 ? void 0 : _e.id;
+        const ID = (_f = request === null || request === void 0 ? void 0 : request.params) === null || _f === void 0 ? void 0 : _f.id;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
         // Handle files from .any() - can be array or object with fieldnames
         // Accept common variants from clients (images, images[])
         const allFiles = Array.isArray(request.files)
             ? request.files
-            : Object.values((_f = request.files) !== null && _f !== void 0 ? _f : {})
+            : Object.values((_g = request.files) !== null && _g !== void 0 ? _g : {})
                 .flat();
         const allowedFieldNames = new Set(['images', 'images[]']);
         const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
@@ -267,8 +326,39 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         room.currency = currency !== null && currency !== void 0 ? currency : room.currency;
         room.title = title !== null && title !== void 0 ? title : room.title;
         let amenitiesArray = [];
-        if (amenities && (0, basic_1.isArray)(amenities)) {
-            amenitiesArray = (yield amenity_model_1.default.distinct("_id", { _id: { $in: amenities } }));
+        if (amenities) {
+            // Handle different formats: array, JSON string, or comma-separated string
+            let parsedAmenities = [];
+            if ((0, basic_1.isArray)(amenities)) {
+                parsedAmenities = amenities;
+            }
+            else if (typeof amenities === 'string') {
+                try {
+                    // Try parsing as JSON first
+                    const parsed = JSON.parse(amenities);
+                    parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
+                }
+                catch (_j) {
+                    // If not JSON, try comma-separated string
+                    parsedAmenities = amenities.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                }
+            }
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id) => {
+                    try {
+                        return new mongodb_1.ObjectId(id);
+                    }
+                    catch (error) {
+                        return null;
+                    }
+                }).filter((id) => id !== null);
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = yield amenity_model_1.default.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity) => amenity._id);
+                }
+            }
             room.amenities = amenitiesArray.length !== 0 ? amenitiesArray : room.amenities;
         }
         room.bedType = bedType !== null && bedType !== void 0 ? bedType : room.bedType;
@@ -322,17 +412,37 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         yield Promise.all(pricePresets.map((pricePreset) => __awaiter(void 0, void 0, void 0, function* () {
             yield (0, pricePreset_model_1.generatePricePresetForRoom)(pricePreset.id);
         })));
-        return response.send((0, response_1.httpAcceptedOrUpdated)(savedRoom, UPDATED));
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = yield room_model_1.default.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            (0, room_model_1.addAmenitiesInRoom)().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
+        return response.send((0, response_1.httpAcceptedOrUpdated)(roomWithAmenities[0] || savedRoom, UPDATED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _h, _j;
+    var _k, _l;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const ID = (_h = request === null || request === void 0 ? void 0 : request.params) === null || _h === void 0 ? void 0 : _h.id;
+        const ID = (_k = request === null || request === void 0 ? void 0 : request.params) === null || _k === void 0 ? void 0 : _k.id;
         const query = { _id: ID };
         if (accountType === user_model_1.AccountType.BUSINESS && businessProfileID) {
             Object.assign({ businessProfileID: businessProfileID });
@@ -346,11 +456,11 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         return response.send((0, response_1.httpNoContent)(null, DELETED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _k;
+    var _m;
     try {
         let { id } = request.params;
         const dbQuery = { _id: new mongodb_1.ObjectId(id) };
@@ -428,8 +538,16 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
             (0, room_model_1.addRoomImagesInRoom)().addRoomCoverAndThumbnailImage,
             (0, room_model_1.addAmenitiesInRoom)().lookup,
             {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
                 '$project': {
                     'businessProfileRef': 0,
+                    'amenitiesRef': 0,
                 }
             }
         ]);
@@ -439,7 +557,7 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         return response.send((0, response_1.httpOk)(room[0], RETRIEVED));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, store, update, destroy, show };

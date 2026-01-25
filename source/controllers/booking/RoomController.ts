@@ -57,9 +57,18 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $limit: documentLimit
                 },
+                addAmenitiesInRoom().lookup,
+                {
+                    $addFields: {
+                        amenities: {
+                            $ifNull: ['$amenitiesRef', []]
+                        }
+                    }
+                },
                 {
                     $project: {
                         __v: 0,
+                        amenitiesRef: 0,
                     }
                 },
             ]),
@@ -118,19 +127,53 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (!businessProfileRef) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
-        let amenitiesArray: string[] = [];
-        if (amenities && isArray(amenities)) {
-            // Convert string IDs to ObjectIds for MongoDB query
-            const amenityObjectIds = amenities.map((id: any) => {
-                try {
-                    return new ObjectId(id);
-                } catch (error) {
-                    return null;
-                }
-            }).filter((id: any) => id !== null);
+        let amenitiesArray: any[] = [];
+        if (amenities) {
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
+            let parsedAmenities: any[] = [];
             
-            if (amenityObjectIds.length > 0) {
-                amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenityObjectIds } }) as string[];
+            if (isArray(amenities)) {
+                parsedAmenities = amenities;
+            } else if (typeof amenities === 'string') {
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+                        } else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                        }
+                    }
+                }
+            }
+            
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id: any) => {
+                    try {
+                        return new ObjectId(id);
+                    } catch (error) {
+                        return null;
+                    }
+                }).filter((id: any) => id !== null);
+                
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = await Amenity.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity: any) => amenity._id);
+                    // Debug: Log if amenities were found
+                    if (amenitiesArray.length === 0 && parsedAmenities.length > 0) {
+                        console.warn(`[Room Store] No valid amenities found for IDs: ${parsedAmenities.join(', ')}`);
+                    } else if (amenitiesArray.length > 0) {
+                        console.log(`[Room Store] Found ${amenitiesArray.length} valid amenities`);
+                    }
+                }
             }
         }
         // const room = await checkAvailability(roomType, checkIn, checkOut);
@@ -209,8 +252,28 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         //     current.setDate(current.getDate() + 1);
         // }
 
-        const savedAmenity = savedRoom;
-        return response.send(httpCreated(savedAmenity, CREATED));
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = await Room.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            addAmenitiesInRoom().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
+
+        return response.send(httpCreated(roomWithAmenities[0] || savedRoom, CREATED));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -258,19 +321,47 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.description = description ?? room.description;
         room.currency = currency ?? room.currency;
         room.title = title ?? room.title;
-        let amenitiesArray: string[] = [];
-        if (amenities && isArray(amenities)) {
-            // Convert string IDs to ObjectIds for MongoDB query
-            const amenityObjectIds = amenities.map((id: any) => {
-                try {
-                    return new ObjectId(id);
-                } catch (error) {
-                    return null;
-                }
-            }).filter((id: any) => id !== null);
+        let amenitiesArray: any[] = [];
+        if (amenities) {
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
+            let parsedAmenities: any[] = [];
             
-            if (amenityObjectIds.length > 0) {
-                amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenityObjectIds } }) as string[];
+            if (isArray(amenities)) {
+                parsedAmenities = amenities;
+            } else if (typeof amenities === 'string') {
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+                        } else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                        }
+                    }
+                }
+            }
+            
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id: any) => {
+                    try {
+                        return new ObjectId(id);
+                    } catch (error) {
+                        return null;
+                    }
+                }).filter((id: any) => id !== null);
+                
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = await Amenity.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity: any) => amenity._id);
+                }
             }
             room.amenities = amenitiesArray.length !== 0 ? amenitiesArray : room.amenities;
         }
@@ -324,7 +415,29 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         await Promise.all(pricePresets.map(async (pricePreset) => {
             await generatePricePresetForRoom(pricePreset.id)
         }))
-        return response.send(httpAcceptedOrUpdated(savedRoom, UPDATED));
+        
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = await Room.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            addAmenitiesInRoom().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
+
+        return response.send(httpAcceptedOrUpdated(roomWithAmenities[0] || savedRoom, UPDATED));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -427,8 +540,16 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
             addRoomImagesInRoom().addRoomCoverAndThumbnailImage,
             addAmenitiesInRoom().lookup,
             {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
                 '$project': {
                     'businessProfileRef': 0,
+                    'amenitiesRef': 0,
                 }
             }
         ]);
