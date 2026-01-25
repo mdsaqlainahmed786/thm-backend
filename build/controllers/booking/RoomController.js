@@ -119,7 +119,18 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
     var _b, _c, _d;
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
+        // Handle amenities - could be in amenities or amenities[] field (multipart form data)
+        // When multiple amenities are sent, they might come as an array or multiple fields
+        let amenities = request.body.amenities || request.body['amenities[]'];
+        // If amenities is not an array but we have multiple amenities fields, collect them
+        if (!(0, basic_1.isArray)(amenities) && typeof amenities === 'string') {
+            // Check if there are multiple amenities fields in the request
+            const amenityKeys = Object.keys(request.body).filter(key => key.startsWith('amenities'));
+            if (amenityKeys.length > 1) {
+                amenities = amenityKeys.map(key => request.body[key]).filter(Boolean);
+            }
+        }
+        const { description, price, currency, title, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
         // Handle files from .any() - can be array or object with fieldnames
         // Accept common variants from clients (images, images[])
         const allFiles = Array.isArray(request.files)
@@ -156,20 +167,36 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         }
         let amenitiesArray = [];
         if (amenities) {
-            // Handle different formats: array, JSON string, or comma-separated string
+            // Debug: Log what we received
+            console.log(`[Room Store] Received amenities:`, amenities, `Type:`, typeof amenities, `IsArray:`, (0, basic_1.isArray)(amenities));
+            console.log(`[Room Store] Full request.body keys:`, Object.keys(request.body));
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
             let parsedAmenities = [];
             if ((0, basic_1.isArray)(amenities)) {
                 parsedAmenities = amenities;
+                console.log(`[Room Store] Parsed as array, count:`, parsedAmenities.length);
             }
             else if (typeof amenities === 'string') {
-                try {
-                    // Try parsing as JSON first
-                    const parsed = JSON.parse(amenities);
-                    parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
-                }
-                catch (_e) {
-                    // If not JSON, try comma-separated string
-                    parsedAmenities = amenities.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
+                        console.log(`[Room Store] Parsed as JSON, count:`, parsedAmenities.length);
+                    }
+                    catch (_e) {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                            console.log(`[Room Store] Parsed as comma-separated, count:`, parsedAmenities.length);
+                        }
+                        else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                            console.log(`[Room Store] Parsed as single ID`);
+                        }
+                    }
                 }
             }
             if (parsedAmenities.length > 0) {
@@ -182,10 +209,18 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                         return null;
                     }
                 }).filter((id) => id !== null);
+                console.log(`[Room Store] Converted to ObjectIds, count:`, amenityObjectIds.length);
                 if (amenityObjectIds.length > 0) {
                     // Find valid amenities and get their ObjectIds
                     const validAmenities = yield amenity_model_1.default.find({ _id: { $in: amenityObjectIds } }).select('_id');
                     amenitiesArray = validAmenities.map((amenity) => amenity._id);
+                    // Debug: Log if amenities were found
+                    if (amenitiesArray.length === 0 && parsedAmenities.length > 0) {
+                        console.warn(`[Room Store] No valid amenities found for IDs: ${parsedAmenities.join(', ')}`);
+                    }
+                    else if (amenitiesArray.length > 0) {
+                        console.log(`[Room Store] Found ${amenitiesArray.length} valid amenities out of ${parsedAmenities.length} requested`);
+                    }
                 }
             }
         }
@@ -327,20 +362,29 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         room.title = title !== null && title !== void 0 ? title : room.title;
         let amenitiesArray = [];
         if (amenities) {
-            // Handle different formats: array, JSON string, or comma-separated string
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
             let parsedAmenities = [];
             if ((0, basic_1.isArray)(amenities)) {
                 parsedAmenities = amenities;
             }
             else if (typeof amenities === 'string') {
-                try {
-                    // Try parsing as JSON first
-                    const parsed = JSON.parse(amenities);
-                    parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
-                }
-                catch (_j) {
-                    // If not JSON, try comma-separated string
-                    parsedAmenities = amenities.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = (0, basic_1.isArray)(parsed) ? parsed : [parsed];
+                    }
+                    catch (_j) {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
+                        }
+                        else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                        }
+                    }
                 }
             }
             if (parsedAmenities.length > 0) {

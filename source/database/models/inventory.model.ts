@@ -45,6 +45,7 @@ export async function checkRoomsAvailability(businessProfileID: MongoID, checkIn
         {
             $match: {
                 businessProfileID: new ObjectId(businessProfileID),
+                availability: true, // Only check available rooms
             }
         },
         {

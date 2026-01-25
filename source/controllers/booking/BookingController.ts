@@ -236,13 +236,42 @@ const checkout = async (request: Request, response: Response, next: NextFunction
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Room not found"), "Room not found"));
         }
         const businessProfile = await BusinessProfile.findOne({ _id: room.businessProfileID });
-        const isHotel = businessProfile && businessTypeHotel && businessProfile.businessTypeID.toString() === businessTypeHotel._id.toString();
+        const hotelTypeId = businessTypeHotel ? String((businessTypeHotel as any)._id) : null;
+        const isHotel = businessProfile && hotelTypeId && businessProfile.businessTypeID.toString() === hotelTypeId;
+
+        // Check if room is available
+        if (!room.availability) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This room is currently not available for booking."), "This room is currently not available for booking."));
+        }
+
         const availability = await checkRoomsAvailability(booking.businessProfileID, booking.checkIn.toString(), booking.checkOut.toString());
         const isRoomAvailable = await availability.filter((data) => data?.availableRooms >= quantity && data?._id?.toString() === roomID);
-        console.log(availability);
-        console.log(isRoomAvailable, "isRoomAvailable");
+
+        console.log(`[Checkout] Availability check for room ${roomID}:`, {
+            availabilityResults: availability.length,
+            roomInResults: availability.some(r => r._id.toString() === roomID),
+            requestedQuantity: quantity,
+            roomAvailableRooms: availability.find(r => r._id.toString() === roomID)?.availableRooms,
+            isRoomAvailable: isRoomAvailable.length > 0
+        });
+        console.log(`[Checkout] Full availability:`, availability);
+        console.log(`[Checkout] Filtered isRoomAvailable:`, isRoomAvailable);
+
         if (isRoomAvailable && isRoomAvailable.length === 0) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Oops! That room isn't available for the dates you picked. Try different dates or choose another room."), "Oops! That room isn't available for the dates you picked. Try different dates or choose another room."))
+            // Check if room exists in availability results but doesn't have enough rooms
+            const roomInAvailability = availability.find((data) => data?._id?.toString() === roomID);
+            if (roomInAvailability) {
+                return response.send(httpBadRequest(
+                    ErrorMessage.invalidRequest(`Only ${roomInAvailability.availableRooms} room(s) available, but ${quantity} requested.`),
+                    `Only ${roomInAvailability.availableRooms} room(s) available, but ${quantity} requested.`
+                ));
+            } else {
+                // Room not found in availability results - might be unavailable or not exist
+                return response.send(httpBadRequest(
+                    ErrorMessage.invalidRequest("Oops! That room isn't available for the dates you picked. Try different dates or choose another room."),
+                    "Oops! That room isn't available for the dates you picked. Try different dates or choose another room."
+                ));
+            }
         }
         const nights = calculateNights(booking.checkIn.toString(), booking.checkOut.toString());
         booking.bookedRoom = {

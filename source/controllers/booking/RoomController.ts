@@ -83,7 +83,41 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
+        // Handle amenities - could be in amenities or amenities[] field (multipart form data)
+        // When multiple amenities are sent, they might come as an array or multiple fields
+        let amenities = request.body.amenities || request.body['amenities[]'];
+        
+        // Debug: Log all request body keys to see what we're receiving
+        console.log(`[Room Store] All request.body keys:`, Object.keys(request.body));
+        console.log(`[Room Store] Raw amenities value:`, amenities);
+        
+        // Check if amenities might be sent as multiple fields (amenities[0], amenities[1], etc.)
+        if (!isArray(amenities)) {
+            const amenityKeys = Object.keys(request.body).filter(key => 
+                key === 'amenities' || 
+                key === 'amenities[]' || 
+                key.startsWith('amenities[') || 
+                key.match(/^amenities\[\d+\]$/)
+            );
+            
+            if (amenityKeys.length > 1) {
+                // Multiple amenity fields found, collect them all
+                amenities = amenityKeys
+                    .sort() // Sort to maintain order
+                    .map(key => request.body[key])
+                    .filter(Boolean);
+                console.log(`[Room Store] Collected ${amenities.length} amenities from multiple fields`);
+            } else if (amenityKeys.length === 1 && typeof request.body[amenityKeys[0]] === 'string') {
+                // Single string - might be comma-separated or JSON
+                const value = request.body[amenityKeys[0]];
+                if (value.includes(',') || value.trim().startsWith('[')) {
+                    // Likely comma-separated or JSON string, will be handled in parsing
+                    amenities = value;
+                }
+            }
+        }
+        
+        const { description, price, currency, title, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
         
         // Handle files from .any() - can be array or object with fieldnames
         // Accept common variants from clients (images, images[])
@@ -129,11 +163,16 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
         let amenitiesArray: any[] = [];
         if (amenities) {
+            // Debug: Log what we received
+            console.log(`[Room Store] Received amenities:`, amenities, `Type:`, typeof amenities, `IsArray:`, isArray(amenities));
+            console.log(`[Room Store] Full request.body keys:`, Object.keys(request.body));
+            
             // Handle different formats: array, JSON string, comma-separated string, or single string ID
             let parsedAmenities: any[] = [];
             
             if (isArray(amenities)) {
                 parsedAmenities = amenities;
+                console.log(`[Room Store] Parsed as array, count:`, parsedAmenities.length);
             } else if (typeof amenities === 'string') {
                 const trimmed = amenities.trim();
                 if (trimmed.length > 0) {
@@ -141,13 +180,16 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                         // Try parsing as JSON first
                         const parsed = JSON.parse(trimmed);
                         parsedAmenities = isArray(parsed) ? parsed : [parsed];
+                        console.log(`[Room Store] Parsed as JSON, count:`, parsedAmenities.length);
                     } catch {
                         // If not JSON, try comma-separated string or treat as single ID
                         if (trimmed.includes(',')) {
                             parsedAmenities = trimmed.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+                            console.log(`[Room Store] Parsed as comma-separated, count:`, parsedAmenities.length);
                         } else {
                             // Single string ID
                             parsedAmenities = [trimmed];
+                            console.log(`[Room Store] Parsed as single ID`);
                         }
                     }
                 }
@@ -163,6 +205,8 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                     }
                 }).filter((id: any) => id !== null);
                 
+                console.log(`[Room Store] Converted to ObjectIds, count:`, amenityObjectIds.length);
+                
                 if (amenityObjectIds.length > 0) {
                     // Find valid amenities and get their ObjectIds
                     const validAmenities = await Amenity.find({ _id: { $in: amenityObjectIds } }).select('_id');
@@ -171,10 +215,17 @@ const store = async (request: Request, response: Response, next: NextFunction) =
                     if (amenitiesArray.length === 0 && parsedAmenities.length > 0) {
                         console.warn(`[Room Store] No valid amenities found for IDs: ${parsedAmenities.join(', ')}`);
                     } else if (amenitiesArray.length > 0) {
-                        console.log(`[Room Store] Found ${amenitiesArray.length} valid amenities`);
+                        console.log(`[Room Store] Found ${amenitiesArray.length} valid amenities out of ${parsedAmenities.length} requested`);
+                        if (parsedAmenities.length === 1) {
+                            console.warn(`[Room Store] ⚠️ Only 1 amenity received. If you selected multiple amenities in the frontend, ensure they are sent as an array, JSON string, or comma-separated string.`);
+                        }
                     }
                 }
+            } else {
+                console.warn(`[Room Store] ⚠️ No amenities parsed from input. Received:`, amenities);
             }
+        } else {
+            console.log(`[Room Store] No amenities provided in request`);
         }
         // const room = await checkAvailability(roomType, checkIn, checkOut);
 
