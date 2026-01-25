@@ -83,7 +83,12 @@ const checkIn = async (request: Request, response: Response, next: NextFunction)
         console.log(availableRoomIDs);
 
         const [booking, businessProfileRef, availableRooms] = await Promise.all([
-            Booking.findOne({ checkIn: { $lte: checkOut }, checkOut: { $gte: checkIn }, status: BookingStatus.CREATED }),
+            Booking.findOne({
+                checkIn: { $lte: checkOut },
+                checkOut: { $gte: checkIn },
+                status: BookingStatus.CREATED,
+                businessProfileID: businessProfileID // Ensure booking belongs to the same business profile
+            }),
             BusinessProfile.findOne({ _id: businessProfileID, businessTypeID: { $in: businessTypeID } }),
 
             Room.aggregate([
@@ -185,6 +190,7 @@ const checkIn = async (request: Request, response: Response, next: NextFunction)
         const businessProfileAny = businessProfileRef as any;
         booking.checkIn = combineDateTime(checkIn, businessProfileAny?.checkIn ?? '11:00').toString() ?? booking.checkIn;
         booking.checkOut = combineDateTime(checkOut, businessProfileAny?.checkOut ?? '02:00').toString() ?? booking.checkIn;
+        booking.businessProfileID = businessProfileID; // Ensure businessProfileID is updated if it changed
         booking.children = children ?? booking.children;
         booking.adults = adults ?? booking.adults;
         booking.isTravellingWithPet = isTravellingWithPet ?? booking.isTravellingWithPet;

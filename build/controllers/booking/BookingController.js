@@ -114,7 +114,12 @@ const checkIn = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         console.log("roomsRequired", roomsRequired);
         console.log(availableRoomIDs);
         const [booking, businessProfileRef, availableRooms] = yield Promise.all([
-            booking_model_1.default.findOne({ checkIn: { $lte: checkOut }, checkOut: { $gte: checkIn }, status: booking_model_1.BookingStatus.CREATED }),
+            booking_model_1.default.findOne({
+                checkIn: { $lte: checkOut },
+                checkOut: { $gte: checkIn },
+                status: booking_model_1.BookingStatus.CREATED,
+                businessProfileID: businessProfileID // Ensure booking belongs to the same business profile
+            }),
             businessProfile_model_1.default.findOne({ _id: businessProfileID, businessTypeID: { $in: businessTypeID } }),
             room_model_1.default.aggregate([
                 {
@@ -214,6 +219,7 @@ const checkIn = (request, response, next) => __awaiter(void 0, void 0, void 0, f
         const businessProfileAny = businessProfileRef;
         booking.checkIn = (_d = (0, date_1.combineDateTime)(checkIn, (_c = businessProfileAny === null || businessProfileAny === void 0 ? void 0 : businessProfileAny.checkIn) !== null && _c !== void 0 ? _c : '11:00').toString()) !== null && _d !== void 0 ? _d : booking.checkIn;
         booking.checkOut = (_f = (0, date_1.combineDateTime)(checkOut, (_e = businessProfileAny === null || businessProfileAny === void 0 ? void 0 : businessProfileAny.checkOut) !== null && _e !== void 0 ? _e : '02:00').toString()) !== null && _f !== void 0 ? _f : booking.checkIn;
+        booking.businessProfileID = businessProfileID; // Ensure businessProfileID is updated if it changed
         booking.children = children !== null && children !== void 0 ? children : booking.children;
         booking.adults = adults !== null && adults !== void 0 ? adults : booking.adults;
         booking.isTravellingWithPet = isTravellingWithPet !== null && isTravellingWithPet !== void 0 ? isTravellingWithPet : booking.isTravellingWithPet;
