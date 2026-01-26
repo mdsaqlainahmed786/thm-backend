@@ -30,6 +30,15 @@ function httpInternalServerError(response?: ResponseResult, message?: string): J
     }
     return json_response;
 }
+function httpServiceUnavailable(response?: ResponseResult, message?: string): JsonResponseModel {
+    const json_response: JsonResponseModel = {
+        status: false,
+        statusCode: 503,
+        message: message ?? "Service Unavailable",
+        data: response ?? null
+    }
+    return json_response;
+}
 
 function httpCreated(response?: ResponseResult, message?: string): JsonResponseModel {
     const json_response: JsonResponseModel = {
@@ -121,4 +130,4 @@ function httpBadRequest(response?: ResponseResult, message?: string): JsonRespon
     return json_response;
 }
 
-export { httpInternalServerError, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated }
+export { httpInternalServerError, httpServiceUnavailable, httpOk, httpBadRequest, httpNotFoundOr404, httpUnauthorized, httpConflict, httpForbidden, httpOkExtended, httpCreated, httpNoContent, httpAcceptedOrUpdated }

@@ -21,7 +21,13 @@ import Post, { PostType } from "../database/models/post.model";
 const s3Service = new S3Service();
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 async function generateThumbnail(media: Express.Multer.S3File, thumbnailFor: "video" | "image", width: number, height: number) {
-  const s3Image = await s3Service.getS3Object(media.key);
+  let s3Image: any = null;
+  try {
+    s3Image = await s3Service.getS3Object(media.key);
+  } catch (err) {
+    console.error("Failed to fetch S3 object for thumbnail generation:", { key: media.key, err });
+    return null;
+  }
   const cropSetting: {} = { width: width, height: height, fit: "cover" };
   if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
     const body = s3Image.Body;
@@ -112,19 +118,27 @@ async function storeMedia(
     if (file.mimetype.startsWith("image/")) {
       media.mediaType = MediaType.IMAGE;
 
-      const s3Object = await s3Service.getS3Object(file.key);
-      const rawBuffer = await s3Object.Body?.transformToByteArray();
-      if (!rawBuffer) throw new Error("Failed to read image buffer");
+      try {
+        const s3Object = await s3Service.getS3Object(file.key);
+        const rawBuffer = await s3Object.Body?.transformToByteArray();
 
-      const sharpImage = sharp(rawBuffer);
-      const metadata = await sharpImage.metadata();
+        if (rawBuffer) {
+          const sharpImage = sharp(rawBuffer);
+          const metadata = await sharpImage.metadata();
 
-      if (metadata?.width && metadata?.height) {
-        media.width = metadata.width;
-        media.height = metadata.height;
+          if (metadata?.width && metadata?.height) {
+            media.width = metadata.width;
+            media.height = metadata.height;
+          }
+
+          thumbnailBuffer = await sharpImage.resize(cropSetting).toBuffer();
+        } else {
+          console.warn("S3 image body was empty; skipping thumbnail generation:", { key: file.key });
+        }
+      } catch (err) {
+        // Don't fail post creation if storage is temporarily unreachable.
+        console.error("Failed to fetch image from S3 for processing; proceeding without thumbnail:", { key: file.key, err });
       }
-
-      thumbnailBuffer = await sharpImage.resize(cropSetting).toBuffer();
     }
 
     // ---------------- VIDEO ----------------
@@ -166,14 +180,18 @@ async function storeMedia(
         `-${width}x${height}`
       ).replace(/\/{2,}/g, "/");
 
-      const uploadedThumb = await s3Service.putS3Object(
-        thumbnailBuffer,
-        file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype,
-        thumbKey
-      );
+      try {
+        const uploadedThumb = await s3Service.putS3Object(
+          thumbnailBuffer,
+          file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype,
+          thumbKey
+        );
 
-      if (uploadedThumb?.Location) {
-        media.thumbnailUrl = uploadedThumb.Location;
+        if ((uploadedThumb as any)?.Location) {
+          media.thumbnailUrl = (uploadedThumb as any).Location;
+        }
+      } catch (err) {
+        console.error("Failed to upload thumbnail to S3; proceeding with fallback thumbnail:", { key: thumbKey, err });
       }
     }
 

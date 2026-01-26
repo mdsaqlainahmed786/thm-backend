@@ -55,7 +55,14 @@ const s3Service = new S3Service_1.default();
 fluent_ffmpeg_1.default.setFfmpegPath(ffmpeg_1.default.path);
 function generateThumbnail(media, thumbnailFor, width, height) {
     return __awaiter(this, void 0, void 0, function* () {
-        const s3Image = yield s3Service.getS3Object(media.key);
+        let s3Image = null;
+        try {
+            s3Image = yield s3Service.getS3Object(media.key);
+        }
+        catch (err) {
+            console.error("Failed to fetch S3 object for thumbnail generation:", { key: media.key, err });
+            return null;
+        }
         const cropSetting = { width: width, height: height, fit: "cover" };
         if (s3Image.Body && media.mimetype.startsWith('image/') && thumbnailFor === "image") {
             const body = s3Image.Body;
@@ -137,17 +144,26 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
             // ---------------- IMAGE ----------------
             if (file.mimetype.startsWith("image/")) {
                 media.mediaType = media_model_1.MediaType.IMAGE;
-                const s3Object = yield s3Service.getS3Object(file.key);
-                const rawBuffer = yield ((_a = s3Object.Body) === null || _a === void 0 ? void 0 : _a.transformToByteArray());
-                if (!rawBuffer)
-                    throw new Error("Failed to read image buffer");
-                const sharpImage = (0, sharp_1.default)(rawBuffer);
-                const metadata = yield sharpImage.metadata();
-                if ((metadata === null || metadata === void 0 ? void 0 : metadata.width) && (metadata === null || metadata === void 0 ? void 0 : metadata.height)) {
-                    media.width = metadata.width;
-                    media.height = metadata.height;
+                try {
+                    const s3Object = yield s3Service.getS3Object(file.key);
+                    const rawBuffer = yield ((_a = s3Object.Body) === null || _a === void 0 ? void 0 : _a.transformToByteArray());
+                    if (rawBuffer) {
+                        const sharpImage = (0, sharp_1.default)(rawBuffer);
+                        const metadata = yield sharpImage.metadata();
+                        if ((metadata === null || metadata === void 0 ? void 0 : metadata.width) && (metadata === null || metadata === void 0 ? void 0 : metadata.height)) {
+                            media.width = metadata.width;
+                            media.height = metadata.height;
+                        }
+                        thumbnailBuffer = yield sharpImage.resize(cropSetting).toBuffer();
+                    }
+                    else {
+                        console.warn("S3 image body was empty; skipping thumbnail generation:", { key: file.key });
+                    }
                 }
-                thumbnailBuffer = yield sharpImage.resize(cropSetting).toBuffer();
+                catch (err) {
+                    // Don't fail post creation if storage is temporarily unreachable.
+                    console.error("Failed to fetch image from S3 for processing; proceeding without thumbnail:", { key: file.key, err });
+                }
             }
             // ---------------- VIDEO ----------------
             if (file.mimetype.startsWith("video/")) {
@@ -175,9 +191,14 @@ function storeMedia(files, userID, businessProfileID, s3BasePath, uploadedFor) {
             // ---------------- THUMBNAIL UPLOAD ----------------
             if (thumbnailBuffer) {
                 let thumbKey = (0, basic_1.addStringBeforeExtension)(file.key, `-${width}x${height}`).replace(/\/{2,}/g, "/");
-                const uploadedThumb = yield s3Service.putS3Object(thumbnailBuffer, file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype, thumbKey);
-                if (uploadedThumb === null || uploadedThumb === void 0 ? void 0 : uploadedThumb.Location) {
-                    media.thumbnailUrl = uploadedThumb.Location;
+                try {
+                    const uploadedThumb = yield s3Service.putS3Object(thumbnailBuffer, file.mimetype.startsWith("video/") ? "image/jpeg" : file.mimetype, thumbKey);
+                    if (uploadedThumb === null || uploadedThumb === void 0 ? void 0 : uploadedThumb.Location) {
+                        media.thumbnailUrl = uploadedThumb.Location;
+                    }
+                }
+                catch (err) {
+                    console.error("Failed to upload thumbnail to S3; proceeding with fallback thumbnail:", { key: thumbKey, err });
                 }
             }
             if (!media.thumbnailUrl) {

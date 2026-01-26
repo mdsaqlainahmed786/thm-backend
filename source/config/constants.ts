@@ -36,6 +36,17 @@ export abstract class AppConfig {
     static readonly AWS_S3_BUCKET_ARN: string = process.env.AWS_S3_BUCKET_ARN!;
     static readonly AWS_REGION: string = process.env.AWS_REGION!;
 
+    /**
+     * Optional S3 client tuning.
+     * These help avoid hanging requests when the runtime cannot reach S3 (firewall/DNS/routing issues).
+     */
+    static readonly AWS_S3_ENDPOINT: string | undefined = process.env.AWS_S3_ENDPOINT; // e.g. https://s3.ap-south-1.amazonaws.com or an S3-compatible endpoint
+    static readonly AWS_S3_FORCE_PATH_STYLE: boolean = (process.env.AWS_S3_FORCE_PATH_STYLE ?? "false") === "true";
+    static readonly AWS_S3_MAX_ATTEMPTS: number = Number(process.env.AWS_S3_MAX_ATTEMPTS ?? 2);
+    static readonly AWS_S3_CONNECTION_TIMEOUT_MS: number = Number(process.env.AWS_S3_CONNECTION_TIMEOUT_MS ?? 3000);
+    static readonly AWS_S3_SOCKET_TIMEOUT_MS: number = Number(process.env.AWS_S3_SOCKET_TIMEOUT_MS ?? 15000);
+    static readonly AWS_S3_MAX_SOCKETS: number = Number(process.env.AWS_S3_MAX_SOCKETS ?? 50);
+
 
     static readonly POST_DIMENSION = {
         WIDTH: 500,

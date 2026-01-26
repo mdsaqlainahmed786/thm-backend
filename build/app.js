@@ -57,19 +57,41 @@ App.use((err, request, response, next) => {
     console.error('RunTime Error', '\nRequest Path => ', request.path, '\nUser Data =>', request.user, '\nError ::::', err);
     next(err);
 });
+function isTimeoutLikeError(err) {
+    var _a, _b, _c, _d, _e;
+    if (!err)
+        return false;
+    if (err.code === "ETIMEDOUT")
+        return true;
+    if (err.name === "TimeoutError")
+        return true;
+    // AWS SDK v3 AggregateError includes an internal [errors] array
+    const innerErrors = (_c = (_b = (_a = err === null || err === void 0 ? void 0 : err.errors) !== null && _a !== void 0 ? _a : err === null || err === void 0 ? void 0 : err[Symbol.for("errors")]) !== null && _b !== void 0 ? _b : err === null || err === void 0 ? void 0 : err["errors"]) !== null && _c !== void 0 ? _c : (_d = err === null || err === void 0 ? void 0 : err["$metadata"]) === null || _d === void 0 ? void 0 : _d.errors;
+    if (Array.isArray(err === null || err === void 0 ? void 0 : err.errors) && err.errors.some((e) => (e === null || e === void 0 ? void 0 : e.code) === "ETIMEDOUT"))
+        return true;
+    if (Array.isArray(err === null || err === void 0 ? void 0 : err["errors"]) && err["errors"].some((e) => (e === null || e === void 0 ? void 0 : e.code) === "ETIMEDOUT"))
+        return true;
+    if (Array.isArray((_e = err === null || err === void 0 ? void 0 : err["$metadata"]) === null || _e === void 0 ? void 0 : _e.errors) && err["$metadata"].errors.some((e) => (e === null || e === void 0 ? void 0 : e.code) === "ETIMEDOUT"))
+        return true;
+    if (Array.isArray(innerErrors) && innerErrors.some((e) => (e === null || e === void 0 ? void 0 : e.code) === "ETIMEDOUT"))
+        return true;
+    return false;
+}
 App.use((err, request, response, next) => {
     if (request.xhr) {
-        const statusCode = err.status || 500;
-        const errorMessage = err.message || 'Internal Server Error';
-        response.status(statusCode).send((0, response_1.httpInternalServerError)(err, errorMessage));
+        const isTimeout = isTimeoutLikeError(err);
+        const statusCode = err.status || (isTimeout ? 503 : 500);
+        const errorMessage = err.message || (isTimeout ? 'Storage service is temporarily unreachable. Please try again.' : 'Internal Server Error');
+        response.status(statusCode).send(isTimeout ? (0, response_1.httpServiceUnavailable)(err, errorMessage) : (0, response_1.httpInternalServerError)(err, errorMessage));
     }
     else {
         next(err);
     }
 });
 App.use((err, request, response, next) => {
-    const statusCode = err.status || 500;
-    const errorMessage = err.message || 'Internal Server Error';
-    return response.status(statusCode).send((0, response_1.httpInternalServerError)(err, errorMessage));
+    const isTimeout = isTimeoutLikeError(err);
+    const statusCode = err.status || (isTimeout ? 503 : 500);
+    const errorMessage = err.message || (isTimeout ? 'Storage service is temporarily unreachable. Please try again.' : 'Internal Server Error');
+    return response.status(statusCode).send(isTimeout ? (0, response_1.httpServiceUnavailable)(err, errorMessage) : (0, response_1.httpInternalServerError)(err, errorMessage));
 });
 exports.default = App;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.httpAcceptedOrUpdated = exports.httpNoContent = exports.httpCreated = exports.httpOkExtended = exports.httpForbidden = exports.httpConflict = exports.httpUnauthorized = exports.httpNotFoundOr404 = exports.httpBadRequest = exports.httpOk = exports.httpInternalServerError = void 0;
+exports.httpAcceptedOrUpdated = exports.httpNoContent = exports.httpCreated = exports.httpOkExtended = exports.httpForbidden = exports.httpConflict = exports.httpUnauthorized = exports.httpNotFoundOr404 = exports.httpBadRequest = exports.httpOk = exports.httpServiceUnavailable = exports.httpInternalServerError = void 0;
 function httpNotFoundOr404(response, message) {
     const json_response = {
         status: false,
@@ -21,6 +21,16 @@ function httpInternalServerError(response, message) {
     return json_response;
 }
 exports.httpInternalServerError = httpInternalServerError;
+function httpServiceUnavailable(response, message) {
+    const json_response = {
+        status: false,
+        statusCode: 503,
+        message: message !== null && message !== void 0 ? message : "Service Unavailable",
+        data: response !== null && response !== void 0 ? response : null
+    };
+    return json_response;
+}
+exports.httpServiceUnavailable = httpServiceUnavailable;
 function httpCreated(response, message) {
     const json_response = {
         status: true,

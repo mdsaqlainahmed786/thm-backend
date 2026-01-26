@@ -13,19 +13,26 @@ const client_s3_1 = require("@aws-sdk/client-s3");
 const constants_1 = require("../config/constants");
 const lib_storage_1 = require("@aws-sdk/lib-storage");
 const s3_request_presigner_1 = require("@aws-sdk/s3-request-presigner");
+const node_http_handler_1 = require("@smithy/node-http-handler");
+const https_1 = require("https");
 class S3Service {
     constructor() {
         this.bucketName = constants_1.AppConfig.AWS_BUCKET_NAME;
         this.accessKeyId = constants_1.AppConfig.AWS_ACCESS_KEY_ID;
         this.secretAccessKey = constants_1.AppConfig.AWS_SECRET_ACCESS_KEY;
         this.region = constants_1.AppConfig.AWS_REGION;
-        this.s3Client = new client_s3_1.S3Client({
-            credentials: {
+        const httpsAgent = new https_1.Agent({
+            keepAlive: true,
+            maxSockets: constants_1.AppConfig.AWS_S3_MAX_SOCKETS,
+        });
+        this.s3Client = new client_s3_1.S3Client(Object.assign(Object.assign({ credentials: {
                 accessKeyId: this.accessKeyId,
                 secretAccessKey: this.secretAccessKey
-            },
-            region: this.region
-        });
+            }, region: this.region }, (constants_1.AppConfig.AWS_S3_ENDPOINT ? { endpoint: constants_1.AppConfig.AWS_S3_ENDPOINT } : {})), { forcePathStyle: constants_1.AppConfig.AWS_S3_FORCE_PATH_STYLE, maxAttempts: constants_1.AppConfig.AWS_S3_MAX_ATTEMPTS, requestHandler: new node_http_handler_1.NodeHttpHandler({
+                connectionTimeout: constants_1.AppConfig.AWS_S3_CONNECTION_TIMEOUT_MS,
+                socketTimeout: constants_1.AppConfig.AWS_S3_SOCKET_TIMEOUT_MS,
+                httpsAgent,
+            }) }));
     }
     getClient() {
         return this.s3Client;

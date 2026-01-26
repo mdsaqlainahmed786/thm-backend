@@ -4,6 +4,8 @@ import { AppConfig } from "../config/constants";
 import { StreamingBlobPayloadInputTypes } from '@smithy/types';
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from "@smithy/node-http-handler";
+import { Agent as HttpsAgent } from "https";
 class S3Service {
     private bucketName: string;
     private accessKeyId: string;
@@ -15,12 +17,25 @@ class S3Service {
         this.accessKeyId = AppConfig.AWS_ACCESS_KEY_ID;
         this.secretAccessKey = AppConfig.AWS_SECRET_ACCESS_KEY;
         this.region = AppConfig.AWS_REGION;
+        const httpsAgent = new HttpsAgent({
+            keepAlive: true,
+            maxSockets: AppConfig.AWS_S3_MAX_SOCKETS,
+        });
+
         this.s3Client = new S3Client({
             credentials: {
                 accessKeyId: this.accessKeyId,
                 secretAccessKey: this.secretAccessKey
             },
-            region: this.region
+            region: this.region,
+            ...(AppConfig.AWS_S3_ENDPOINT ? { endpoint: AppConfig.AWS_S3_ENDPOINT } : {}),
+            forcePathStyle: AppConfig.AWS_S3_FORCE_PATH_STYLE,
+            maxAttempts: AppConfig.AWS_S3_MAX_ATTEMPTS,
+            requestHandler: new NodeHttpHandler({
+                connectionTimeout: AppConfig.AWS_S3_CONNECTION_TIMEOUT_MS,
+                socketTimeout: AppConfig.AWS_S3_SOCKET_TIMEOUT_MS,
+                httpsAgent,
+            }),
         })
     }
     getClient() {

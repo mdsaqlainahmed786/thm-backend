@@ -22,7 +22,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var _a, _b, _c, _d, _e, _f, _g, _h;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarketingNotifications = exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
 const dotenv = __importStar(require("dotenv"));
@@ -53,6 +53,16 @@ AppConfig.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 AppConfig.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 AppConfig.AWS_S3_BUCKET_ARN = process.env.AWS_S3_BUCKET_ARN;
 AppConfig.AWS_REGION = process.env.AWS_REGION;
+/**
+ * Optional S3 client tuning.
+ * These help avoid hanging requests when the runtime cannot reach S3 (firewall/DNS/routing issues).
+ */
+AppConfig.AWS_S3_ENDPOINT = process.env.AWS_S3_ENDPOINT; // e.g. https://s3.ap-south-1.amazonaws.com or an S3-compatible endpoint
+AppConfig.AWS_S3_FORCE_PATH_STYLE = ((_e = process.env.AWS_S3_FORCE_PATH_STYLE) !== null && _e !== void 0 ? _e : "false") === "true";
+AppConfig.AWS_S3_MAX_ATTEMPTS = Number((_f = process.env.AWS_S3_MAX_ATTEMPTS) !== null && _f !== void 0 ? _f : 2);
+AppConfig.AWS_S3_CONNECTION_TIMEOUT_MS = Number((_g = process.env.AWS_S3_CONNECTION_TIMEOUT_MS) !== null && _g !== void 0 ? _g : 3000);
+AppConfig.AWS_S3_SOCKET_TIMEOUT_MS = Number((_h = process.env.AWS_S3_SOCKET_TIMEOUT_MS) !== null && _h !== void 0 ? _h : 15000);
+AppConfig.AWS_S3_MAX_SOCKETS = Number((_j = process.env.AWS_S3_MAX_SOCKETS) !== null && _j !== void 0 ? _j : 50);
 AppConfig.POST_DIMENSION = {
     WIDTH: 500,
     HEIGHT: 500
@@ -82,10 +92,10 @@ AppConfig.SENDGRID = {
 };
 // Amazon SES
 AppConfig.SES = {
-    REGION: (_e = process.env.AWS_REGION) !== null && _e !== void 0 ? _e : "ap-south-1",
-    ACCESS_KEY_ID: (_f = process.env.AWS_ACCESS_KEY_ID) !== null && _f !== void 0 ? _f : "",
-    SECRET_ACCESS_KEY: (_g = process.env.AWS_SECRET_ACCESS_KEY) !== null && _g !== void 0 ? _g : "",
-    FROM_ADDRESS: (_h = process.env.SES_FROM_ADDRESS) !== null && _h !== void 0 ? _h : process.env.SENDGRID_FROM_ADDRESS
+    REGION: (_k = process.env.AWS_REGION) !== null && _k !== void 0 ? _k : "ap-south-1",
+    ACCESS_KEY_ID: (_l = process.env.AWS_ACCESS_KEY_ID) !== null && _l !== void 0 ? _l : "",
+    SECRET_ACCESS_KEY: (_m = process.env.AWS_SECRET_ACCESS_KEY) !== null && _m !== void 0 ? _m : "",
+    FROM_ADDRESS: (_o = process.env.SES_FROM_ADDRESS) !== null && _o !== void 0 ? _o : process.env.SENDGRID_FROM_ADDRESS
 };
 //Mailersend
 AppConfig.MAILER_SEND = {
