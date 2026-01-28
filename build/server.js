@@ -21,7 +21,8 @@ const THMFollowCron_1 = __importDefault(require("./cron/THMFollowCron"));
 const THMRatingCron_1 = __importDefault(require("./cron/THMRatingCron"));
 const MarketingNotificationCron_1 = __importDefault(require("./cron/MarketingNotificationCron"));
 const socket_server_1 = __importDefault(require("./socket-server"));
-const redis_1 = require("redis");
+const RedisClient_1 = require("./services/RedisClient");
+Object.defineProperty(exports, "RedisClient", { enumerable: true, get: function () { return RedisClient_1.RedisClient; } });
 const httpServer = http_1.default.createServer(app_1.default);
 exports.SocketServer = (0, socket_server_1.default)(httpServer);
 httpServer.listen(constants_1.AppConfig.PORT, () => __awaiter(void 0, void 0, void 0, function* () {
@@ -52,12 +53,5 @@ httpServer.listen(constants_1.AppConfig.PORT, () => __awaiter(void 0, void 0, vo
     // }, 2000); // Wait 2 seconds after server starts
 }));
 httpServer.timeout = 1200000; // 2 Minutes
-/**
- * RedisClient
- */
-const RedisClient = (0, redis_1.createClient)();
-exports.RedisClient = RedisClient;
-RedisClient.on('error', (err) => {
-    console.error('Redis Error:', err);
-});
-RedisClient.connect();
+// Initialize shared Redis connection (non-fatal if unavailable)
+(0, RedisClient_1.initRedis)();

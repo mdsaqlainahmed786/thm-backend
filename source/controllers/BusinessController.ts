@@ -33,6 +33,7 @@ import Menu from "../database/models/menu.model";
 import Media from "../database/models/media.model";
 import S3Service from "../services/S3Service";
 import { httpNoContent } from "../utils/response";
+import EnvironmentService from "../services/EnvironmentService";
 
 const encryptionService = new EncryptionService();
 const s3Service = new S3Service();
@@ -318,15 +319,58 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                         newAnonymousBusiness.businessTypeID = businessTypeID;
                     }
                     const businessProfileRef = await newAnonymousBusiness.save();
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const env = await EnvironmentService.getForLocation({ cacheKey: `place:${placeID}`, lat, lng });
+                    return response.send(
+                        httpOk(
+                            {
+                                businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                                    type: type,
+                                    weatherReport: env.weatherReport,
+                                    environment: env.summary
+                                }),
+                                reviewQuestions
+                            },
+                            "Business profile fetched"
+                        )
+                    );
                 } else {
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const latData = Number((anonymousBusinessExits as any)?.address?.lat ?? 0);
+                    const lngData = Number((anonymousBusinessExits as any)?.address?.lng ?? 0);
+                    const env = await EnvironmentService.getForLocation({ cacheKey: `place:${placeID}`, lat: latData, lng: lngData });
+                    return response.send(
+                        httpOk(
+                            {
+                                businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), {
+                                    type: type,
+                                    weatherReport: env.weatherReport,
+                                    environment: env.summary
+                                }),
+                                reviewQuestions
+                            },
+                            "Business profile fetched"
+                        )
+                    );
                 }
             }
             return response.send(httpInternalServerError(null, ErrorMessage.INTERNAL_SERVER_ERROR));
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
-        return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
+        return response.send(
+            httpOk(
+                {
+                    businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                        type: type,
+                        weatherReport: env.weatherReport,
+                        environment: env.summary
+                    }),
+                    reviewQuestions
+                },
+                "Business profile fetched"
+            )
+        );
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -341,9 +385,15 @@ const getBusinessProfileByID = async (request: Request, response: Response, next
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -359,9 +409,15 @@ const getBusinessProfileByDirectID = async (request: Request, response: Response
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

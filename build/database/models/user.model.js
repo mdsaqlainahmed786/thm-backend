@@ -54,7 +54,7 @@ const basic_3 = require("../../utils/helper/basic");
 const EmailNotificationService_1 = __importDefault(require("../../services/EmailNotificationService"));
 const businessType_model_1 = __importDefault(require("./businessType.model"));
 const WeatherService_1 = __importDefault(require("../../services/WeatherService"));
-const server_1 = require("../../server");
+const RedisClient_1 = require("../../services/RedisClient");
 const emailNotificationService = new EmailNotificationService_1.default();
 var SocialAccount;
 (function (SocialAccount) {
@@ -646,7 +646,7 @@ function fetchWeatherAndAirPollutionReport(businessProfileID) {
             const lng = Number((_d = (_c = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _c === void 0 ? void 0 : _c.lng) !== null && _d !== void 0 ? _d : 0);
             try {
                 const weatherReportKey = `weather::${businessProfileID}`;
-                const weatherReport = yield server_1.RedisClient.get(weatherReportKey);
+                const weatherReport = yield RedisClient_1.RedisClient.get(weatherReportKey);
                 if (weatherReport) {
                     console.log("no api call return cache");
                     return JSON.parse(weatherReport);
@@ -657,7 +657,7 @@ function fetchWeatherAndAirPollutionReport(businessProfileID) {
                     WeatherService_1.default.weather(lat, lng)
                 ]);
                 const data = Object.assign(Object.assign({}, weather), { airPollution: airPollution });
-                yield server_1.RedisClient.set(weatherReportKey, JSON.stringify(data), {
+                yield RedisClient_1.RedisClient.set(weatherReportKey, JSON.stringify(data), {
                     EX: (60 * 60 * 24 * 15) //second * minutes * hour * day = seconds 
                 });
                 return data;

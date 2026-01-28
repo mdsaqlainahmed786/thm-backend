@@ -68,6 +68,7 @@ const menu_model_1 = __importDefault(require("../database/models/menu.model"));
 const media_model_1 = __importDefault(require("../database/models/media.model"));
 const S3Service_1 = __importDefault(require("../services/S3Service"));
 const response_2 = require("../utils/response");
+const EnvironmentService_1 = __importDefault(require("../services/EnvironmentService"));
 const encryptionService = new EncryptionService_1.default();
 const s3Service = new S3Service_1.default();
 const businessTypes = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -274,7 +275,7 @@ const collectInsightsData = (request, response, next) => __awaiter(void 0, void 
 });
 //Fetch business based on google place id 
 const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+    var _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2;
     try {
         const { placeID } = request.params;
         let parsedQuerySet = request.query;
@@ -360,24 +361,52 @@ const getBusinessProfileByPlaceID = (request, response, next) => __awaiter(void 
                         newAnonymousBusiness.businessTypeID = businessTypeID;
                     }
                     const businessProfileRef = yield newAnonymousBusiness.save();
-                    return response.send((0, response_1.httpOk)({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const env = yield EnvironmentService_1.default.getForLocation({ cacheKey: `place:${placeID}`, lat, lng });
+                    return response.send((0, response_1.httpOk)({
+                        businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                            type: type,
+                            weatherReport: env.weatherReport,
+                            environment: env.summary
+                        }),
+                        reviewQuestions
+                    }, "Business profile fetched"));
                 }
                 else {
-                    return response.send((0, response_1.httpOk)({ businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const latData = Number((_v = (_u = anonymousBusinessExits === null || anonymousBusinessExits === void 0 ? void 0 : anonymousBusinessExits.address) === null || _u === void 0 ? void 0 : _u.lat) !== null && _v !== void 0 ? _v : 0);
+                    const lngData = Number((_x = (_w = anonymousBusinessExits === null || anonymousBusinessExits === void 0 ? void 0 : anonymousBusinessExits.address) === null || _w === void 0 ? void 0 : _w.lng) !== null && _x !== void 0 ? _x : 0);
+                    const env = yield EnvironmentService_1.default.getForLocation({ cacheKey: `place:${placeID}`, lat: latData, lng: lngData });
+                    return response.send((0, response_1.httpOk)({
+                        businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), {
+                            type: type,
+                            weatherReport: env.weatherReport,
+                            environment: env.summary
+                        }),
+                        reviewQuestions
+                    }, "Business profile fetched"));
                 }
             }
             return response.send((0, response_1.httpInternalServerError)(null, error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
         }
         const reviewQuestions = yield businessReviewQuestion_model_1.default.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
-        return response.send((0, response_1.httpOk)({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+        const latData = Number((_z = (_y = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _y === void 0 ? void 0 : _y.lat) !== null && _z !== void 0 ? _z : 0);
+        const lngData = Number((_1 = (_0 = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _0 === void 0 ? void 0 : _0.lng) !== null && _1 !== void 0 ? _1 : 0);
+        const env = yield EnvironmentService_1.default.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
+        return response.send((0, response_1.httpOk)({
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                type: type,
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions
+        }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_u = error.message) !== null && _u !== void 0 ? _u : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_2 = error.message) !== null && _2 !== void 0 ? _2 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //Fetch business profile by encrypted business profile id
 const getBusinessProfileByID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _v;
+    var _3, _4, _5, _6, _7;
     try {
         const { encryptedID } = request.params;
         const decryptedBusinessProfileID = encryptionService.decrypt(encryptedID);
@@ -386,18 +415,24 @@ const getBusinessProfileByID = (request, response, next) => __awaiter(void 0, vo
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
         }
         const reviewQuestions = yield businessReviewQuestion_model_1.default.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
+        const latData = Number((_4 = (_3 = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _3 === void 0 ? void 0 : _3.lat) !== null && _4 !== void 0 ? _4 : 0);
+        const lngData = Number((_6 = (_5 = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _5 === void 0 ? void 0 : _5.lng) !== null && _6 !== void 0 ? _6 : 0);
+        const env = yield EnvironmentService_1.default.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send((0, response_1.httpOk)({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_v = error.message) !== null && _v !== void 0 ? _v : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_7 = error.message) !== null && _7 !== void 0 ? _7 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 //Fetch business profile by direct business profile id (not encrypted)
 const getBusinessProfileByDirectID = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _w;
+    var _8, _9, _10, _11, _12;
     try {
         const { id } = request.params;
         const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: id }, '_id id name coverImage profilePic address businessTypeID businessSubTypeID');
@@ -405,13 +440,19 @@ const getBusinessProfileByDirectID = (request, response, next) => __awaiter(void
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), error_1.ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
         }
         const reviewQuestions = yield businessReviewQuestion_model_1.default.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
+        const latData = Number((_9 = (_8 = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _8 === void 0 ? void 0 : _8.lat) !== null && _9 !== void 0 ? _9 : 0);
+        const lngData = Number((_11 = (_10 = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.address) === null || _10 === void 0 ? void 0 : _10.lng) !== null && _11 !== void 0 ? _11 : 0);
+        const env = yield EnvironmentService_1.default.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send((0, response_1.httpOk)({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_w = error.message) !== null && _w !== void 0 ? _w : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_12 = error.message) !== null && _12 !== void 0 ? _12 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 function createChartLabels(filter) {
@@ -795,7 +836,7 @@ function engagementAggregatePipeline(groupFormat, labels, labelFormat) {
  * Only businesses whose type is "Restaurant" are allowed to add menu items.
  */
 const addRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _x;
+    var _13;
     try {
         const { id, businessProfileID } = request.user;
         if (!id) {
@@ -833,7 +874,7 @@ const addRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0,
         return response.send((0, response_1.httpCreated)(menuDocs, "Menu items added successfully"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_x = error.message) !== null && _x !== void 0 ? _x : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_13 = error.message) !== null && _13 !== void 0 ? _13 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 /**
@@ -841,7 +882,7 @@ const addRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0,
  * This route is public so users can see restaurant menus.
  */
 const getRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _y;
+    var _14;
     try {
         const { businessProfileID } = request.params;
         const businessProfile = yield businessProfile_model_1.default.findOne({ _id: new mongodb_1.ObjectId(businessProfileID) });
@@ -875,7 +916,7 @@ const getRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0,
         return response.send((0, response_1.httpOk)(menuResponse, "Menu items fetched successfully"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_y = error.message) !== null && _y !== void 0 ? _y : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_14 = error.message) !== null && _14 !== void 0 ? _14 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 /**
@@ -883,7 +924,7 @@ const getRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0,
  * This will delete the Menu document, associated Media document, and files from S3.
  */
 const deleteRestaurantMenu = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _z;
+    var _15;
     try {
         const { id, businessProfileID } = request.user;
         const menuID = request.params.id;
@@ -926,7 +967,7 @@ const deleteRestaurantMenu = (request, response, next) => __awaiter(void 0, void
         return response.send((0, response_2.httpNoContent)(null, "Menu item deleted successfully"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_z = error.message) !== null && _z !== void 0 ? _z : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_15 = error.message) !== null && _15 !== void 0 ? _15 : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 function fetchEngagedData(businessProfileID, userID, groupFormat, labels, labelFormat) {

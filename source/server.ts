@@ -6,7 +6,7 @@ import THMFollow from "./cron/THMFollowCron";
 import THMRating from "./cron/THMRatingCron";
 import MarketingNotificationCron from "./cron/MarketingNotificationCron";
 import createSocketServer from "./socket-server";
-import { createClient } from "redis";
+import { initRedis, RedisClient } from "./services/RedisClient";
 const httpServer = https.createServer(ExpressApp);
 export const SocketServer = createSocketServer(httpServer);
 httpServer.listen(AppConfig.PORT, async () => {
@@ -40,12 +40,6 @@ httpServer.listen(AppConfig.PORT, async () => {
 httpServer.timeout = 1200000;  // 2 Minutes
 
 
-/**
- * RedisClient
- */
-const RedisClient = createClient();
-RedisClient.on('error', (err) => {
-    console.error('Redis Error:', err);
-});
-RedisClient.connect();
+// Initialize shared Redis connection (non-fatal if unavailable)
+initRedis();
 export { RedisClient };

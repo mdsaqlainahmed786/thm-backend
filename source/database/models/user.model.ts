@@ -17,7 +17,7 @@ import { generateOTP } from "../../utils/helper/basic";
 import EmailNotificationService from "../../services/EmailNotificationService";
 import BusinessType from "./businessType.model";
 import WeatherService from "../../services/WeatherService";
-import { RedisClient } from "../../server";
+import { RedisClient } from "../../services/RedisClient";
 const emailNotificationService = new EmailNotificationService();
 export enum SocialAccount {
     FACEBOOK = "facebook",
