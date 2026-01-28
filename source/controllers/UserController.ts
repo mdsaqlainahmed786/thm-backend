@@ -27,6 +27,7 @@ import BlockedUser from '../database/models/blockedUser.model';
 import EventJoin from '../database/models/eventJoin.model';
 import UserAddress from '../database/models/user-address.model';
 import { SuccessMessage } from '../utils/response-message/success';
+import EnvironmentService from "../services/EnvironmentService";
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language, username } = request.body;
@@ -146,6 +147,27 @@ const profile = async (request: Request, response: Response, next: NextFunction)
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
+
+        // Attach weather/AQI for business profiles (based on business location)
+        try {
+            const businessProfileRef: any = (user[0] as any)?.businessProfileRef;
+            const lat = Number(businessProfileRef?.address?.lat ?? 0);
+            const lng = Number(businessProfileRef?.address?.lng ?? 0);
+            if (accountType === AccountType.BUSINESS && businessProfileRef && lat !== 0 && lng !== 0) {
+                const env = await EnvironmentService.getForLocation({
+                    cacheKey: `bp:${String(businessProfileRef?._id ?? (user[0] as any)?.businessProfileID ?? id)}`,
+                    lat,
+                    lng
+                });
+                (user[0] as any).businessProfileRef = Object.assign({}, businessProfileRef, {
+                    weatherReport: env.weatherReport,
+                    environment: env.summary
+                });
+            }
+        } catch {
+            // non-fatal
+        }
+
         let responseData = { posts: posts, follower: follower, following: following, profileCompleted, address: userAddress };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
@@ -166,6 +188,27 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
+
+        // Attach weather/AQI for business profiles (based on business location)
+        try {
+            const businessProfileRef: any = (user[0] as any)?.businessProfileRef;
+            const lat = Number(businessProfileRef?.address?.lat ?? 0);
+            const lng = Number(businessProfileRef?.address?.lng ?? 0);
+            if ((user[0] as any)?.accountType === AccountType.BUSINESS && businessProfileRef && lat !== 0 && lng !== 0) {
+                const env = await EnvironmentService.getForLocation({
+                    cacheKey: `bp:${String(businessProfileRef?._id ?? (user[0] as any)?.businessProfileID ?? userID)}`,
+                    lat,
+                    lng
+                });
+                (user[0] as any).businessProfileRef = Object.assign({}, businessProfileRef, {
+                    weatherReport: env.weatherReport,
+                    environment: env.summary
+                });
+            }
+        } catch {
+            // non-fatal
+        }
+
         let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });

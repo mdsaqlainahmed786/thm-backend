@@ -43,6 +43,9 @@ function isValidLatLng(lat, lng) {
         return false;
     if (lng < -180 || lng > 180)
         return false;
+    // In this app, (0,0) almost always means "not set"
+    if (lat === 0 && lng === 0)
+        return false;
     return true;
 }
 class EnvironmentService {
