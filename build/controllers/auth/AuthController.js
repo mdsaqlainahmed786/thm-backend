@@ -213,9 +213,12 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const [username, user, isPhoneNumberExist] = yield Promise.all([
                     generateUsername(email, user_model_2.AccountType.INDIVIDUAL),
                     user_model_2.default.findOne({ email: email }),
-                    phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+                    phoneNumber ? Promise.all([
+                        user_model_2.default.findOne({ phoneNumber: phoneNumber }),
+                        businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }),
+                    ]) : null,
                 ]);
-                if (phoneNumber && isPhoneNumberExist) {
+                if (phoneNumber && isPhoneNumberExist && (isPhoneNumberExist[0] || isPhoneNumberExist[1])) {
                     return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
                 }
                 if (!user) {
@@ -334,9 +337,12 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const [username, user, isPhoneNumberExist] = yield Promise.all([
                     generateUsername(email, user_model_2.AccountType.INDIVIDUAL),
                     user_model_2.default.findOne({ email: email }),
-                    phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+                    phoneNumber ? Promise.all([
+                        user_model_2.default.findOne({ phoneNumber: phoneNumber }),
+                        businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }),
+                    ]) : null,
                 ]);
-                if (phoneNumber && isPhoneNumberExist) {
+                if (phoneNumber && isPhoneNumberExist && (isPhoneNumberExist[0] || isPhoneNumberExist[1])) {
                     return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
                 }
                 if (!user) {
@@ -461,15 +467,16 @@ const signUp = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
     var _e;
     try {
         const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession, language } = request.body;
-        const [username, isUserExist, isPhoneNumberExist] = yield Promise.all([
+        const [username, isUserExist, isPhoneNumberExistUser, isPhoneNumberExistBusinessProfile] = yield Promise.all([
             generateUsername(email, accountType),
             user_model_2.default.findOne({ email: email }),
             phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+            phoneNumber ? businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }) : null,
         ]);
         if (isUserExist) {
             return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.EMAIL_IN_USE), error_1.ErrorMessage.EMAIL_IN_USE));
         }
-        if (isPhoneNumberExist) {
+        if (isPhoneNumberExistUser || isPhoneNumberExistBusinessProfile) {
             return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
         }
         let geoCoordinate = { type: "Point", coordinates: [78.9629, 20.5937] };
@@ -477,6 +484,14 @@ const signUp = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
             geoCoordinate = { type: "Point", coordinates: [lng, lat] };
         }
         if (accountType === user_model_2.AccountType.BUSINESS) {
+            // Enforce unique business phone number across BOTH Users and BusinessProfiles
+            const [isBusinessPhoneInUser, isBusinessPhoneInBusinessProfile] = yield Promise.all([
+                businessPhoneNumber ? user_model_2.default.findOne({ phoneNumber: businessPhoneNumber }) : null,
+                businessPhoneNumber ? businessProfile_model_1.default.findOne({ phoneNumber: businessPhoneNumber }) : null,
+            ]);
+            if (isBusinessPhoneInUser || isBusinessPhoneInBusinessProfile) {
+                return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
+            }
             const isBusinessTypeExist = yield businessType_model_1.default.findOne({ _id: businessType });
             if (!isBusinessTypeExist) {
                 return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Business type not found"), "Business type not found"));

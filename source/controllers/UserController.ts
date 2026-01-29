@@ -45,6 +45,22 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
 
             if (businessProfileRef) {
+                // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+                // (excluding the current user/business profile)
+                if (phoneNumber && phoneNumber !== "" && phoneNumber !== businessProfileRef.phoneNumber) {
+                    const [existingUser, existingBusinessProfile] = await Promise.all([
+                        User.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                        BusinessProfile.findOne({ phoneNumber: phoneNumber, _id: { $ne: businessProfileRef._id } }),
+                    ]);
+                    if (existingUser || existingBusinessProfile) {
+                        return response.send(
+                            httpBadRequest(
+                                ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE),
+                                ErrorMessage.PHONE_NUMBER_IN_USE
+                            )
+                        );
+                    }
+                }
                 businessProfileRef.bio = bio ?? businessProfileRef.bio;
                 businessProfileRef.website = website ?? businessProfileRef.website;
                 businessProfileRef.phoneNumber = phoneNumber ?? businessProfileRef.phoneNumber;
@@ -87,6 +103,23 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.profession = profession ?? user.profession;
             user.name = name ?? user.name;
             user.dialCode = dialCode ?? user.dialCode;
+
+            // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+            // (excluding the current user/business profile)
+            if (phoneNumber && phoneNumber !== "" && phoneNumber !== user.phoneNumber) {
+                const [existingUser, existingBusinessProfile] = await Promise.all([
+                    User.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                    BusinessProfile.findOne({ phoneNumber: phoneNumber }),
+                ]);
+                if (existingUser || existingBusinessProfile) {
+                    return response.send(
+                        httpBadRequest(
+                            ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE),
+                            ErrorMessage.PHONE_NUMBER_IN_USE
+                        )
+                    );
+                }
+            }
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
             user.language = language ?? user.language;

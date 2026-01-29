@@ -78,6 +78,17 @@ const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 
             user.language = language !== null && language !== void 0 ? language : user.language;
             const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
             if (businessProfileRef) {
+                // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+                // (excluding the current user/business profile)
+                if (phoneNumber && phoneNumber !== "" && phoneNumber !== businessProfileRef.phoneNumber) {
+                    const [existingUser, existingBusinessProfile] = yield Promise.all([
+                        user_model_2.default.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                        businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber, _id: { $ne: businessProfileRef._id } }),
+                    ]);
+                    if (existingUser || existingBusinessProfile) {
+                        return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
+                    }
+                }
                 businessProfileRef.bio = bio !== null && bio !== void 0 ? bio : businessProfileRef.bio;
                 businessProfileRef.website = website !== null && website !== void 0 ? website : businessProfileRef.website;
                 businessProfileRef.phoneNumber = phoneNumber !== null && phoneNumber !== void 0 ? phoneNumber : businessProfileRef.phoneNumber;
@@ -118,6 +129,17 @@ const editProfile = (request, response, next) => __awaiter(void 0, void 0, void 
             user.profession = profession !== null && profession !== void 0 ? profession : user.profession;
             user.name = name !== null && name !== void 0 ? name : user.name;
             user.dialCode = dialCode !== null && dialCode !== void 0 ? dialCode : user.dialCode;
+            // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+            // (excluding the current user/business profile)
+            if (phoneNumber && phoneNumber !== "" && phoneNumber !== user.phoneNumber) {
+                const [existingUser, existingBusinessProfile] = yield Promise.all([
+                    user_model_2.default.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                    businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }),
+                ]);
+                if (existingUser || existingBusinessProfile) {
+                    return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
+                }
+            }
             user.phoneNumber = phoneNumber !== null && phoneNumber !== void 0 ? phoneNumber : user.phoneNumber;
             user.bio = bio !== null && bio !== void 0 ? bio : user.bio;
             user.language = language !== null && language !== void 0 ? language : user.language;
