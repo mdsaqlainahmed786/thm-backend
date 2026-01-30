@@ -47,15 +47,6 @@ AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY = 'AdminSessionToken';
 AppConfig.DEVICE_ID_COOKIE_KEY = "UserDeviceID";
 AppConfig.USER_AUTH_TOKEN_KEY = 'X-Access-Token';
 AppConfig.ADMIN_AUTH_TOKEN_KEY = 'X-Admin-Access-Token';
-/**
- * Hosts allowed to perform admin authentication flows.
- * Comma-separated list, e.g:
- * ADMIN_ALLOWED_HOSTS=admin.thehotelmedia.com,www.admin.thehotelmedia.com,localhost,127.0.0.1
- */
-AppConfig.ADMIN_ALLOWED_HOSTS = (process.env.ADMIN_ALLOWED_HOSTS || "admin.thehotelmedia.com,www.admin.thehotelmedia.com,localhost,127.0.0.1")
-    .split(",")
-    .map((h) => h.trim().toLowerCase())
-    .filter(Boolean);
 //Aws S3 Configurations
 AppConfig.AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 AppConfig.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
@@ -151,19 +142,7 @@ SocketChannel.IN_PRIVATE_CHAT = "in private chat";
 SocketChannel.LEAVE_PRIVATE_CHAT = "leave private chat";
 SocketChannel.EDIT_MESSAGE = "edit message";
 SocketChannel.DELETE_MESSAGE = "delete message";
-/**
- * Default cookie flags used across auth flows.
- *
- * Notes:
- * - Modern browsers require `Secure` when `SameSite=None`.
- * - In local dev over http, we fall back to `SameSite=Lax` and `Secure=false`.
- */
-exports.CookiePolicy = {
-    httpOnly: true,
-    path: "/",
-    sameSite: (process.env.APP_ENV === "production" ? "none" : "lax"),
-    secure: process.env.APP_ENV === "production",
-};
+exports.CookiePolicy = { httpOnly: true, sameSite: "none" };
 class AwsS3AccessEndpoints {
     static getEndpoint(path) {
         const environment = process.env.APP_ENV;

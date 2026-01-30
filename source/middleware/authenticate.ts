@@ -25,8 +25,8 @@ export default async function authenticateUser(request: Request, response: Respo
     if (isAdminRoute) {
         token = adminToken as string;
     } else {
-        // On non-admin routes, require the user token (avoid accidental admin-token auth on hotels/app routes)
-        token = userToken as string;
+        // On non-admin routes, prioritize user token, but allow admin token as fallback
+        token = (userToken || adminToken) as string;
     }
     if (!token) {
         return response.status(401).send(httpUnauthorized(ErrorMessage.unAuthenticatedRequest(ErrorMessage.TOKEN_REQUIRED), ErrorMessage.TOKEN_REQUIRED));

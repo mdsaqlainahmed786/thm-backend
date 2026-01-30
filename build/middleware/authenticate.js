@@ -60,8 +60,8 @@ function authenticateUser(request, response, next) {
             token = adminToken;
         }
         else {
-            // On non-admin routes, require the user token (avoid accidental admin-token auth on hotels/app routes)
-            token = userToken;
+            // On non-admin routes, prioritize user token, but allow admin token as fallback
+            token = (userToken || adminToken);
         }
         if (!token) {
             return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.unAuthenticatedRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
