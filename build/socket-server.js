@@ -132,18 +132,18 @@ function createSocketServer(httpServer) {
             // Try to get token from cookies (using cookie key names)
             let token;
             if (cookies) {
-                // Try user session token cookie
-                const userCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                // Prefer access-token cookies for socket auth (refresh-token cookies use a different secret)
+                const userCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.USER_AUTH_TOKEN_KEY}=([^;]*)`));
                 if (userCookieMatch && userCookieMatch[1]) {
                     token = decodeURIComponent(userCookieMatch[1]);
-                    console.log("Found user token in cookie");
+                    console.log("Found user access token in cookie");
                 }
                 else {
-                    // Try admin session token cookie
-                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                    // Try admin access token cookie
+                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${constants_2.AppConfig.ADMIN_AUTH_TOKEN_KEY}=([^;]*)`));
                     if (adminCookieMatch && adminCookieMatch[1]) {
                         token = decodeURIComponent(adminCookieMatch[1]);
-                        console.log("Found admin token in cookie");
+                        console.log("Found admin access token in cookie");
                     }
                 }
             }

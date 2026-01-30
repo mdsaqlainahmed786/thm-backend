@@ -29,6 +29,19 @@ export abstract class AppConfig {
     static readonly USER_AUTH_TOKEN_KEY = 'X-Access-Token';
     static readonly ADMIN_AUTH_TOKEN_KEY = 'X-Admin-Access-Token';
 
+    /**
+     * Hosts allowed to perform admin authentication flows.
+     * This prevents accidentally hitting admin auth endpoints from hotels/app subdomains
+     * and getting "unexpected" admin cookies/tokens.
+     *
+     * Comma-separated list, e.g:
+     * ADMIN_ALLOWED_HOSTS=admin.thehotelmedia.com,www.admin.thehotelmedia.com,localhost,127.0.0.1
+     */
+    static readonly ADMIN_ALLOWED_HOSTS: string[] = (process.env.ADMIN_ALLOWED_HOSTS ?? "admin.thehotelmedia.com,www.admin.thehotelmedia.com,localhost,127.0.0.1")
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean);
+
     //Aws S3 Configurations
     static readonly AWS_BUCKET_NAME: string = process.env.AWS_BUCKET_NAME!;
     static readonly AWS_ACCESS_KEY_ID: string = process.env.AWS_ACCESS_KEY_ID!;
@@ -136,7 +149,19 @@ export abstract class SocketChannel {
 
 
 
-export const CookiePolicy: CookieOptions = { httpOnly: true, sameSite: "none" };
+/**
+ * Default cookie flags used across auth flows.
+ *
+ * Notes:
+ * - Modern browsers require `Secure` when `SameSite=None`.
+ * - In local dev over http, we fall back to `SameSite=Lax` and `Secure=false`.
+ */
+export const CookiePolicy: CookieOptions = {
+    httpOnly: true,
+    path: "/",
+    sameSite: (process.env.APP_ENV === "production" ? "none" : "lax"),
+    secure: process.env.APP_ENV === "production",
+};
 
 export abstract class AwsS3AccessEndpoints {
     static readonly USERS: string = AwsS3AccessEndpoints.getEndpoint("users/");

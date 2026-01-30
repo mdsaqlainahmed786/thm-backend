@@ -41,6 +41,17 @@ const login = async (request: Request, response: Response, next: NextFunction) =
     try {
         const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
         const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+
+        // Guardrail: don't allow admin auth endpoints to be called from non-admin hosts.
+        // This avoids "unexpected" admin cookies showing up on hotels.* after login.
+        if (isAdminRoute) {
+            const host = (request.hostname || "").toLowerCase();
+            if (host && !AppConfig.ADMIN_ALLOWED_HOSTS.includes(host)) {
+                return response
+                    .status(403)
+                    .send(httpForbidden(null, "Admin authentication is not allowed from this host."));
+            }
+        }
         
         // If admin route, select adminPassword field as well
         const userQuery = User.findOne({ email: email });
@@ -152,6 +163,17 @@ const login = async (request: Request, response: Response, next: NextFunction) =
         const accessToken = await generateAccessToken(authenticateUser);
         const refreshToken = await generateRefreshToken(authenticateUser, deviceID);
         const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+
+        // Clear the "other side" cookies to prevent stale cross-app tokens.
+        // Example: logging into hotels should not leave old admin cookies around, and vice versa.
+        if (accessTokenKey === AppConfig.ADMIN_AUTH_TOKEN_KEY) {
+            response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+            response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        } else {
+            response.clearCookie(AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+            response.clearCookie(AppConfig.ADMIN_AUTH_TOKEN_KEY, CookiePolicy);
+        }
+
         response.cookie(refreshTokenCookieKey, refreshToken, CookiePolicy);
         response.cookie(accessTokenKey, accessToken, CookiePolicy);
         return response.send(httpOk({ ...user.hideSensitiveData(), businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }, SuccessMessage.LOGIN_SUCCESS));
