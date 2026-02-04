@@ -435,4 +435,59 @@ const demoteAdmin = async (request: Request, response: Response, next: NextFunct
     }
 }
 
-export default { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin };
+/**
+ * Admin-only: Fetch the Nth signed-up user (i.e., the Nth created account in the users collection).
+ * Route: GET /v1/admin/users/nth-signup/:n
+ * Query:
+ *  - includeAdmins=true|false (default false): whether admin accounts should be considered in the ranking.
+ */
+const nthSignupUser = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const n = Number(request.params.n);
+        const includeAdmins = String(request.query.includeAdmins ?? "false") === "true";
+
+        if (!Number.isInteger(n) || n < 1) {
+            return response.send(httpBadRequest(null, "n must be a positive integer"));
+        }
+
+        const matchQuery: any = { isDeleted: false };
+        if (!includeAdmins) {
+            matchQuery.role = { $ne: Role.ADMINISTRATOR };
+        }
+
+        const pipeline: any[] = [
+            { $match: matchQuery },
+            // stable ordering: createdAt asc, then _id asc
+            { $sort: { createdAt: 1, _id: 1 } },
+            { $skip: n - 1 },
+            { $limit: 1 },
+            {
+                $project: {
+                    password: 0,
+                    otp: 0,
+                    adminPassword: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            }
+        ];
+
+        const documents = await User.aggregate(pipeline);
+        const user = documents?.[0] ?? null;
+
+        if (!user) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest("Milestone not reached yet"),
+                    "Milestone not reached yet"
+                )
+            );
+        }
+
+        return response.send(httpOk({ n, user }, `Fetched ${n}th signup user.`));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
+export default { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin, nthSignupUser };

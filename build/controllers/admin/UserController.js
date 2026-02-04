@@ -397,4 +397,49 @@ const demoteAdmin = (request, response, next) => __awaiter(void 0, void 0, void 
         next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-exports.default = { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin };
+/**
+ * Admin-only: Fetch the Nth signed-up user (i.e., the Nth created account in the users collection).
+ * Route: GET /v1/admin/users/nth-signup/:n
+ * Query:
+ *  - includeAdmins=true|false (default false): whether admin accounts should be considered in the ranking.
+ */
+const nthSignupUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _j, _k, _l;
+    try {
+        const n = Number(request.params.n);
+        const includeAdmins = String((_j = request.query.includeAdmins) !== null && _j !== void 0 ? _j : "false") === "true";
+        if (!Number.isInteger(n) || n < 1) {
+            return response.send((0, response_1.httpBadRequest)(null, "n must be a positive integer"));
+        }
+        const matchQuery = { isDeleted: false };
+        if (!includeAdmins) {
+            matchQuery.role = { $ne: common_1.Role.ADMINISTRATOR };
+        }
+        const pipeline = [
+            { $match: matchQuery },
+            // stable ordering: createdAt asc, then _id asc
+            { $sort: { createdAt: 1, _id: 1 } },
+            { $skip: n - 1 },
+            { $limit: 1 },
+            {
+                $project: {
+                    password: 0,
+                    otp: 0,
+                    adminPassword: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            }
+        ];
+        const documents = yield user_model_1.default.aggregate(pipeline);
+        const user = (_k = documents === null || documents === void 0 ? void 0 : documents[0]) !== null && _k !== void 0 ? _k : null;
+        if (!user) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Milestone not reached yet"), "Milestone not reached yet"));
+        }
+        return response.send((0, response_1.httpOk)({ n, user }, `Fetched ${n}th signup user.`));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+exports.default = { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin, nthSignupUser };

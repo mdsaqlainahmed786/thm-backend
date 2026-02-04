@@ -4,12 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const express_validator_1 = require("express-validator");
 const UserController_1 = __importDefault(require("../../../controllers/admin/UserController"));
 const api_validation_1 = require("../../../validation/rules/api-validation");
 const api_request_validator_1 = require("../../../middleware/api-request-validator");
 const authenticate_1 = require("../../../middleware/authenticate");
 const UserEndpoints = express_1.default.Router();
 UserEndpoints.get('/', UserController_1.default.index);
+// Admin-only: fetch Nth signed-up user (by createdAt asc)
+// NOTE: must be registered before '/:id' to avoid route conflicts
+UserEndpoints.get('/nth-signup/:n', [(0, express_validator_1.param)('n').isInt({ min: 1 }).withMessage('n must be a positive integer')], api_request_validator_1.validateRequest, UserController_1.default.nthSignupUser);
 // Root-admin-only: fetch ALL administrators
 UserEndpoints.get('/fetch-users', authenticate_1.isTheHotelMediaRootAdmin, UserController_1.default.fetchAllUsers);
 UserEndpoints.get('/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, UserController_1.default.show);
