@@ -15,6 +15,7 @@ import View, { addUserInView } from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import Notification, { NotificationType } from '../database/models/notification.model';
+import AppNotificationController from './AppNotificationController';
 const s3Service = new S3Service();
 //FIXME Remove likes and view views
 const index = async (request: Request, response: Response, next: NextFunction) => {
@@ -291,6 +292,18 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         }
 
         const savedStory = await newStory.save();
+
+        // spawn notification (non-blocking) when a user is tagged in a story
+        if (savedStory && userTaggedId) {
+            AppNotificationController
+                .store(id, userTaggedId, NotificationType.TAGGED, {
+                    entityType: 'story',
+                    storyID: savedStory._id,
+                    userID: userTaggedId,
+                    userTagged: userTagged ?? "",
+                })
+                .catch((err: any) => console.error('Story tag notification error:', err));
+        }
         return response.send(httpCreated(savedStory.toObject(), 'Your story has been created successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -363,7 +376,95 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk(null, "Not implemented"));
+        const { id, accountType } = request.user;
+        const storyID = request.params.id;
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+
+        // fetch story with same enrichments as the feed (media + tagged users + likes/views refs)
+        const [storyAgg] = await Story.aggregate([
+            {
+                $match: {
+                    _id: new ObjectId(storyID),
+                    timeStamp: { $gte: storyTimeStamp }
+                }
+            },
+            addMediaInStory().lookup,
+            addMediaInStory().unwindLookup,
+            addMediaInStory().replaceRootAndMergeObjects,
+            addMediaInStory().project,
+            addTaggedUsersInStory().addFieldsBeforeUnwind,
+            addTaggedUsersInStory().unwind,
+            addTaggedUsersInStory().lookup,
+            addTaggedUsersInStory().addFields,
+            addTaggedUsersInStory().group,
+            addTaggedUsersInStory().replaceRoot,
+            {
+                '$lookup': {
+                    'from': 'likes',
+                    'let': { 'storyID': '$_id' },
+                    'pipeline': [
+                        { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                        addUserInLike().lookup,
+                        addUserInLike().unwindLookup,
+                        addUserInLike().replaceRoot,
+                    ],
+                    'as': 'likesRef'
+                }
+            },
+            {
+                $addFields: {
+                    likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    likesRef: { $slice: ["$likesRef", 4] },
+                }
+            },
+            {
+                $lookup: {
+                    from: 'views',
+                    let: { storyID: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                        addUserInView().lookup,
+                        addUserInView().unwindLookup,
+                        addUserInView().replaceRoot,
+                    ],
+                    as: 'viewsRef'
+                }
+            },
+            {
+                $addFields: {
+                    views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    viewsRef: { $slice: ["$viewsRef", 4] },
+                }
+            },
+        ]).exec();
+
+        // if story is expired (older than 24h) or TTL-deleted, return the requested message
+        if (!storyAgg) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story no longer available"), "Story no longer available"));
+        }
+
+        const [isLiked, isViewed] = await Promise.all([
+            Like.findOne({ storyID: storyAgg._id, userID: id }),
+            View.findOne({ storyID: storyAgg._id, userID: id, createdAt: { $gte: storyTimeStamp } }),
+        ]);
+
+        const story = {
+            ...storyAgg,
+            likedByMe: !!isLiked,
+            seenByMe: !!isViewed,
+        };
+
+        return response.send(httpOk(story, "Story fetched."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -486,4 +587,4 @@ const storyViews = async (request: Request, response: Response, next: NextFuncti
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index, store, update, destroy, storeViews, storyLikes, storyViews };
+export default { index, store, update, destroy, show, storeViews, storyLikes, storyViews };

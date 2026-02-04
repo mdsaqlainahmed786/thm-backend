@@ -61,36 +61,18 @@ function verifyDeviceConfig(fcmToken) {
 exports.verifyDeviceConfig = verifyDeviceConfig;
 const createMessagePayload = (token, title, description, data) => {
     var _a;
-    const { notificationID, devicePlatform, type, image, profileImage, route } = data;
+    const { notificationID, devicePlatform, type, image, profileImage, route, extraData } = data;
     // Use route if provided, otherwise fall back to type for screen
     const screenValue = (_a = route !== null && route !== void 0 ? route : type) !== null && _a !== void 0 ? _a : "";
     const message = {
         token: token,
-        data: {
-            title: title,
-            body: description,
-            notificationID: notificationID,
-            screen: screenValue,
-            type: type !== null && type !== void 0 ? type : "", // Keep type for notification identification
-            route: route !== null && route !== void 0 ? route : "", // Explicit route field for navigation
-            image: image !== null && image !== void 0 ? image : "",
-            profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : ""
-        },
+        data: Object.assign({ title: title, body: description, notificationID: notificationID, screen: screenValue, type: type !== null && type !== void 0 ? type : "", route: route !== null && route !== void 0 ? route : "", image: image !== null && image !== void 0 ? image : "", profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : "" }, (extraData !== null && extraData !== void 0 ? extraData : {})),
     };
     if (devicePlatform && devicePlatform === common_validation_1.DevicePlatform.ANDROID) {
         Object.assign(message, {
             android: {
                 priority: 'high',
-                data: {
-                    title: title,
-                    body: description,
-                    notificationID: notificationID,
-                    screen: screenValue,
-                    type: type !== null && type !== void 0 ? type : "",
-                    route: route !== null && route !== void 0 ? route : "",
-                    image: image !== null && image !== void 0 ? image : "",
-                    profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : ""
-                },
+                data: Object.assign({ title: title, body: description, notificationID: notificationID, screen: screenValue, type: type !== null && type !== void 0 ? type : "", route: route !== null && route !== void 0 ? route : "", image: image !== null && image !== void 0 ? image : "", profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : "" }, (extraData !== null && extraData !== void 0 ? extraData : {})),
             },
         });
     }
@@ -101,8 +83,7 @@ const createMessagePayload = (token, title, description, data) => {
                 body: description
             },
             apns: {
-                payload: {
-                    aps: {
+                payload: Object.assign({ aps: {
                         "alert": {
                             "title": title,
                             "body": description
@@ -110,15 +91,9 @@ const createMessagePayload = (token, title, description, data) => {
                         "sound": "default",
                         "mutable-content": 1,
                         // "content-available": 1,
-                    },
+                    }, 
                     // Custom data for iOS to handle navigation
-                    notificationID: notificationID,
-                    screen: screenValue,
-                    type: type !== null && type !== void 0 ? type : "",
-                    route: route !== null && route !== void 0 ? route : "",
-                    image: image !== null && image !== void 0 ? image : "",
-                    profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : ""
-                }
+                    notificationID: notificationID, screen: screenValue, type: type !== null && type !== void 0 ? type : "", route: route !== null && route !== void 0 ? route : "", image: image !== null && image !== void 0 ? image : "", profileImage: profileImage !== null && profileImage !== void 0 ? profileImage : "" }, (extraData !== null && extraData !== void 0 ? extraData : {}))
             }
         });
     }

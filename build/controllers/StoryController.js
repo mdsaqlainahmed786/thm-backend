@@ -50,6 +50,7 @@ const view_model_1 = __importStar(require("../database/models/view.model."));
 const S3Service_1 = __importDefault(require("../services/S3Service"));
 const constants_1 = require("../config/constants");
 const notification_model_1 = __importStar(require("../database/models/notification.model"));
+const AppNotificationController_1 = __importDefault(require("./AppNotificationController"));
 const s3Service = new S3Service_1.default();
 //FIXME Remove likes and view views
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -306,6 +307,17 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             }
         }
         const savedStory = yield newStory.save();
+        // spawn notification (non-blocking) when a user is tagged in a story
+        if (savedStory && userTaggedId) {
+            AppNotificationController_1.default
+                .store(id, userTaggedId, notification_model_1.NotificationType.TAGGED, {
+                entityType: 'story',
+                storyID: savedStory._id,
+                userID: userTaggedId,
+                userTagged: userTagged !== null && userTagged !== void 0 ? userTagged : "",
+            })
+                .catch((err) => console.error('Story tag notification error:', err));
+        }
         return response.send((0, response_1.httpCreated)(savedStory.toObject(), 'Your story has been created successfully'));
     }
     catch (error) {
@@ -376,7 +388,86 @@ const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, f
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _e;
     try {
-        // return response.send(httpOk(null, "Not implemented"));
+        const { id, accountType } = request.user;
+        const storyID = request.params.id;
+        if (!accountType && !id) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        // fetch story with same enrichments as the feed (media + tagged users + likes/views refs)
+        const [storyAgg] = yield story_model_1.default.aggregate([
+            {
+                $match: {
+                    _id: new mongodb_1.ObjectId(storyID),
+                    timeStamp: { $gte: story_model_1.storyTimeStamp }
+                }
+            },
+            (0, story_model_1.addMediaInStory)().lookup,
+            (0, story_model_1.addMediaInStory)().unwindLookup,
+            (0, story_model_1.addMediaInStory)().replaceRootAndMergeObjects,
+            (0, story_model_1.addMediaInStory)().project,
+            (0, story_model_1.addTaggedUsersInStory)().addFieldsBeforeUnwind,
+            (0, story_model_1.addTaggedUsersInStory)().unwind,
+            (0, story_model_1.addTaggedUsersInStory)().lookup,
+            (0, story_model_1.addTaggedUsersInStory)().addFields,
+            (0, story_model_1.addTaggedUsersInStory)().group,
+            (0, story_model_1.addTaggedUsersInStory)().replaceRoot,
+            {
+                '$lookup': {
+                    'from': 'likes',
+                    'let': { 'storyID': '$_id' },
+                    'pipeline': [
+                        { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                        (0, like_model_1.addUserInLike)().lookup,
+                        (0, like_model_1.addUserInLike)().unwindLookup,
+                        (0, like_model_1.addUserInLike)().replaceRoot,
+                    ],
+                    'as': 'likesRef'
+                }
+            },
+            {
+                $addFields: {
+                    likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    likesRef: { $slice: ["$likesRef", 4] },
+                }
+            },
+            {
+                $lookup: {
+                    from: 'views',
+                    let: { storyID: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                        (0, view_model_1.addUserInView)().lookup,
+                        (0, view_model_1.addUserInView)().unwindLookup,
+                        (0, view_model_1.addUserInView)().replaceRoot,
+                    ],
+                    as: 'viewsRef'
+                }
+            },
+            {
+                $addFields: {
+                    views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    viewsRef: { $slice: ["$viewsRef", 4] },
+                }
+            },
+        ]).exec();
+        // if story is expired (older than 24h) or TTL-deleted, return the requested message
+        if (!storyAgg) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Story no longer available"), "Story no longer available"));
+        }
+        const [isLiked, isViewed] = yield Promise.all([
+            like_model_1.default.findOne({ storyID: storyAgg._id, userID: id }),
+            view_model_1.default.findOne({ storyID: storyAgg._id, userID: id, createdAt: { $gte: story_model_1.storyTimeStamp } }),
+        ]);
+        const story = Object.assign(Object.assign({}, storyAgg), { likedByMe: !!isLiked, seenByMe: !!isViewed });
+        return response.send((0, response_1.httpOk)(story, "Story fetched."));
     }
     catch (error) {
         next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -497,4 +588,4 @@ const storyViews = (request, response, next) => __awaiter(void 0, void 0, void 0
         next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-exports.default = { index, store, update, destroy, storeViews, storyLikes, storyViews };
+exports.default = { index, store, update, destroy, show, storeViews, storyLikes, storyViews };

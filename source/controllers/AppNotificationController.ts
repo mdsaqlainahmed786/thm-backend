@@ -201,7 +201,11 @@ const store = async (
         description = `${name} replied to your comment: '${truncate(metadata?.message)}'.`;
         break;
       case NotificationType.TAGGED:
-        description = `${name} tagged you in a post.`;
+        if (metadata?.entityType === 'story' || metadata?.storyID) {
+          description = `${name} tagged you in a story.`;
+        } else {
+          description = `${name} tagged you in a post.`;
+        }
         break;
       case NotificationType.EVENT_JOIN:
         const eventName = metadata.name ?? "";
@@ -248,6 +252,18 @@ const store = async (
     try {
       if (userID.toString() !== targetUserID.toString()) {
         console.log("📡 Sending push notification...");
+        // Optional navigation hints for clients
+        const route =
+          type === NotificationType.TAGGED && (metadata?.entityType === 'story' || metadata?.storyID)
+            ? 'story_detail'
+            : undefined;
+        const extraData =
+          type === NotificationType.TAGGED && (metadata?.entityType === 'story' || metadata?.storyID)
+            ? {
+                entityType: 'story',
+                storyID: String(metadata?.storyID ?? ''),
+              }
+            : undefined;
         await Promise.all(
           devicesConfigs.map(async (devicesConfig) => {
             if (devicesConfig?.notificationToken) {
@@ -261,6 +277,8 @@ const store = async (
                   notificationID,
                   devicePlatform,
                   type,
+                  route,
+                  extraData,
                   image,
                   profileImage,
                 }
