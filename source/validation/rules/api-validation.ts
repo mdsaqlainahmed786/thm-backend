@@ -447,3 +447,8 @@ export const createJobApiValidator = [
     numberOfVacanciesValidationRule,
     experienceValidationRule,
 ];
+
+export const addAdminApiValidator = [
+    usernameValidationRule,
+    body("adminPassword", "Admin password is optional.").optional().notEmpty().withMessage("Admin password cannot be empty if provided."),
+];

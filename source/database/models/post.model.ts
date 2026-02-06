@@ -1,4 +1,5 @@
 import { Schema, Document, model, Types, PipelineStage } from "mongoose";
+import { ObjectId } from "mongodb";
 import { addLikesInPost } from "./like.model";
 import { addCommentsInPost, addSharedCountInPost } from "./comment.model";
 import { MongoID } from "../../common";
@@ -210,11 +211,13 @@ export function addPostedByInPost() {
                         "name": 1,
                         "profilePic": 1,
                         "accountType": 1,
+                        "privateAccount": 1,
                         "businessProfileID": 1,
                         "businessProfileRef._id": 1,
                         "businessProfileRef.name": 1,
                         "businessProfileRef.profilePic": 1,
                         "businessProfileRef.rating": 1,
+                        "businessProfileRef.privateAccount": 1,
                         "businessProfileRef.businessTypeRef": 1,
                         "businessProfileRef.businessSubtypeRef": 1,
                         "businessProfileRef.address": 1,
@@ -276,18 +279,22 @@ export function addMediaInPost() {
             'from': 'media',
             'let': { 'mediaIDs': '$media' },
             'pipeline': [
-                { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
+                {
+                    '$match': {
+                        '$expr': {
+                            '$in': ['$_id', { '$ifNull': ['$$mediaIDs', []] }]
+                        }
+                    }
+                },
                 {
                     '$project': {
-                        "userID": 0,
-                        "fileName": 0,
-                        "width": 0,
-                        "height": 0,
-                        "fileSize": 0,
-                        "s3Key": 0,
-                        "createdAt": 0,
-                        "updatedAt": 0,
-                        "__v": 0
+                        "_id": 1,
+                        "mediaType": 1,
+                        "mimeType": 1,
+                        "sourceUrl": 1,
+                        "thumbnailUrl": 1,
+                        "duration": { '$ifNull': ["$duration", 0] },
+                        "videoUrl": 1
                     }
                 }
             ],
@@ -298,7 +305,13 @@ export function addMediaInPost() {
     {
         $addFields: {
             mediaRef: {
-                $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                $cond: {
+                    if: { $isArray: "$mediaRef" },
+                    then: {
+                        $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                    },
+                    else: []
+                }
             },
         }
     };
@@ -516,105 +529,215 @@ function locationBased(lat: number, lng: number): { sort: PipelineStage } {
         return { sort }
     }
 }
-export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined) {
+export function fetchPosts(match: { [key: string]: any; }, likedByMe: MongoID[], savedByMe: MongoID[], joiningEvents: MongoID[], pageNumber: number, documentLimit: number, lat?: number | string | undefined, lng?: number | string | undefined, skipPrivateAccountFilter?: boolean, followedUserIDs?: MongoID[], currentUserID?: MongoID) {
 
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
 
-    return Post.aggregate(
-        [
-            {
-                $geoNear: {
-                    near: { type: "Point", coordinates: [lng, lat] },
-                    spherical: true,
-                    query: match,
-                    distanceField: "distance"
-                }
-            },
-            {
-                $addFields: {
-                    distance: { $toInt: "$distance" },
-                    sortDate: {
-                        $dateToString: {
-                            format: "%Y-%m-%d",
-                            date: "$createdAt"
-                        }
+    // Convert followedUserIDs to ObjectIds for comparison
+    // Ensure followedUserIDs is an array before mapping
+    const followedUserObjectIds = (followedUserIDs && Array.isArray(followedUserIDs))
+        ? followedUserIDs.map(id => new ObjectId(id))
+        : [];
+
+    // Convert currentUserID to ObjectId for comparison
+    const currentUserObjectId = currentUserID ? new ObjectId(currentUserID) : null;
+
+    // Check if we have valid coordinates for geoNear
+    const hasValidCoordinates = lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng);
+
+    // Build the aggregation pipeline
+    const pipeline: any[] = [];
+
+    // Use $geoNear only when we have valid coordinates, otherwise use $match
+    if (hasValidCoordinates) {
+        pipeline.push({
+            $geoNear: {
+                near: { type: "Point", coordinates: [lng, lat] },
+                spherical: true,
+                query: match,
+                distanceField: "distance"
+            }
+        });
+        pipeline.push({
+            $addFields: {
+                distance: { $toInt: "$distance" },
+                sortDate: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt"
                     }
                 }
-            },
-            locationBased(lat, lng).sort,
-            // {
-            //     $sort: {
-            //         sortDate: -1, distance: 1,
-            //     }
-            // },
-            {
-                $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-            },
-            {
-                $limit: documentLimit
-            },
-            addMediaInPost().lookup,
-            addMediaInPost().sort_media,
-            addTaggedPeopleInPost().lookup,
-            addPostedByInPost().lookup,
-            addPostedByInPost().unwindLookup,
-            addAnonymousUserInPost().lookup,
-            addAnonymousUserInPost().unwindLookup,
-            addLikesInPost().lookup,
-            addLikesInPost().addLikeCount,
-            addCommentsInPost().lookup,
-            addCommentsInPost().addCommentCount,
-            addSharedCountInPost().lookup,
-            addSharedCountInPost().addSharedCount,
-            addReviewedBusinessProfileInPost().lookup,
-            addReviewedBusinessProfileInPost().unwindLookup,
-            addGoogleReviewedBusinessProfileInPost().lookup,
-            addGoogleReviewedBusinessProfileInPost().unwindLookup,
-            addInterestedPeopleInPost().lookup,
-            addInterestedPeopleInPost().addInterestedCount,
-            isLikedByMe(likedByMe),
-            isSavedByMe(savedByMe),
-            imJoining(joiningEvents),
-            {
-                $addFields: {
-                    reviewedBusinessProfileRef: {
-                        $cond: {
-                            if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
-                            then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
-                            else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
-                        }
+            }
+        });
+    } else {
+        // Use $match when coordinates are invalid
+        pipeline.push({
+            $match: match
+        });
+        pipeline.push({
+            $addFields: {
+                sortDate: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt"
+                    }
+                }
+            }
+        });
+    }
+
+    pipeline.push(
+        locationBased(lat, lng).sort,
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit
+        },
+        addMediaInPost().lookup,
+        addMediaInPost().sort_media,
+        addTaggedPeopleInPost().lookup,
+        addPostedByInPost().lookup,
+        addPostedByInPost().unwindLookup,
+    );
+
+    // Conditionally add private account filter
+    if (!skipPrivateAccountFilter) {
+        // Build filter conditions
+        const privateAccountConditions: any[] = [
+            { "postedBy.privateAccount": { $ne: true } },
+            { "postedBy.privateAccount": { $exists: false } }
+        ];
+
+        // Allow posts from private accounts that are being followed
+        if (followedUserObjectIds.length > 0) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
+        // Allow user's own posts even if their account is private
+        if (currentUserObjectId) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
+                ]
+            });
+        }
+
+        const businessPrivateAccountConditions: any[] = [
+            { "postedBy.businessProfileRef": { $exists: false } },
+            { "postedBy.businessProfileRef": null },
+            { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
+            { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
+        ];
+
+        // Allow posts from private business accounts that are being followed
+        // Note: Users follow the account owner (postedBy._id), not the business profile
+        if (followedUserObjectIds.length > 0) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+
+        // Allow user's own business posts even if the business account is private
+        if (currentUserObjectId) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
+                ]
+            });
+        }
+
+        pipeline.push({
+            $match: {
+                $and: [
+                    { "postedBy": { $ne: null } },
+                    {
+                        $or: privateAccountConditions
                     },
-                    postedBy: {
-                        $cond: {
-                            if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
-                            then: "$publicPostedBy", // Replace with publicPostedBy
-                            else: "$postedBy" // Keep the existing value if it exists
-                        }
+                    {
+                        $or: businessPrivateAccountConditions
                     }
-                }
-            },
-            {
-                $unset: [
-                    "geoCoordinate",
-                    "distance",
-                    "sortDate",
-                    "publicPostedBy",
-                    "googleReviewedBusinessRef",
-                    "eventJoinsRef",
-                    "reviews",
-                    "isPublished",
-                    "sharedRef",
-                    "commentsRef",
-                    "likesRef",
-                    "tagged",
-                    "media",
-                    "updatedAt",
-                    "__v"
                 ]
             }
-        ]
-    ).exec();
+        });
+    } else {
+        // When skipping the filter, still ensure postedBy is not null
+        pipeline.push({
+            $match: {
+                "postedBy": { $ne: null }
+            }
+        });
+    }
+
+    pipeline.push(
+        addAnonymousUserInPost().lookup,
+        addAnonymousUserInPost().unwindLookup,
+        addLikesInPost().lookup,
+        addLikesInPost().addLikeCount,
+        addCommentsInPost().lookup,
+        addCommentsInPost().addCommentCount,
+        addSharedCountInPost().lookup,
+        addSharedCountInPost().addSharedCount,
+        addReviewedBusinessProfileInPost().lookup,
+        addReviewedBusinessProfileInPost().unwindLookup,
+        addGoogleReviewedBusinessProfileInPost().lookup,
+        addGoogleReviewedBusinessProfileInPost().unwindLookup,
+        addInterestedPeopleInPost().lookup,
+        addInterestedPeopleInPost().addInterestedCount,
+        isLikedByMe(likedByMe),
+        isSavedByMe(savedByMe),
+        imJoining(joiningEvents),
+        {
+            $addFields: {
+                reviewedBusinessProfileRef: {
+                    $cond: {
+                        if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                        then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                        else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                    }
+                },
+                postedBy: {
+                    $cond: {
+                        if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                        then: "$publicPostedBy", // Replace with publicPostedBy
+                        else: "$postedBy" // Keep the existing value if it exists
+                    }
+                }
+            }
+        },
+        {
+            $unset: [
+                "geoCoordinate",
+                "distance",
+                "sortDate",
+                "publicPostedBy",
+                "googleReviewedBusinessRef",
+                "eventJoinsRef",
+                "reviews",
+                "isPublished",
+                "sharedRef",
+                "commentsRef",
+                "likesRef",
+                "tagged",
+                "media",
+                "updatedAt",
+                "__v"
+            ]
+        }
+    );
+
+    return Post.aggregate(pipeline).exec();
 }
 
 export function countPostDocument(filter: { [key: string]: any; }) {
@@ -622,7 +745,18 @@ export function countPostDocument(filter: { [key: string]: any; }) {
 }
 export const getPostQuery = { isPublished: true, isDeleted: false };
 export async function getPostsCount(userID: MongoID) {
-    return Post.find({ userID: userID, ...getPostQuery }).countDocuments()
+    return Post.find({
+        ...getPostQuery,
+        $and: [
+            { postType: { $in: [PostType.POST, PostType.EVENT] } },
+            {
+                $or: [
+                    { userID: userID }, // user's own posts
+                    { collaborators: userID } // collaborated posts
+                ]
+            }
+        ]
+    }).countDocuments();
 }
 
 export async function getSavedPost(userID: MongoID) {

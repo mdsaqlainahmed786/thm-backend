@@ -38,7 +38,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const response_1 = require("../utils/response");
 const user_model_1 = __importStar(require("../database/models/user.model"));
 const error_1 = require("../utils/response-message/error");
-const subscription_model_1 = __importStar(require("../database/models/subscription.model"));
+const subscription_model_1 = __importDefault(require("../database/models/subscription.model"));
 const subscriptionPlan_model_1 = __importStar(require("../database/models/subscriptionPlan.model"));
 const businessType_model_1 = __importDefault(require("../database/models/businessType.model"));
 const businessSubType_model_1 = __importDefault(require("../database/models/businessSubType.model"));
@@ -131,7 +131,8 @@ const buySubscription = (request, response, next) => __awaiter(void 0, void 0, v
                     newSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                     break;
                 case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                    newSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    newSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                     break;
                 default:
                     newSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -160,7 +161,8 @@ const buySubscription = (request, response, next) => __awaiter(void 0, void 0, v
                 hasSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                 break;
             case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                hasSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                // Treat quarterly coupon as a 12-month free period
+                hasSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                 break;
             default:
                 hasSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -276,7 +278,8 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
                         newSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                         break;
                     case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                        newSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                        // Treat quarterly coupon as a 12-month free period
+                        newSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                         break;
                     default:
                         newSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -306,7 +309,8 @@ const verifyGooglePurchase = (request, response, next) => __awaiter(void 0, void
                     hasSubscription.expirationDate = new Date((0, moment_1.default)().add(182, 'days').toString());
                     break;
                 case subscriptionPlan_model_1.SubscriptionDuration.QUARTERLY:
-                    hasSubscription.expirationDate = new Date((0, moment_1.default)().add(91, 'days').toString());
+                    // Treat quarterly coupon as a 12-month free period
+                    hasSubscription.expirationDate = new Date((0, moment_1.default)().add(12, 'months').toString());
                     break;
                 default:
                     hasSubscription.expirationDate = new Date((0, moment_1.default)().add(30, 'days').toString());
@@ -839,7 +843,15 @@ const subscriptionMeta = (request, response, next) => __awaiter(void 0, void 0, 
     try {
         const { id } = request.user;
         console.log(id);
-        const hasSubscription = yield (0, subscription_model_1.hasActiveSubscription)(id);
+        /**
+         * TESTING CHANGE:
+         * For now we bypass the real subscription check so that test
+         * business accounts (e.g. test hotels / restaurants) behave
+         * as if they have an active subscription and do not get
+         * forced into the subscription purchase flow.
+         */
+        // const hasSubscription = await hasActiveSubscription(id);
+        const hasSubscription = true;
         const pdf = hasSubscription ? 5 : 2; //mega bytes 
         const video = hasSubscription ? 300 : 30; //seconds
         const responseData = {

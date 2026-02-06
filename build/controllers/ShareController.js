@@ -43,7 +43,7 @@ const posts = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             user_model_1.default.findOne({ _id: decryptedUserID }),
         ]);
         const [post, isSharedBefore,] = yield Promise.all([
-            (0, post_model_1.fetchPosts)(Object.assign({ _id: new mongodb_1.ObjectId(decryptedPostID) }, post_model_1.getPostQuery), likedByMe, savedByMe, joiningEvents, 1, 1),
+            (0, post_model_1.fetchPosts)(Object.assign({ _id: new mongodb_1.ObjectId(decryptedPostID) }, post_model_1.getPostQuery), likedByMe, savedByMe, joiningEvents, 1, 1, undefined, undefined, false, undefined, id),
             sharedContent_model_1.default.findOne({ contentID: decryptedPostID, userID: decryptedUserID, contentType: common_1.ContentType.POST }),
         ]);
         if (!post || (post === null || post === void 0 ? void 0 : post.length) === 0) {

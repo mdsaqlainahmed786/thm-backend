@@ -27,18 +27,25 @@ type NotificationData = {
     type?: string | undefined;
     image?: string | undefined;
     profileImage?: string | undefined;
+    route?: string | undefined; // Optional route/screen for navigation
+    extraData?: Record<string, string> | undefined; // Optional extra key/value pairs to include in data payload
 }
 export const createMessagePayload = (token: string, title: string, description: string, data: NotificationData) => {
-    const { notificationID, devicePlatform, type, image, profileImage } = data;
+    const { notificationID, devicePlatform, type, image, profileImage, route, extraData } = data;
+    // Use route if provided, otherwise fall back to type for screen
+    const screenValue = route ?? type ?? "";
     const message: Message = {
         token: token,
         data: {
             title: title,
             body: description,
             notificationID: notificationID,
-            screen: type ?? "",
+            screen: screenValue,
+            type: type ?? "", // Keep type for notification identification
+            route: route ?? "", // Explicit route field for navigation
             image: image ?? "",
-            profileImage: profileImage ?? ""
+            profileImage: profileImage ?? "",
+            ...(extraData ?? {}),
         },
     };
     if (devicePlatform && devicePlatform === DevicePlatform.ANDROID) {
@@ -49,9 +56,12 @@ export const createMessagePayload = (token: string, title: string, description: 
                     title: title,
                     body: description,
                     notificationID: notificationID,
-                    screen: type,
+                    screen: screenValue,
+                    type: type ?? "",
+                    route: route ?? "",
                     image: image ?? "",
-                    profileImage: profileImage ?? ""
+                    profileImage: profileImage ?? "",
+                    ...(extraData ?? {}),
                 },
             },
         })
@@ -72,7 +82,15 @@ export const createMessagePayload = (token: string, title: string, description: 
                         "sound": "default",
                         "mutable-content": 1,
                         // "content-available": 1,
-                    }
+                    },
+                    // Custom data for iOS to handle navigation
+                    notificationID: notificationID,
+                    screen: screenValue,
+                    type: type ?? "",
+                    route: route ?? "",
+                    image: image ?? "",
+                    profileImage: profileImage ?? "",
+                    ...(extraData ?? {}),
                 }
             }
         })

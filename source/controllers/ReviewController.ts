@@ -16,8 +16,8 @@ import { v4 } from "uuid";
 import { Message } from "firebase-admin/lib/messaging/messaging-api";
 import { createMessagePayload, sendNotification } from "../notification/FirebaseNotificationController";
 import { NotificationType } from "../database/models/notification.model";
-import { storeMedia } from "./MediaController";
-import { MediaType } from "../database/models/media.model";
+import { storeMedia, deleteUnwantedFiles } from "./MediaController";
+import Media, { MediaType } from "../database/models/media.model";
 import { AwsS3AccessEndpoints } from "../config/constants";
 import AnonymousUser from "../database/models/anonymousUser.model";
 import { generateUsername } from "./auth/AuthController";
@@ -110,6 +110,21 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
+        
+        // Validate video file size (100 MB limit)
+        const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+        if (videos && videos.length > 0) {
+            const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+            if (oversizedVideos.length > 0) {
+                await deleteUnwantedFiles(oversizedVideos);
+                await deleteUnwantedFiles(images || []);
+                return response.send(httpBadRequest(
+                    ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"),
+                    "Video file size must not exceed 100 MB"
+                ));
+            }
+        }
+        
         let mediaIDs: MongoID[] = []
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
@@ -121,6 +136,29 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             }
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => mediaIDs.push(video.id));
+            }
+            
+            // CRITICAL: Validate that ALL media documents exist before saving the post
+            if (mediaIDs.length > 0) {
+                const existingMedia = await Media.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                
+                if (missingMediaIDs.length > 0) {
+                    console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                    return response.send(httpInternalServerError(
+                        ErrorMessage.invalidRequest("Failed to create media. Please try again."),
+                        "Media creation failed"
+                    ));
+                }
+                
+                if (mediaIDs.length !== existingMedia.length) {
+                    console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                    return response.send(httpInternalServerError(
+                        ErrorMessage.invalidRequest("Media validation failed. Please try again."),
+                        "Media validation failed"
+                    ));
+                }
             }
         }
         //IF business profile id is 
@@ -253,6 +291,21 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
+        
+        // Validate video file size (100 MB limit)
+        const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+        if (videos && videos.length > 0) {
+            const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+            if (oversizedVideos.length > 0) {
+                await deleteUnwantedFiles(oversizedVideos);
+                await deleteUnwantedFiles(images || []);
+                return response.send(httpBadRequest(
+                    ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"),
+                    "Video file size must not exceed 100 MB"
+                ));
+            }
+        }
+        
         let mediaIDs: MongoID[] = []
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = await Promise.all([
@@ -264,6 +317,29 @@ const publicReview = async (request: Request, response: Response, next: NextFunc
             }
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => mediaIDs.push(video.id));
+            }
+            
+            // CRITICAL: Validate that ALL media documents exist before saving the post
+            if (mediaIDs.length > 0) {
+                const existingMedia = await Media.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                
+                if (missingMediaIDs.length > 0) {
+                    console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                    return response.send(httpInternalServerError(
+                        ErrorMessage.invalidRequest("Failed to create media. Please try again."),
+                        "Media creation failed"
+                    ));
+                }
+                
+                if (mediaIDs.length !== existingMedia.length) {
+                    console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                    return response.send(httpInternalServerError(
+                        ErrorMessage.invalidRequest("Media validation failed. Please try again."),
+                        "Media validation failed"
+                    ));
+                }
             }
         }
         newPost.content = content;// Review for business

@@ -7,7 +7,6 @@ const express_1 = __importDefault(require("express"));
 const api_validation_1 = require("./../../validation/rules/api-validation");
 const UserController_1 = __importDefault(require("../../controllers/UserController"));
 const SubscriptionController_1 = __importDefault(require("../../controllers/SubscriptionController"));
-const authenticate_1 = __importDefault(require("../../middleware/authenticate"));
 const file_uploading_1 = require("../../middleware/file-uploading");
 const constants_1 = require("../../config/constants");
 const api_request_validator_1 = require("../../middleware/api-request-validator");
@@ -18,7 +17,11 @@ UserEndpoints.get('/profile', UserController_1.default.profile);
 UserEndpoints.get('/profile/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, UserController_1.default.publicProfile);
 UserEndpoints.patch('/edit-profile', UserController_1.default.editProfile);
 UserEndpoints.post('/edit-profile-pic', (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.USERS).fields([{ name: 'profilePic', maxCount: 1 }]), UserController_1.default.changeProfilePic);
-UserEndpoints.post('/business-profile/property-picture', (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.USERS).fields([{ name: 'images', maxCount: 6 }]), authenticate_1.default, UserController_1.default.businessPropertyPictures);
+UserEndpoints.post('/business-profile/property-picture', 
+// NOTE: use `.any()` to prevent Multer from hard-failing when the client accidentally sends
+// more than the allowed max images. We enforce max count in the controller and delete extras.
+// Store these under the business-property prefix (cleaner separation than USERS).
+(0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.BUSINESS_PROPERTY).any(), UserController_1.default.businessPropertyPictures);
 UserEndpoints.post('/address', api_validation_1.createAddressApiValidator, api_request_validator_1.validateRequest, UserController_1.default.address);
 UserEndpoints.get('/business-profile/documents', UserController_1.default.businessDocument);
 UserEndpoints.post('/business-profile/documents', (0, file_uploading_1.s3Upload)(constants_1.AwsS3AccessEndpoints.USERS).fields([{ name: 'businessRegistration', maxCount: 1 }, { name: 'addressProof', maxCount: 1 }]), UserController_1.default.businessDocumentUpload);

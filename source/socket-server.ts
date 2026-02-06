@@ -3,7 +3,7 @@ import https from "http";
 import { allowedOrigins } from "./app";
 import { SocketUser, AppSocketUser, MongoID } from "./common";
 import InMemorySessionStore from "./utils/sessionStore";
-import User, { activeUserQuery, addBusinessProfileInUser, IUser } from "./database/models/user.model";
+import User, { activeUserQuery, addBusinessProfileInUser, IUser, AccountType } from "./database/models/user.model";
 import { randomBytes } from 'crypto';
 import Post from "./database/models/post.model";
 import { SocketChannel } from "./config/constants";
@@ -21,34 +21,207 @@ import { createMessagePayload } from "./notification/FirebaseNotificationControl
 import { Message as FMessage } from "firebase-admin/lib/messaging/messaging-api";
 import { sendNotification } from "./notification/FirebaseNotificationController";
 import { NotificationType } from "./database/models/notification.model";
-import { AccountType } from "./database/models/anonymousUser.model";
 import BusinessProfile from "./database/models/businessProfile.model";
+import { verify } from "jsonwebtoken";
+import { AppConfig } from "./config/constants";
 const sessionStore = new InMemorySessionStore();
 const randomId = () => randomBytes(15).toString("hex");
 export default function createSocketServer(httpServer: https.Server) {
     console.info("Socket Server:::")
     const io = new Server(httpServer, {
         allowEIO3: true,
-        cors: { origin: allowedOrigins },
+        cors: { 
+            origin: allowedOrigins,
+            credentials: true, // Allow cookies to be sent
+            methods: ["GET", "POST"]
+        },
         pingInterval: 105000,
-        pingTimeout: 100000
+        pingTimeout: 100000,
+        cookie: {
+            name: "io",
+            httpOnly: true,
+            sameSite: "none",
+            secure: true
+        }
     });
 
     /** Auth middleware */
     io.use(async (socket, next) => {
         const username = socket.handshake.auth.username;
+        const userID = socket.handshake.auth.userID;
+        // Also check query parameters and headers as fallback
+        const queryUserID = socket.handshake.query?.userID as string;
+        const headerUserID = socket.handshake.headers?.['userid'] as string;
+        const finalUserID = userID || queryUserID || headerUserID;
+        
+        console.log("Socket auth attempt:", { 
+            username, 
+            userID: finalUserID, 
+            auth: socket.handshake.auth,
+            query: socket.handshake.query 
+        });
+        
+        // If userID is provided (from auth, query, or headers), use it as primary authentication (more reliable)
+        if (finalUserID) {
+            let user;
+            try {
+                user = await User.findOne({ _id: finalUserID });
+            } catch (error) {
+                console.error("Error finding user by ID:", error);
+                user = null;
+            }
+            
+            if (!user) {
+                console.error("unauthorized - userID not found", { userID: finalUserID, auth: socket.handshake.auth });
+                return next(new Error("unauthorized"));
+            }
+            
+            // Get the current username from the database
+            let currentUsername = user.username;
+            if (!currentUsername && user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                if (businessProfile) {
+                    currentUsername = businessProfile.username;
+                }
+            }
+            
+            if (!currentUsername) {
+                console.error("unauthorized - no username found for userID", { userID: finalUserID, auth: socket.handshake.auth });
+                return next(new Error("unauthorized"));
+            }
+            
+            (socket as AppSocketUser).sessionID = randomId();
+            (socket as AppSocketUser).username = currentUsername;
+            (socket as AppSocketUser).userID = user.id;
+            console.log("Socket authenticated successfully by userID:", { userID: finalUserID, username: currentUsername });
+            return next();
+        }
+        
+        // Try to get userID from JWT token as fallback (from cookies or headers)
+        let tokenUserID: string | undefined;
+        try {
+            const cookies = socket.handshake.headers.cookie;
+            const headers = socket.handshake.headers;
+            
+            console.log("Token extraction - cookies:", cookies ? "present" : "missing", "headers keys:", Object.keys(headers || {}));
+            
+            // Try to get token from cookies (using cookie key names)
+            let token: string | undefined;
+            if (cookies) {
+                // Try user session token cookie
+                const userCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.USER_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                if (userCookieMatch && userCookieMatch[1]) {
+                    token = decodeURIComponent(userCookieMatch[1]);
+                    console.log("Found user token in cookie");
+                } else {
+                    // Try admin session token cookie
+                    const adminCookieMatch = cookies.match(new RegExp(`(?:^|; )${AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY}=([^;]*)`));
+                    if (adminCookieMatch && adminCookieMatch[1]) {
+                        token = decodeURIComponent(adminCookieMatch[1]);
+                        console.log("Found admin token in cookie");
+                    }
+                }
+            }
+            
+            // Try to get token from headers if not in cookies (using header key names)
+            if (!token) {
+                const userHeaderToken = headers[AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()] as string;
+                const adminHeaderToken = headers[AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()] as string;
+                token = userHeaderToken || adminHeaderToken;
+                if (token) {
+                    console.log("Found token in headers");
+                }
+            }
+            
+            // Decode token to get userID
+            if (token) {
+                try {
+                    const decoded: any = verify(token, AppConfig.APP_ACCESS_TOKEN_SECRET);
+                    if (decoded && decoded.id) {
+                        tokenUserID = decoded.id;
+                        console.log("Found userID from JWT token:", tokenUserID);
+                    } else {
+                        console.log("Token decoded but no userID found in payload");
+                    }
+                } catch (tokenError: any) {
+                    console.log("Token verification failed:", tokenError.message || tokenError);
+                }
+            } else {
+                console.log("No token found in cookies or headers");
+            }
+        } catch (error: any) {
+            console.log("Error extracting token from socket handshake:", error.message || error);
+        }
+        
+        // If we got userID from token, use it
+        if (tokenUserID) {
+            let user;
+            try {
+                user = await User.findOne({ _id: tokenUserID });
+            } catch (error) {
+                console.error("Error finding user by token userID:", error);
+                user = null;
+            }
+            
+            if (user && user.isActivated && !user.isDeleted) {
+                // Get the current username from the database
+                let currentUsername = user.username;
+                if (!currentUsername && user.accountType === AccountType.BUSINESS && user.businessProfileID) {
+                    const businessProfile = await BusinessProfile.findOne({ _id: user.businessProfileID });
+                    if (businessProfile) {
+                        currentUsername = businessProfile.username;
+                    }
+                }
+                
+                if (currentUsername) {
+                    (socket as AppSocketUser).sessionID = randomId();
+                    (socket as AppSocketUser).username = currentUsername;
+                    (socket as AppSocketUser).userID = user.id;
+                    console.log("Socket authenticated successfully by JWT token:", { userID: tokenUserID, username: currentUsername });
+                    return next();
+                }
+            }
+        }
+        
+        // Fallback to username-based authentication
         if (!username) {
-            console.error("invalid username", socket.handshake.auth);
+            console.error("invalid username - no username, userID, or valid token provided", socket.handshake.auth);
             return next(new Error("invalid username"));
         }
-        const user = await User.findOne({ username: username });
+        
+        // Check User model first (for individual accounts)
+        let user = await User.findOne({ username: username });
+        let currentUsername = username;
+        
+        // If not found in User, check BusinessProfile (for business accounts)
         if (!user) {
-            console.error("unauthorized", socket.handshake.auth);
+            const businessProfile = await BusinessProfile.findOne({ username: username });
+            if (businessProfile) {
+                // Find the user associated with this business profile
+                user = await User.findOne({ businessProfileID: businessProfile._id });
+                // Use the username from BusinessProfile to ensure we have the latest
+                if (user) {
+                    currentUsername = businessProfile.username;
+                }
+            }
+        } else {
+            // Use the username from User to ensure we have the latest
+            currentUsername = user.username || username;
+        }
+        
+        if (!user) {
+            console.error("unauthorized - username not found", { 
+                username, 
+                auth: socket.handshake.auth,
+                message: "Username may have been changed. Please reconnect with userID, updated username, or ensure you have a valid auth token."
+            });
             return next(new Error("unauthorized"));
         }
+        
         (socket as AppSocketUser).sessionID = randomId();
-        (socket as AppSocketUser).username = username;
+        (socket as AppSocketUser).username = currentUsername;
         (socket as AppSocketUser).userID = user.id;
+        console.log("Socket authenticated successfully by username:", { username: currentUsername, userID: user.id });
         next();
     });
     io.on("connection", (socket) => {
@@ -63,10 +236,14 @@ export default function createSocketServer(httpServer: https.Server) {
         console.log("Connection :::\n", socket.id, sessionUser)
 
 
-        // Persist session
-        sessionStore.saveSession((socket as AppSocketUser).username, sessionUser);
+        // Persist session using userID as key (more reliable than username)
+        const userIDString = String((socket as AppSocketUser).userID);
+        sessionStore.saveSession(userIDString, sessionUser);
 
+        // Also join room by username for backward compatibility
         socket.join((socket as AppSocketUser).username);
+        // Join room by userID as well for more reliable message delivery
+        socket.join(userIDString);
 
 
         socket.broadcast.emit(SocketChannel.USER_CONNECTED, (socket as AppSocketUser).username);
@@ -91,28 +268,43 @@ export default function createSocketServer(httpServer: https.Server) {
 
         /**Done */
         socket.on(SocketChannel.PRIVATE_MESSAGE, async (data: PrivateIncomingMessagePayload, next) => {
-            const currentSession = sessionStore.findSession(data.to);
+            // Helper function to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = async (username: string) => {
+                let user = await User.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = await BusinessProfile.findOne({ username: username });
+                    if (businessProfile) {
+                        user = await User.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            };
+
+            // Try to find session by username first, then by userID
+            let currentSession = sessionStore.findSessionByUsername(data.to);
+            if (!currentSession) {
+                // If not found by username, try to find by userID
+                const targetUser = await findUserByUsername(data.to);
+                if (targetUser) {
+                    currentSession = sessionStore.findSession(String(targetUser._id));
+                }
+            }
             const isSeen = currentSession?.chatWith === (socket as AppSocketUser).username;
             const inChatScreen = currentSession?.inChatScreen ? currentSession?.inChatScreen : false;
             const isOnline = currentSession ? true : false;
-            const messageData = {
-                message: data.message,
-                from: (socket as AppSocketUser).username,
-                to: data.to,
-                time: new Date().toISOString(),
-                isSeen: isSeen ?? false
-            }
-            socket.to(data.to).to((socket as AppSocketUser).username).emit(SocketChannel.PRIVATE_MESSAGE, messageData);
-            // console.log(data)
-            // return false
             try {
-                const sendedBy = await User.findOne({ username: (socket as AppSocketUser).username });
-                const sendTo = await User.findOne({ username: data.to });
+                const sendedBy = await findUserByUsername((socket as AppSocketUser).username);
+                const sendTo = await findUserByUsername(data.to);
                 if (sendedBy && sendTo) {
                     const newMessage = new Message();
                     newMessage.userID = sendedBy.id;
                     newMessage.targetUserID = sendTo.id;
-                    newMessage.isSeen = messageData.isSeen;
+                    newMessage.isSeen = isSeen ?? false;
+                    // Save the client's temporary ID if provided (Fix for message synchronization)
+                    if (data.message.messageID && data.message.messageID.length !== 24) {
+                        newMessage.clientMessageID = data.message.messageID;
+                    }
+
                     switch (data.message.type) {
                         case MessageType.TEXT:
                             newMessage.message = data.message.message;
@@ -124,6 +316,9 @@ export default function createSocketServer(httpServer: https.Server) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case MessageType.VIDEO:
                             newMessage.message = data.message.message;
@@ -131,12 +326,18 @@ export default function createSocketServer(httpServer: https.Server) {
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
                             }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
+                            }
                             break;
                         case MessageType.PDF:
                             newMessage.message = data.message.message;
                             newMessage.type = MessageType.PDF;
                             if (data.message.mediaID) {
                                 newMessage.mediaID = data.message.mediaID;
+                            }
+                            if (data.message.postID) {
+                                newMessage.postID = data.message.postID;
                             }
                             break;
 
@@ -152,6 +353,26 @@ export default function createSocketServer(httpServer: https.Server) {
                             break;
                     }
                     const savedMessage = await newMessage.save();
+                    const messageID = String(savedMessage._id);
+                    const messageData = {
+                        message: {
+                            ...data.message,
+                            messageID: messageID,
+                            tempMessageID: data.message.messageID
+                        },
+                        from: (socket as AppSocketUser).username,
+                        to: data.to,
+                        time: new Date().toISOString(),
+                        isSeen: isSeen ?? false,
+                        isEdited: false
+                    }
+                    // Emit to both users (including sender) so they get the real messageID
+                    // Use both username and userID rooms for reliability
+                    const senderUserID = String(sendedBy._id);
+                    const receiverUserID = String(sendTo._id);
+                    io.to(data.to).to((socket as AppSocketUser).username)
+                        .to(senderUserID).to(receiverUserID)
+                        .emit(SocketChannel.PRIVATE_MESSAGE, messageData);
 
                     let message = savedMessage.message;
                     switch (savedMessage.type) {
@@ -178,6 +399,222 @@ export default function createSocketServer(httpServer: https.Server) {
                 }
             } catch (error: any) {
                 console.error(error)
+            }
+        });
+
+        socket.on(SocketChannel.EDIT_MESSAGE, async (...args: any[]) => {
+            // Handle different data formats
+            const data = args[0] || {};
+            console.log("EDIT_MESSAGE received - Raw args:", args);
+            console.log("EDIT_MESSAGE received - Parsed data:", data, "from user:", (socket as AppSocketUser).username);
+            try {
+                const messageID = data.messageID || data.messageId;
+                const newMessageText = data.message || data.text;
+
+                if (!messageID || !newMessageText) {
+                    console.log("EDIT_MESSAGE: Missing required fields", { messageID, message: newMessageText });
+                    return socket.emit("error", { message: "Missing messageID or message field" });
+                }
+                // Helper to find user by username (checks both User and BusinessProfile)
+                const findUserByUsername = async (username: string) => {
+                    let user = await User.findOne({ username: username });
+                    if (!user) {
+                        const businessProfile = await BusinessProfile.findOne({ username: username });
+                        if (businessProfile) {
+                            user = await User.findOne({ businessProfileID: businessProfile._id });
+                        }
+                    }
+                    return user;
+                };
+                const user = await findUserByUsername((socket as AppSocketUser).username);
+                if (!user) {
+                    return socket.emit("error", { message: "User not found" });
+                }
+
+                // Try to find message - first try as ObjectId, if that fails, try string match
+                let messageDoc = null;
+                if (ObjectId.isValid(messageID) && messageID.length === 24) {
+                    // Valid MongoDB ObjectId (24 characters)
+                    messageDoc = await Message.findById(new ObjectId(messageID));
+                } else {
+                    console.log("EDIT_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
+                }
+
+                if (!messageDoc) {
+                    // Try one more time with the string as-is (in case of casting issues)
+                    try {
+                        messageDoc = await Message.findOne({ _id: messageID });
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+
+                // If still not found, try searching by clientMessageID
+                if (!messageDoc) {
+                    try {
+                        messageDoc = await Message.findOne({ clientMessageID: messageID });
+                        if (messageDoc) {
+                            console.log("EDIT_MESSAGE: Found message via clientMessageID:", messageID);
+                        }
+                    } catch (e) {
+                        console.error("EDIT_MESSAGE: Error searching by clientMessageID", e);
+                    }
+                }
+                if (!messageDoc) {
+                    console.log("EDIT_MESSAGE: Message not found with ID:", messageID);
+                    return socket.emit("error", { message: "Message not found" });
+                }
+
+                // Only the sender can edit the message
+                if (messageDoc.userID.toString() !== user.id.toString()) {
+                    console.log("EDIT_MESSAGE: User not authorized to edit message");
+                    return socket.emit("error", { message: "You can only edit your own messages" });
+                }
+
+                // Update message
+                messageDoc.message = newMessageText;
+                messageDoc.isEdited = true;
+                messageDoc.editedAt = new Date();
+                const updatedMessage = await messageDoc.save();
+
+                // Get the target user for broadcasting
+                const targetUser = await User.findById(messageDoc.targetUserID);
+                if (!targetUser) {
+                    return socket.emit("error", { message: "Target user not found" });
+                }
+
+                // Emit updated message to both users
+                const updatePayload = {
+                    messageID: String(updatedMessage._id),
+                    clientMessageID: updatedMessage.clientMessageID, // Include client ID for sender synchronization
+                    message: updatedMessage.message,
+                    isEdited: true,
+                    editedAt: updatedMessage.editedAt?.toISOString(),
+                    from: (socket as AppSocketUser).username,
+                    to: targetUser.username
+                };
+
+                // Emit to both users' rooms to ensure real-time updates
+                // Use both username and userID rooms for reliability
+                const targetUserID = String(targetUser._id);
+                const senderUserID = String(user._id);
+                io.to(targetUser.username).to(targetUserID)
+                    .to((socket as AppSocketUser).username).to(senderUserID)
+                    .emit(SocketChannel.EDIT_MESSAGE, updatePayload);
+                console.log("EDIT_MESSAGE: Edit event emitted to users:", updatePayload);
+            } catch (error: any) {
+                console.error("EDIT_MESSAGE_ERROR:", error);
+                socket.emit("error", { message: error.message || "Failed to edit message" });
+            }
+        });
+
+        // Catch-all listener for debugging (log any unhandled events)
+        socket.onAny((eventName, ...args) => {
+            if (eventName === SocketChannel.EDIT_MESSAGE || eventName === SocketChannel.DELETE_MESSAGE) {
+                console.log("DEBUG: Event received via onAny:", eventName, "Args:", args);
+            }
+        });
+
+        socket.on(SocketChannel.DELETE_MESSAGE, async (...args: any[]) => {
+            // Handle different data formats
+            const data = args[0] || {};
+            console.log("DELETE_MESSAGE received - Raw args:", args);
+            console.log("DELETE_MESSAGE received - Parsed data:", data, "from user:", (socket as AppSocketUser).username);
+            try {
+                // Helper to find user by username (checks both User and BusinessProfile)
+                const findUserByUsername = async (username: string) => {
+                    let user = await User.findOne({ username: username });
+                    if (!user) {
+                        const businessProfile = await BusinessProfile.findOne({ username: username });
+                        if (businessProfile) {
+                            user = await User.findOne({ businessProfileID: businessProfile._id });
+                        }
+                    }
+                    return user;
+                };
+                const user = await findUserByUsername((socket as AppSocketUser).username);
+                if (!user) {
+                    console.log("DELETE_MESSAGE: User not found");
+                    return socket.emit("error", { message: "User not found" });
+                }
+
+                const messageID = data.messageID || data.messageId;
+
+                if (!messageID) {
+                    console.log("DELETE_MESSAGE: Missing messageID field");
+                    return socket.emit("error", { message: "Missing messageID field" });
+                }
+
+                // Try to find message - first try as ObjectId, if that fails, try string match
+                let message = null;
+                if (ObjectId.isValid(messageID) && messageID.length === 24) {
+                    // Valid MongoDB ObjectId (24 characters)
+                    message = await Message.findById(new ObjectId(messageID));
+                } else {
+                    console.log("DELETE_MESSAGE: ID is not a standard ObjectId format:", messageID, "Length:", messageID.length);
+                }
+
+                if (!message) {
+                    // Try one more time with the string as-is (in case of casting issues)
+                    try {
+                        message = await Message.findOne({ _id: messageID });
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+
+                // If still not found, try searching by clientMessageID
+                if (!message) {
+                    try {
+                        message = await Message.findOne({ clientMessageID: messageID });
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+                if (!message) {
+                    console.log("DELETE_MESSAGE: Message not found with ID:", messageID);
+                    return socket.emit("error", { message: "Message not found" });
+                }
+
+                // Only the sender can delete the message
+                if (message.userID.toString() !== user.id.toString()) {
+                    console.log("DELETE_MESSAGE: User not authorized to delete message");
+                    return socket.emit("error", { message: "You can only delete your own messages" });
+                }
+
+                // Get target user before deletion for broadcasting
+                const targetUser = await User.findById(message.targetUserID);
+                if (!targetUser) {
+                    console.log("DELETE_MESSAGE: Target user not found");
+                    return socket.emit("error", { message: "Target user not found" });
+                }
+
+                // Soft delete the message
+                message.isDeleted = true;
+                message.message = "The message was deleted";
+                await message.save();
+                console.log("DELETE_MESSAGE: Message soft-deleted successfully. ID:", message._id, "ClientID:", message.clientMessageID);
+
+                // Emit delete event to both users
+                const deletePayload = {
+                    messageID: String(message._id),
+                    clientMessageID: message.clientMessageID,
+                    isDeleted: true,
+                    from: (socket as AppSocketUser).username,
+                    to: targetUser.username
+                };
+
+                // Emit to both users' rooms to ensure real-time updates
+                // Use both username and userID rooms for reliability
+                const targetUserID = String(targetUser._id);
+                const senderUserID = String(user._id);
+                io.to(targetUser.username).to(targetUserID)
+                    .to((socket as AppSocketUser).username).to(senderUserID)
+                    .emit(SocketChannel.DELETE_MESSAGE, deletePayload);
+                console.log("DELETE_MESSAGE: Delete event emitted to users:", deletePayload);
+            } catch (error: any) {
+                console.error("DELETE_MESSAGE_ERROR:", error);
+                socket.emit("error", { message: error.message || "Failed to delete message" });
             }
         });
 
@@ -231,13 +668,22 @@ export default function createSocketServer(httpServer: https.Server) {
                     ]);
                     Object.assign(findQuery, {
                         $or: [
-                            { userID: new ObjectId(ID), targetUserID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
-                            { targetUserID: new ObjectId(ID), userID: { $in: userIDs }, deletedByID: { $nin: [ID] } },
+                            { userID: new ObjectId(ID), targetUserID: { $in: userIDs }, deletedByID: { $nin: [new ObjectId(ID)] } },
+                            { targetUserID: new ObjectId(ID), userID: { $in: userIDs }, deletedByID: { $nin: [new ObjectId(ID)] } },
                         ]
                     });
                 }
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:443', message: 'Before getChatCount call', data: { findQuery: JSON.stringify(findQuery), ID, IDString: String(ID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'E' }) }).catch(() => { });
+                // #endregion
                 const totalDocuments = await MessagingController.getChatCount(findQuery, ID, pageNumber, documentLimit);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:445', message: 'After getChatCount, before fetchChatByUserID', data: { totalDocuments, ID: String(ID), pageNumber, documentLimit: documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => { });
+                // #endregion
                 const recentChatHistory = await MessagingController.fetchChatByUserID(findQuery, ID, pageNumber, documentLimit);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'socket-server.ts:447', message: 'After fetchChatByUserID', data: { recentChatHistoryCount: recentChatHistory.length, totalDocuments, totalPages: Math.ceil(totalDocuments / documentLimit) || 1, ID: String(ID) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'G' }) }).catch(() => { });
+                // #endregion
                 const totalPages = Math.ceil(totalDocuments / documentLimit) || 1;
                 messages.totalMessages = totalDocuments;
                 messages.totalPages = totalPages;
@@ -257,9 +703,20 @@ export default function createSocketServer(httpServer: https.Server) {
             pageNumber = data?.pageNumber;
             pageNumber = parseQueryParam(pageNumber, 1);
             documentLimit = parseQueryParam(documentLimit, 20);
+            // Helper to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = async (username: string) => {
+                let user = await User.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = await BusinessProfile.findOne({ username: username });
+                    if (businessProfile) {
+                        user = await User.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            };
             const [user, targetUser] = await Promise.all([
-                User.findOne({ username: (socket as AppSocketUser).username }),
-                User.findOne({ username: username }),
+                findUserByUsername((socket as AppSocketUser).username),
+                findUserByUsername(username),
             ]);
             const messages: Messages = {
                 totalMessages: 0,
@@ -274,9 +731,12 @@ export default function createSocketServer(httpServer: https.Server) {
                         { userID: new ObjectId(targetUser.id), targetUserID: new ObjectId(user.id), deletedByID: { $nin: [new ObjectId(user.id)] } }
                     ]
                 }
-                await Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true });
+                // Mark messages as seen asynchronously (don't block message fetch)
+                Message.updateMany({ targetUserID: user.id, userID: targetUser.id, isSeen: false }, { isSeen: true }).catch((err) => {
+                    console.error('Error updating message seen status:', err);
+                });
                 const [totalMessages, conversations] = await Promise.all([
-                    Message.find(findQuery).countDocuments(),
+                    Message.countDocuments(findQuery),
                     MessagingController.fetchMessagesByUserID(findQuery, user.id, pageNumber, documentLimit),
                 ]);
                 const totalPages = Math.ceil(totalMessages / documentLimit) || 1;
@@ -292,7 +752,8 @@ export default function createSocketServer(httpServer: https.Server) {
 
         socket.on(SocketChannel.IN_PRIVATE_CHAT, (username: string) => {
             console.log("in private chat", username);
-            sessionStore.saveSession((socket as AppSocketUser).username, {
+            const userIDString = String((socket as AppSocketUser).userID);
+            sessionStore.saveSession(userIDString, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
@@ -304,7 +765,8 @@ export default function createSocketServer(httpServer: https.Server) {
 
         socket.on(SocketChannel.LEAVE_PRIVATE_CHAT, () => {
             console.log("leave private chat", (socket as AppSocketUser).chatWith);
-            sessionStore.saveSession((socket as AppSocketUser).username, {
+            const userIDString = String((socket as AppSocketUser).userID);
+            sessionStore.saveSession(userIDString, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
@@ -315,7 +777,8 @@ export default function createSocketServer(httpServer: https.Server) {
         });
 
         socket.on(SocketChannel.IN_CHAT, () => {
-            sessionStore.saveSession((socket as AppSocketUser).username, {
+            const userIDString = String((socket as AppSocketUser).userID);
+            sessionStore.saveSession(userIDString, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
@@ -326,7 +789,8 @@ export default function createSocketServer(httpServer: https.Server) {
         });
 
         socket.on(SocketChannel.LEAVE_CHAT, () => {
-            sessionStore.saveSession((socket as AppSocketUser).username, {
+            const userIDString = String((socket as AppSocketUser).userID);
+            sessionStore.saveSession(userIDString, {
                 username: (socket as AppSocketUser).username,
                 sessionID: (socket as AppSocketUser).sessionID,
                 userID: (socket as AppSocketUser).userID,
@@ -337,9 +801,20 @@ export default function createSocketServer(httpServer: https.Server) {
         });
 
         socket.on(SocketChannel.MESSAGE_SEEN, async (username: string) => {
+            // Helper to find user by username (checks both User and BusinessProfile)
+            const findUserByUsername = async (username: string) => {
+                let user = await User.findOne({ username: username });
+                if (!user) {
+                    const businessProfile = await BusinessProfile.findOne({ username: username });
+                    if (businessProfile) {
+                        user = await User.findOne({ businessProfileID: businessProfile._id });
+                    }
+                }
+                return user;
+            };
             const [targetUser, user] = await Promise.all([
-                User.findOne({ username: username }),
-                User.findOne({ username: (socket as AppSocketUser).username })
+                findUserByUsername(username),
+                findUserByUsername((socket as AppSocketUser).username)
             ]);
             if (targetUser && user) {
                 /**Update last seen */
@@ -354,7 +829,11 @@ export default function createSocketServer(httpServer: https.Server) {
                 /**
                  * Target User
                  */
-                const isUserOnline = sessionStore.findSession(targetUser.username);
+                // Try to find session by userID first, then by username
+                let isUserOnline = sessionStore.findSession(String(targetUser._id));
+                if (!isUserOnline) {
+                    isUserOnline = sessionStore.findSessionByUsername(targetUser.username);
+                }
                 if (isUserOnline) {
                     lastSeen(socket, 'Online');
                 }
@@ -480,7 +959,9 @@ export default function createSocketServer(httpServer: https.Server) {
         socket.on("disconnect", async () => {
             console.log("disconnect", (socket as AppSocketUser).username);
             socket.broadcast.emit(SocketChannel.USER_DISCONNECTED, (socket as AppSocketUser).username);
-            sessionStore.destroySession((socket as AppSocketUser).username);
+            // Use userID for session destruction (more reliable)
+            const userIDString = String((socket as AppSocketUser).userID);
+            sessionStore.destroySession(userIDString);
             updateLastSeen(socket);
         });
     });

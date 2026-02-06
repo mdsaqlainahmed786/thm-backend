@@ -1,9 +1,9 @@
 import { GeoCoordinate } from './../database/models/common.model';
 import { Request, Response, NextFunction } from "express";
-import { httpInternalServerError, httpForbidden, httpNotFoundOr404, httpOk, httpBadRequest } from "../utils/response";
+import { httpInternalServerError, httpForbidden, httpNotFoundOr404, httpOk, httpBadRequest, httpCreated } from "../utils/response";
 import { ErrorMessage } from "../utils/response-message/error";
 import { AccountType } from "../database/models/anonymousUser.model";
-import { ContentType, InsightType } from "../common";
+import { ContentType, InsightType, MongoID } from "../common";
 import { ObjectId } from "mongodb";
 import moment from "moment";
 import { isArray, predictCategory } from "../utils/helper/basic";
@@ -25,11 +25,18 @@ import BusinessAnswer from "../database/models/businessAnswer.model";
 import User from "../database/models/user.model";
 import AnonymousUser from "../database/models/anonymousUser.model";
 import BusinessReviewQuestion from "../database/models/businessReviewQuestion.model";
-import { AppConfig } from "../config/constants";
+import { AppConfig, AwsS3AccessEndpoints } from "../config/constants";
 import axios from "axios";
 import EncryptionService from '../services/EncryptionService';
+import { storeMedia } from "./MediaController";
+import Menu from "../database/models/menu.model";
+import Media from "../database/models/media.model";
+import S3Service from "../services/S3Service";
+import { httpNoContent } from "../utils/response";
+import EnvironmentService from "../services/EnvironmentService";
 
 const encryptionService = new EncryptionService();
+const s3Service = new S3Service();
 const businessTypes = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const businessTypes = await BusinessType.find();
@@ -156,7 +163,7 @@ const insights = async (request: Request, response: Response, next: NextFunction
                     $limit: 10
                 }
             ]).exec(),
-            fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10)
+            fetchPosts({ ...getPostQuery, userID: new ObjectId(id), }, [], [], [], 1, 10, undefined, undefined, false, undefined, id)
         ]);
         const { engagementsData, engagements } = await fetchEngagedData(businessProfileID, id, groupFormat, labels, labelFormat);
         const responseData = {
@@ -312,15 +319,58 @@ const getBusinessProfileByPlaceID = async (request: Request, response: Response,
                         newAnonymousBusiness.businessTypeID = businessTypeID;
                     }
                     const businessProfileRef = await newAnonymousBusiness.save();
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const env = await EnvironmentService.getForLocation({ cacheKey: `place:${placeID}`, lat, lng });
+                    return response.send(
+                        httpOk(
+                            {
+                                businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                                    type: type,
+                                    weatherReport: env.weatherReport,
+                                    environment: env.summary
+                                }),
+                                reviewQuestions
+                            },
+                            "Business profile fetched"
+                        )
+                    );
                 } else {
-                    return response.send(httpOk({ businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+                    const latData = Number((anonymousBusinessExits as any)?.address?.lat ?? 0);
+                    const lngData = Number((anonymousBusinessExits as any)?.address?.lng ?? 0);
+                    const env = await EnvironmentService.getForLocation({ cacheKey: `place:${placeID}`, lat: latData, lng: lngData });
+                    return response.send(
+                        httpOk(
+                            {
+                                businessProfileRef: Object.assign({}, anonymousBusinessExits.toJSON(), {
+                                    type: type,
+                                    weatherReport: env.weatherReport,
+                                    environment: env.summary
+                                }),
+                                reviewQuestions
+                            },
+                            "Business profile fetched"
+                        )
+                    );
                 }
             }
             return response.send(httpInternalServerError(null, ErrorMessage.INTERNAL_SERVER_ERROR));
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id');
-        return response.send(httpOk({ businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), { type: type }), reviewQuestions }, "Business profile fetched"));
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
+        return response.send(
+            httpOk(
+                {
+                    businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                        type: type,
+                        weatherReport: env.weatherReport,
+                        environment: env.summary
+                    }),
+                    reviewQuestions
+                },
+                "Business profile fetched"
+            )
+        );
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -335,9 +385,15 @@ const getBusinessProfileByID = async (request: Request, response: Response, next
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -353,9 +409,15 @@ const getBusinessProfileByDirectID = async (request: Request, response: Response
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
         const reviewQuestions = await BusinessReviewQuestion.find({ businessTypeID: { $in: businessProfileRef.businessTypeID }, businessSubtypeID: { $in: businessProfileRef.businessSubTypeID } }, '_id question id')
+        const latData = Number((businessProfileRef as any)?.address?.lat ?? 0);
+        const lngData = Number((businessProfileRef as any)?.address?.lng ?? 0);
+        const env = await EnvironmentService.getForLocation({ cacheKey: `bp:${String(businessProfileRef._id)}`, lat: latData, lng: lngData });
         return response.send(httpOk({
-            businessProfileRef,
-            reviewQuestions
+            businessProfileRef: Object.assign({}, businessProfileRef.toJSON(), {
+                weatherReport: env.weatherReport,
+                environment: env.summary
+            }),
+            reviewQuestions,
         }, "Business profile fetched"));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -753,6 +815,169 @@ function engagementAggregatePipeline(groupFormat: string, labels: string[], labe
     return { pipeline };
 }
 
+/**
+ * Upload restaurant menu items (images or PDFs) for the logged-in business owner.
+ * Only businesses whose type is "Restaurant" are allowed to add menu items.
+ */
+const addRestaurantMenu = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, businessProfileID } = request.user;
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+
+        const businessProfile = await BusinessProfile.findOne({ _id: new ObjectId(String(businessProfileID)) });
+        if (!businessProfile) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+
+        const businessType = await BusinessType.findOne({ _id: businessProfile.businessTypeID });
+        if (!businessType || businessType.name !== "Restaurant") {
+            return response.send(httpForbidden(ErrorMessage.invalidRequest("Access denied: Only restaurant businesses can add menu items."), "Access denied: Only restaurant businesses can add menu items."));
+        }
+
+        const files = request.files as { [fieldname: string]: Express.MulterS3.File[] } | undefined;
+        const menuFiles = files && (files["menu"] as Express.MulterS3.File[]);
+
+        if (!menuFiles || menuFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Menu file (image or PDF) is required"), "Menu file (image or PDF) is required"));
+        }
+
+        // Store uploaded files as media records (supports images and PDFs)
+        const mediaList = await storeMedia(
+            menuFiles,
+            id as unknown as MongoID,
+            businessProfile.id as unknown as MongoID,
+            AwsS3AccessEndpoints.BUSINESS_DOCUMENTS,
+            "POST"
+        );
+        if (!mediaList || mediaList.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Unable to upload menu items"), "Unable to upload menu items"));
+        }
+
+        // Link media to business profile as menu entries
+        const menuDocs = await Promise.all(
+            mediaList.map(async (media) => {
+                const newMenu = new Menu();
+                newMenu.businessProfileID = businessProfile.id as unknown as MongoID;
+                newMenu.userID = id as unknown as MongoID;
+                newMenu.mediaID = media.id as unknown as MongoID;
+                return newMenu.save();
+            })
+        );
+
+        return response.send(httpCreated(menuDocs, "Menu items added successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
+/**
+ * Fetch all menu items (images / PDFs) for a given business profile.
+ * This route is public so users can see restaurant menus.
+ */
+const getRestaurantMenu = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { businessProfileID } = request.params;
+
+        const businessProfile = await BusinessProfile.findOne({ _id: new ObjectId(businessProfileID) });
+        if (!businessProfile) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+
+        const menuItems = await Menu.find({ businessProfileID: businessProfile.id }).sort({ createdAt: -1 });
+
+        if (!menuItems || menuItems.length === 0) {
+            return response.send(httpOk([], "No menu items found for this business"));
+        }
+
+        const mediaIDs = menuItems.map((m) => m.mediaID as unknown as MongoID);
+        const mediaList = await Media.find({ _id: { $in: mediaIDs } });
+
+        const menuResponse = menuItems.map((menu) => {
+            const media = mediaList.find((m) => String(m.id) === String(menu.mediaID));
+            return {
+                id: menu.id,
+                businessProfileID: menu.businessProfileID,
+                mediaID: menu.mediaID,
+                createdAt: menu.createdAt,
+                media: media
+                    ? {
+                        id: media.id,
+                        mediaType: media.mediaType,
+                        sourceUrl: media.sourceUrl,
+                        thumbnailUrl: media.thumbnailUrl,
+                        mimeType: media.mimeType,
+                    }
+                    : null,
+            };
+        });
+
+        return response.send(httpOk(menuResponse, "Menu items fetched successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
+/**
+ * Delete a specific menu item (image or PDF) for the logged-in restaurant business owner.
+ * This will delete the Menu document, associated Media document, and files from S3.
+ */
+const deleteRestaurantMenu = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const { id, businessProfileID } = request.user;
+        const menuID = request.params.id;
+
+        if (!id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+        if (!businessProfileID) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND));
+        }
+
+        // Find the menu item and verify it belongs to the user's business profile
+        const menuItem = await Menu.findOne({
+            _id: new ObjectId(menuID),
+            businessProfileID: new ObjectId(String(businessProfileID))
+        });
+
+        if (!menuItem) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Menu item not found or you don't have permission to delete it"), "Menu item not found or you don't have permission to delete it"));
+        }
+
+        // Find the associated media document
+        const media = await Media.findOne({ _id: menuItem.mediaID });
+
+        if (media) {
+            // Delete files from S3
+            if (media.s3Key) {
+                await s3Service.deleteS3Object(media.s3Key);
+            }
+            // Only delete thumbnail if it's an S3 URL (not external placeholder URLs like for PDFs)
+            if (media.thumbnailUrl && (media.thumbnailUrl.includes('.s3.') || media.thumbnailUrl.startsWith('s3://'))) {
+                try {
+                    await s3Service.deleteS3Asset(media.thumbnailUrl);
+                } catch (error: any) {
+                    // If thumbnail deletion fails (e.g., external URL), just log and continue
+                    console.warn('Failed to delete thumbnail (may be external URL):', media.thumbnailUrl);
+                }
+            }
+            // Delete the media document
+            await media.deleteOne();
+        }
+
+        // Delete the menu document
+        await menuItem.deleteOne();
+
+        return response.send(httpNoContent(null, "Menu item deleted successfully"));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+};
+
 async function fetchEngagedData(businessProfileID: string, userID: string, groupFormat: string, labels: string[], labelFormat: string) {
     console.log(businessProfileID, userID, "businessProfileID");
     //analyzing posts && stories
@@ -844,4 +1069,17 @@ async function fetchEngagedData(businessProfileID: string, userID: string, group
     return { engagementsData, engagements };
 }
 
-export default { insights, collectInsightsData, businessTypes, businessSubTypes, businessQuestions, businessQuestionAnswer, getBusinessProfileByPlaceID, getBusinessProfileByID, getBusinessProfileByDirectID };
+export default {
+    insights,
+    collectInsightsData,
+    businessTypes,
+    businessSubTypes,
+    businessQuestions,
+    businessQuestionAnswer,
+    getBusinessProfileByPlaceID,
+    getBusinessProfileByID,
+    getBusinessProfileByDirectID,
+    addRestaurantMenu,
+    getRestaurantMenu,
+    deleteRestaurantMenu
+};

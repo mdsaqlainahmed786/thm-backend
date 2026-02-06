@@ -33,4 +33,6 @@ StoryEndpoints.post('/comments', CommentController_1.default.store);
 StoryEndpoints.get('/comments/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, CommentController_1.default.index);
 StoryEndpoints.patch('/comments/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, CommentController_1.default.update);
 StoryEndpoints.delete('/comments/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, CommentController_1.default.destroy);
+// Must be declared after more specific routes (likes/views/comments), otherwise it will capture them.
+StoryEndpoints.get('/:id', [api_validation_1.paramIDValidationRule], api_request_validator_1.validateRequest, StoryController_1.default.show);
 exports.default = StoryEndpoints;

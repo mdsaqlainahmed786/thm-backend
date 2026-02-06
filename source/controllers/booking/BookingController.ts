@@ -83,7 +83,12 @@ const checkIn = async (request: Request, response: Response, next: NextFunction)
         console.log(availableRoomIDs);
 
         const [booking, businessProfileRef, availableRooms] = await Promise.all([
-            Booking.findOne({ checkIn: { $lte: checkOut }, checkOut: { $gte: checkIn }, status: BookingStatus.CREATED }),
+            Booking.findOne({
+                checkIn: { $lte: checkOut },
+                checkOut: { $gte: checkIn },
+                status: BookingStatus.CREATED,
+                businessProfileID: businessProfileID // Ensure booking belongs to the same business profile
+            }),
             BusinessProfile.findOne({ _id: businessProfileID, businessTypeID: { $in: businessTypeID } }),
 
             Room.aggregate([
@@ -185,6 +190,7 @@ const checkIn = async (request: Request, response: Response, next: NextFunction)
         const businessProfileAny = businessProfileRef as any;
         booking.checkIn = combineDateTime(checkIn, businessProfileAny?.checkIn ?? '11:00').toString() ?? booking.checkIn;
         booking.checkOut = combineDateTime(checkOut, businessProfileAny?.checkOut ?? '02:00').toString() ?? booking.checkIn;
+        booking.businessProfileID = businessProfileID; // Ensure businessProfileID is updated if it changed
         booking.children = children ?? booking.children;
         booking.adults = adults ?? booking.adults;
         booking.isTravellingWithPet = isTravellingWithPet ?? booking.isTravellingWithPet;
@@ -218,10 +224,11 @@ const checkout = async (request: Request, response: Response, next: NextFunction
     try {
         const { id } = request.user;
         const { bookingID, roomID, quantity, bookedFor, guestDetails, promoCode, price } = request.body;
-        const [booking, room, businessTypeID, user] = await Promise.all([
+        const [booking, room, businessTypeHotel, businessTypeIDs, user] = await Promise.all([
             Booking.findOne({ bookingID: bookingID, status: BookingStatus.CREATED }),
             Room.findOne({ _id: roomID }),
-            BusinessType.distinct("_id", { $in: [BusinessTypeEnum.HOTEL, BusinessTypeEnum.HOME_STAYS] }),
+            BusinessType.findOne({ name: BusinessTypeEnum.HOTEL }),
+            BusinessType.distinct("_id", { name: { $in: [BusinessTypeEnum.HOTEL, BusinessTypeEnum.HOME_STAYS] } }),
             User.findOne({ _id: id })
         ]);
 
@@ -234,12 +241,75 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         if (!room) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Room not found"), "Room not found"));
         }
+        const businessProfile = await BusinessProfile.findOne({ _id: room.businessProfileID });
+        const hotelTypeId = businessTypeHotel ? String((businessTypeHotel as any)._id) : null;
+        const isHotel = businessProfile && hotelTypeId && businessProfile.businessTypeID.toString() === hotelTypeId;
+
+        // Check if room belongs to the same business profile as the booking
+        if (room.businessProfileID.toString() !== booking.businessProfileID.toString()) {
+            console.error(`[Checkout] Room businessProfileID mismatch: Room=${room.businessProfileID}, Booking=${booking.businessProfileID}`);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest("Room does not belong to the selected business profile."),
+                "Room does not belong to the selected business profile."
+            ));
+        }
+
+        // Check if room is available
+        if (!room.availability) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("This room is currently not available for booking."), "This room is currently not available for booking."));
+        }
+
+        console.log(`[Checkout] Checking availability for businessProfileID: ${booking.businessProfileID}, Room ID: ${roomID}, Room availability: ${room.availability}`);
         const availability = await checkRoomsAvailability(booking.businessProfileID, booking.checkIn.toString(), booking.checkOut.toString());
         const isRoomAvailable = await availability.filter((data) => data?.availableRooms >= quantity && data?._id?.toString() === roomID);
-        console.log(availability);
-        console.log(isRoomAvailable, "isRoomAvailable");
+
+        console.log(`[Checkout] Availability check for room ${roomID}:`, {
+            availabilityResults: availability.length,
+            roomInResults: availability.some(r => r._id.toString() === roomID),
+            requestedQuantity: quantity,
+            roomAvailableRooms: availability.find(r => r._id.toString() === roomID)?.availableRooms,
+            isRoomAvailable: isRoomAvailable.length > 0
+        });
+        console.log(`[Checkout] Full availability:`, availability);
+        console.log(`[Checkout] Filtered isRoomAvailable:`, isRoomAvailable);
+
         if (isRoomAvailable && isRoomAvailable.length === 0) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Oops! That room isn't available for the dates you picked. Try different dates or choose another room."), "Oops! That room isn't available for the dates you picked. Try different dates or choose another room."))
+            // Check if room exists in availability results but doesn't have enough rooms
+            const roomInAvailability = availability.find((data) => data?._id?.toString() === roomID);
+            if (roomInAvailability) {
+                return response.send(httpBadRequest(
+                    ErrorMessage.invalidRequest(`Only ${roomInAvailability.availableRooms} room(s) available, but ${quantity} requested.`),
+                    `Only ${roomInAvailability.availableRooms} room(s) available, but ${quantity} requested.`
+                ));
+            } else {
+                // Room not found in availability results - check why
+                console.error(`[Checkout] Room ${roomID} not found in availability results. Checking room details:`, {
+                    roomID: roomID,
+                    roomAvailability: room.availability,
+                    roomBusinessProfileID: room.businessProfileID.toString(),
+                    bookingBusinessProfileID: booking.businessProfileID.toString(),
+                    roomTotalRooms: room.totalRooms,
+                    roomInAvailabilityCheck: availability.some(r => r._id.toString() === roomID)
+                });
+
+                // Double-check: Query the room directly to see if it exists and is available
+                const directRoomCheck = await Room.findOne({
+                    _id: roomID,
+                    businessProfileID: booking.businessProfileID,
+                    availability: true
+                });
+
+                if (!directRoomCheck) {
+                    return response.send(httpBadRequest(
+                        ErrorMessage.invalidRequest("This room is not available for booking. It may be marked as unavailable or belong to a different business."),
+                        "This room is not available for booking. It may be marked as unavailable or belong to a different business."
+                    ));
+                }
+
+                // Room exists and is available, but wasn't in aggregation results
+                // This might be a data consistency issue - allow the booking to proceed
+                console.warn(`[Checkout] Room ${roomID} exists and is available but wasn't in aggregation results. Proceeding with booking.`);
+            }
         }
         const nights = calculateNights(booking.checkIn.toString(), booking.checkOut.toString());
         booking.bookedRoom = {
@@ -253,9 +323,9 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         /*** Calculate price for checkout */
 
         let subtotal = booking.bookedRoom.price * booking.bookedRoom.quantity * nights;
+        let convinceCharges = subtotal * 0.02;
         let gstRate = GST_PERCENTAGE;
-        let gst = (subtotal * gstRate) / 100;
-        let convinceCharges = 0;
+        let gst = ((subtotal + convinceCharges) * gstRate) / 100;
         let total = (gst + subtotal + convinceCharges);
         let discount = 0;
         const payment = {
@@ -300,7 +370,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
                     console.log("Maximum discount applied", discount);
                 }
                 subtotal = (subtotal - discount);
-                gst = (subtotal * 18) / 100;
+                gst = ((subtotal + convinceCharges) * GST_PERCENTAGE) / 100;
                 total = (gst + subtotal + convinceCharges);
                 Object.assign(payment, { discount, gst, total, promocode: promoCodeData });
                 booking.promoCode = promocode.code;
@@ -313,7 +383,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
                     console.log("Maximum discount applied", discount);
                 }
                 subtotal = (subtotal - discount);
-                gst = (subtotal * 18) / 100;
+                gst = ((subtotal + convinceCharges) * GST_PERCENTAGE) / 100;
                 total = (gst + subtotal + convinceCharges);
                 Object.assign(payment, { discount, gst, total, promocode: promoCodeData });
                 booking.promoCode = promocode.code;
@@ -346,7 +416,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         if (guestDetails && isString(guestDetails)) {
             booking.guestDetails = [JSON.parse(guestDetails)];
         }
-        booking.subTotal = subtotal;
+        booking.subTotal = subtotal + convinceCharges;
         booking.tax = gst;
         booking.convinceCharge = convinceCharges;
         booking.grandTotal = total;
@@ -355,7 +425,7 @@ const checkout = async (request: Request, response: Response, next: NextFunction
             booking.save(),
             BusinessProfile.aggregate([
                 {
-                    $match: { _id: room.businessProfileID, businessTypeID: { $in: businessTypeID } }
+                    $match: { _id: room.businessProfileID, businessTypeID: { $in: businessTypeIDs } }
                 },
                 addBusinessTypeInBusinessProfile().lookup,
                 addBusinessTypeInBusinessProfile().unwindLookup,
@@ -512,7 +582,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 
         pageNumber = parseQueryParam(pageNumber, 1);
         documentLimit = parseQueryParam(documentLimit, 20);
-        const dbQuery = { status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS] } };
+        const dbQuery = { status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS, BookingStatus.CANCELED_BY_USER] } };
         if (query !== undefined && query !== "") {
             Object.assign(dbQuery,
                 {
@@ -531,7 +601,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
             Object.assign(dbQuery, {
                 status: {
                     $in: [BookingStatus.CREATED, BookingStatus.PENDING,
-                    BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS]
+                    BookingStatus.CONFIRMED, BookingStatus.CANCELED, BookingStatus.COMPLETED, BookingStatus.CANCELED_BY_BUSINESS, BookingStatus.CANCELED_BY_USER]
                 }
             })
         }
@@ -918,6 +988,36 @@ const changeBookingStatus = async (request: Request, response: Response, next: N
     }
 
 }
+const userCancelHotelBooking = async (request: Request, response: Response, next: NextFunction) => {
+    try {
+        const ID = request?.params?.id;
+        const { id } = request.user;
+        const booking = await Booking.findOne({ _id: ID, userID: id });
+        if (!booking) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(NOT_FOUND), NOT_FOUND));
+        }
+
+        const checkIn = booking.checkIn;
+        const now = moment();
+        const freeCancelThreshold = moment(checkIn).subtract(1, 'days');
+        const gracePeriodThreshold = moment((booking as any).createdAt).add(1, 'days');
+
+        const isFreeCancelValid = freeCancelThreshold.isAfter(now) || gracePeriodThreshold.isAfter(now);
+        if (!isFreeCancelValid) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("please contact the business regarding this issue"), "please contact the business regarding this issue"))
+        }
+
+        if ([BookingStatus.CREATED.toString(), BookingStatus.PENDING.toString(), BookingStatus.CONFIRMED.toString()].includes(booking.status)) {
+            booking.status = BookingStatus.CANCELED_BY_USER;
+            await booking.save();
+            return response.send(httpOk(null, "Your booking has been canceled successfully."));
+        }
+        const message = `The order has already been ${booking.status} and cannot be canceled.`;
+        return response.send(httpBadRequest(ErrorMessage.invalidRequest(message), message));
+    } catch (error: any) {
+        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+}
 const downloadInvoice = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const ID = request?.params?.id;
@@ -1206,7 +1306,7 @@ const bookBanquet = async (request: Request, response: Response, next: NextFunct
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { checkIn, checkout, confirmCheckout, index, show, cancelBooking, downloadInvoice, bookTable, bookBanquet, orderPayment, changeBookingStatus };
+export default { checkIn, checkout, confirmCheckout, index, show, cancelBooking, downloadInvoice, bookTable, bookBanquet, orderPayment, changeBookingStatus, userCancelHotelBooking };
 
 
 

@@ -50,6 +50,7 @@ const uuid_1 = require("uuid");
 const FirebaseNotificationController_1 = require("../notification/FirebaseNotificationController");
 const notification_model_1 = require("../database/models/notification.model");
 const MediaController_1 = require("./MediaController");
+const media_model_1 = __importDefault(require("../database/models/media.model"));
 const constants_1 = require("../config/constants");
 const anonymousUser_model_1 = __importDefault(require("../database/models/anonymousUser.model"));
 const AuthController_1 = require("./auth/AuthController");
@@ -143,6 +144,16 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         const files = request.files;
         const images = files && files.images;
         const videos = files && files.videos;
+        // Validate video file size (100 MB limit)
+        const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+        if (videos && videos.length > 0) {
+            const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+            if (oversizedVideos.length > 0) {
+                yield (0, MediaController_1.deleteUnwantedFiles)(oversizedVideos);
+                yield (0, MediaController_1.deleteUnwantedFiles)(images || []);
+                return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"), "Video file size must not exceed 100 MB"));
+            }
+        }
         let mediaIDs = [];
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = yield Promise.all([
@@ -154,6 +165,20 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             }
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => mediaIDs.push(video.id));
+            }
+            // CRITICAL: Validate that ALL media documents exist before saving the post
+            if (mediaIDs.length > 0) {
+                const existingMedia = yield media_model_1.default.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                if (missingMediaIDs.length > 0) {
+                    console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Failed to create media. Please try again."), "Media creation failed"));
+                }
+                if (mediaIDs.length !== existingMedia.length) {
+                    console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Media validation failed. Please try again."), "Media validation failed"));
+                }
             }
         }
         //IF business profile id is 
@@ -292,6 +317,16 @@ const publicReview = (request, response, next) => __awaiter(void 0, void 0, void
         const files = request.files;
         const images = files && files.images;
         const videos = files && files.videos;
+        // Validate video file size (100 MB limit)
+        const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+        if (videos && videos.length > 0) {
+            const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+            if (oversizedVideos.length > 0) {
+                yield (0, MediaController_1.deleteUnwantedFiles)(oversizedVideos);
+                yield (0, MediaController_1.deleteUnwantedFiles)(images || []);
+                return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"), "Video file size must not exceed 100 MB"));
+            }
+        }
         let mediaIDs = [];
         if (videos && videos.length !== 0 || images && images.length !== 0) {
             const [videoList, imageList] = yield Promise.all([
@@ -303,6 +338,20 @@ const publicReview = (request, response, next) => __awaiter(void 0, void 0, void
             }
             if (videoList && videoList.length !== 0) {
                 videoList.map((video) => mediaIDs.push(video.id));
+            }
+            // CRITICAL: Validate that ALL media documents exist before saving the post
+            if (mediaIDs.length > 0) {
+                const existingMedia = yield media_model_1.default.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                if (missingMediaIDs.length > 0) {
+                    console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Failed to create media. Please try again."), "Media creation failed"));
+                }
+                if (mediaIDs.length !== existingMedia.length) {
+                    console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Media validation failed. Please try again."), "Media validation failed"));
+                }
             }
         }
         newPost.content = content; // Review for business

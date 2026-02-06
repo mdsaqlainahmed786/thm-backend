@@ -39,12 +39,12 @@ const Inventory = model<IInventory, IInventoryModel>('Inventory', InventorySchem
 export default Inventory;
 
 export async function checkRoomsAvailability(businessProfileID: MongoID, checkIn: string, checkOut: string) {
-    console.log(checkIn)
-    console.log(checkOut);
+    console.log(`[checkRoomsAvailability] businessProfileID: ${businessProfileID}, checkIn: ${checkIn}, checkOut: ${checkOut}`);
     const roomWithInventory = await Room.aggregate([
         {
             $match: {
                 businessProfileID: new ObjectId(businessProfileID),
+                availability: true, // Only check available rooms
             }
         },
         {

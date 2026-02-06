@@ -44,6 +44,8 @@ const basic_2 = require("../../utils/helper/basic");
 const common_model_1 = require("./common.model");
 const common_1 = require("../../common");
 const story_model_1 = require("./story.model");
+const like_model_1 = require("./like.model");
+const view_model_1 = require("./view.model.");
 const post_model_1 = require("./post.model");
 const userConnection_model_1 = __importStar(require("./userConnection.model"));
 const blockedUser_model_1 = __importDefault(require("./blockedUser.model"));
@@ -52,7 +54,7 @@ const basic_3 = require("../../utils/helper/basic");
 const EmailNotificationService_1 = __importDefault(require("../../services/EmailNotificationService"));
 const businessType_model_1 = __importDefault(require("./businessType.model"));
 const WeatherService_1 = __importDefault(require("../../services/WeatherService"));
-const server_1 = require("../../server");
+const RedisClient_1 = require("../../services/RedisClient");
 const emailNotificationService = new EmailNotificationService_1.default();
 var SocialAccount;
 (function (SocialAccount) {
@@ -121,7 +123,7 @@ const UserSchema = new mongoose_1.Schema({
         type: Boolean, default: false,
     },
     privateAccount: {
-        type: Boolean, default: true,
+        type: Boolean, default: false,
     },
     notificationEnabled: {
         type: Boolean, default: true,
@@ -149,6 +151,11 @@ const UserSchema = new mongoose_1.Schema({
         coordinates: {
             type: [Number],
         }
+    },
+    adminPassword: {
+        type: String,
+        default: null,
+        select: false // Don't select by default for security
     },
 }, {
     timestamps: true
@@ -388,6 +395,58 @@ function addStoriesInUser(likeIDs, viewedStories) {
                 (0, story_model_1.addMediaInStory)().unwindLookup,
                 (0, story_model_1.addMediaInStory)().replaceRootAndMergeObjects,
                 (0, story_model_1.addMediaInStory)().project,
+                (0, story_model_1.addTaggedUsersInStory)().addFieldsBeforeUnwind,
+                (0, story_model_1.addTaggedUsersInStory)().unwind,
+                (0, story_model_1.addTaggedUsersInStory)().lookup,
+                (0, story_model_1.addTaggedUsersInStory)().addFields,
+                (0, story_model_1.addTaggedUsersInStory)().group,
+                (0, story_model_1.addTaggedUsersInStory)().replaceRoot,
+                {
+                    '$lookup': {
+                        'from': 'likes',
+                        'let': { 'storyID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                            (0, like_model_1.addUserInLike)().lookup,
+                            (0, like_model_1.addUserInLike)().unwindLookup,
+                            (0, like_model_1.addUserInLike)().replaceRoot,
+                        ],
+                        'as': 'likesRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        likesRef: { $slice: ["$likesRef", 4] },
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'views',
+                        let: { storyID: '$_id' },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                            (0, view_model_1.addUserInView)().lookup,
+                            (0, view_model_1.addUserInView)().unwindLookup,
+                            (0, view_model_1.addUserInView)().replaceRoot,
+                        ],
+                        as: 'viewsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        viewsRef: { $slice: ["$viewsRef", 4] },
+                    }
+                },
             ],
             'as': 'storiesRef'
         }
@@ -587,7 +646,7 @@ function fetchWeatherAndAirPollutionReport(businessProfileID) {
             const lng = Number((_d = (_c = businessProfile === null || businessProfile === void 0 ? void 0 : businessProfile.address) === null || _c === void 0 ? void 0 : _c.lng) !== null && _d !== void 0 ? _d : 0);
             try {
                 const weatherReportKey = `weather::${businessProfileID}`;
-                const weatherReport = yield server_1.RedisClient.get(weatherReportKey);
+                const weatherReport = yield RedisClient_1.RedisClient.get(weatherReportKey);
                 if (weatherReport) {
                     console.log("no api call return cache");
                     return JSON.parse(weatherReport);
@@ -598,7 +657,7 @@ function fetchWeatherAndAirPollutionReport(businessProfileID) {
                     WeatherService_1.default.weather(lat, lng)
                 ]);
                 const data = Object.assign(Object.assign({}, weather), { airPollution: airPollution });
-                yield server_1.RedisClient.set(weatherReportKey, JSON.stringify(data), {
+                yield RedisClient_1.RedisClient.set(weatherReportKey, JSON.stringify(data), {
                     EX: (60 * 60 * 24 * 15) //second * minutes * hour * day = seconds 
                 });
                 return data;
@@ -651,8 +710,11 @@ function createUserAccount(data, sendOTP) {
         if (isApproved !== undefined && isApproved !== null && isApproved === false) {
             newUser.isApproved = isApproved; //The business account needs to be approved by the admin; the default value of 'isApproved' is true.
         }
-        if (privateAccount !== undefined && privateAccount !== null && privateAccount === false) {
-            newUser.privateAccount = privateAccount; // All business account is public account 
+        if (privateAccount !== undefined && privateAccount !== null) {
+            newUser.privateAccount = privateAccount;
+        }
+        else {
+            newUser.privateAccount = false; // Default to public account
         }
         if (socialIDs && (0, basic_2.isArray)(socialIDs)) {
             newUser.socialIDs = socialIDs;
@@ -689,7 +751,12 @@ function createBusinessProfile(data) {
         newBusinessProfile.website = website;
         newBusinessProfile.gstn = gstn;
         newBusinessProfile.placeID = placeID;
-        newBusinessProfile.privateAccount = privateAccount;
+        if (privateAccount !== undefined && privateAccount !== null) {
+            newBusinessProfile.privateAccount = privateAccount;
+        }
+        else {
+            newBusinessProfile.privateAccount = false; // Default to public account
+        }
         return yield newBusinessProfile.save();
     });
 }

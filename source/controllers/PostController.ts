@@ -1,5 +1,4 @@
 
-import { fetchUserFollowing } from "../database/models/userConnection.model";
 import { GeoCoordinate } from './../database/models/common.model';
 import { ObjectId } from 'mongodb';
 import { UserRecentPostCache } from '../utils/recentPostCache';
@@ -34,11 +33,11 @@ import { lat_lng } from './EventController';
 import { FeedOrderCache } from '../utils/feedOrderCache';
 const s3Service = new S3Service();
 const index = async (request: Request, response: Response, next: NextFunction) => {
-    try {
+  try {
 
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
-    }
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
@@ -63,6 +62,19 @@ const store = async (request: Request, response: Response, next: NextFunction) =
       ));
     }
 
+    // Validate video file size (100 MB limit)
+    const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB in bytes
+    if (videos && videos.length > 0) {
+      const oversizedVideos = videos.filter((video) => video.size > MAX_VIDEO_SIZE);
+      if (oversizedVideos.length > 0) {
+        await deleteUnwantedFiles(oversizedVideos);
+        await deleteUnwantedFiles(images);
+        return response.send(httpBadRequest(
+          ErrorMessage.invalidRequest("Video file size must not exceed 100 MB"),
+          "Video file size must not exceed 100 MB"
+        ));
+      }
+    }
 
     if (!content && (!mediaFiles || mediaFiles.length === 0)) {
       return response.send(httpBadRequest(
@@ -158,17 +170,61 @@ const store = async (request: Request, response: Response, next: NextFunction) =
     }
 
     let mediaIDs: MongoID[] = [];
-    if (mediaFiles && mediaFiles.length !== 0) {
-      // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
-      const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
-      if (mediaList && mediaList.length !== 0) {
-        mediaIDs = mediaList.map(m => m.id);
+    let createdMediaList: any[] = [];
+    let savedPost: any = null;
+
+    try {
+      if (mediaFiles && mediaFiles.length !== 0) {
+        // storeMedia is potentially the slowest op (S3/network). Keep it sequential to avoid partial posts.
+        const mediaList = await storeMedia(mediaFiles, id, businessProfileID, AwsS3AccessEndpoints.POST, 'POST');
+        if (mediaList && mediaList.length !== 0) {
+          createdMediaList = mediaList; // Store for cleanup if post creation fails
+          mediaIDs = mediaList.map(m => m._id as any as MongoID);
+
+          // CRITICAL: Validate that ALL media documents exist before saving the post
+          // This prevents data integrity issues where posts reference non-existent media
+          const existingMedia = await Media.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+          const existingMediaIDs = existingMedia.map(m => m._id.toString());
+          const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+
+          if (missingMediaIDs.length > 0) {
+            console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+            console.error('Post creation aborted to prevent data integrity issues');
+            // Cleanup: Delete orphaned media if validation fails
+            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
+            return response.send(httpInternalServerError(
+              ErrorMessage.invalidRequest("Failed to create media. Please try again."),
+              "Media creation failed"
+            ));
+          }
+
+          // Double-check: Ensure we have the same number of media IDs as created
+          if (mediaIDs.length !== existingMedia.length) {
+            console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+            // Cleanup: Delete orphaned media if count mismatch
+            await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
+            return response.send(httpInternalServerError(
+              ErrorMessage.invalidRequest("Media validation failed. Please try again."),
+              "Media validation failed"
+            ));
+          }
+        }
       }
+
+      newPost.media = mediaIDs;
+
+      savedPost = await newPost.save();
+
+      // If we get here, post was created successfully - no cleanup needed
+
+    } catch (postError: any) {
+      // CRITICAL: If post creation fails after media was created, cleanup orphaned media
+      if (createdMediaList.length > 0) {
+        console.error('CRITICAL: Post creation failed after media was created. Cleaning up orphaned media:', createdMediaList.map(m => m._id));
+        await Promise.all(createdMediaList.map(m => Media.findByIdAndDelete(m._id).catch(() => { })));
+      }
+      throw postError; // Re-throw to be caught by outer try-catch
     }
-
-    newPost.media = mediaIDs;
-
-    const savedPost = await newPost.save();
 
     try {
       //@ts-ignore
@@ -257,7 +313,7 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         AwsS3AccessEndpoints.POST,
         "POST"
       );
-      mediaList?.forEach((media) => mediaIDs.push(media.id));
+      mediaList?.forEach((media) => mediaIDs.push(media._id as any as MongoID));
     }
 
     // ✅ Safely parse deletedMedia (can come as string or array)
@@ -301,56 +357,56 @@ const update = async (request: Request, response: Response, next: NextFunction) 
 
 //FIXME  //FIXME remove media, comments , likes and notifications and reviews and many more need to be test
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { id, accountType, businessProfileID } = request.user;
-        const ID = request?.params?.id;
-        const post = await Post.findOne({ _id: ID });
-        if (!post) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
-        }
-        if (post.userID.toString() !== id) {
-            return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
-        }
-        const mediaIDs = post.media;
-        if (mediaIDs.length !== 0) {
-            await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
-                const media = await Media.findOne({ _id: mediaID });
-                const fileQueues = await FileQueue.findOne({ mediaID: mediaID });
-                if (media) {
-                    await s3Service.deleteS3Object(media.s3Key);
-                    if (media.thumbnailUrl) {
-                        await s3Service.deleteS3Asset(media.thumbnailUrl);
-                    }
-                    await media.deleteOne();
-                }
-                if (fileQueues && fileQueues.status === QueueStatus.COMPLETED) {
-                    await Promise.all(fileQueues.s3Location.map(async (location) => {
-                        await s3Service.deleteS3Asset(location);
-                        return location;
-                    }));
-                    await fileQueues.deleteOne();
-                }
-                return mediaID;
-            }));
-        }
-        const [likes, comments, savedPosts, reportedContent, eventJoins] = await Promise.all([
-            Like.deleteMany({ postID: ID }),
-            Comment.deleteMany({ postID: ID }),
-            SavedPost.deleteMany({ postID: ID }),
-            Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
-            EventJoin.deleteMany({ postID: ID }),
-            Notification.deleteMany({ "metadata.postID": post._id })
-        ]);
-        console.log('likes', likes);
-        console.log('comments', comments);
-        console.log('savedPosts', savedPosts);
-        console.log('reportedContent', reportedContent)
-        console.log('eventJoins', eventJoins);
-        await post.deleteOne();
-        return response.send(httpNoContent(null, 'Post deleted'));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const { id, accountType, businessProfileID } = request.user;
+    const ID = request?.params?.id;
+    const post = await Post.findOne({ _id: ID });
+    if (!post) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
     }
+    if (post.userID.toString() !== id) {
+      return response.send(httpForbidden(ErrorMessage.invalidRequest('This post cannot be deleted.'), 'This post cannot be deleted.'))
+    }
+    const mediaIDs = post.media;
+    if (mediaIDs.length !== 0) {
+      await Promise.all(mediaIDs && mediaIDs.map(async (mediaID) => {
+        const media = await Media.findOne({ _id: mediaID });
+        const fileQueues = await FileQueue.findOne({ mediaID: mediaID });
+        if (media) {
+          await s3Service.deleteS3Object(media.s3Key);
+          if (media.thumbnailUrl) {
+            await s3Service.deleteS3Asset(media.thumbnailUrl);
+          }
+          await media.deleteOne();
+        }
+        if (fileQueues && fileQueues.status === QueueStatus.COMPLETED) {
+          await Promise.all(fileQueues.s3Location.map(async (location) => {
+            await s3Service.deleteS3Asset(location);
+            return location;
+          }));
+          await fileQueues.deleteOne();
+        }
+        return mediaID;
+      }));
+    }
+    const [likes, comments, savedPosts, reportedContent, eventJoins] = await Promise.all([
+      Like.deleteMany({ postID: ID }),
+      Comment.deleteMany({ postID: ID }),
+      SavedPost.deleteMany({ postID: ID }),
+      Report.deleteMany({ contentID: ID, contentType: ContentType.POST }),
+      EventJoin.deleteMany({ postID: ID }),
+      Notification.deleteMany({ "metadata.postID": post._id })
+    ]);
+    console.log('likes', likes);
+    console.log('comments', comments);
+    console.log('savedPosts', savedPosts);
+    console.log('reportedContent', reportedContent)
+    console.log('eventJoins', eventJoins);
+    await post.deleteOne();
+    return response.send(httpNoContent(null, 'Post deleted'));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
@@ -383,155 +439,183 @@ const deletePost = async (request: Request, response: Response, next: NextFuncti
 
 
 const show = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const postID = request?.params?.id;
-        const { id } = request.user;
-        if (!id) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
-            Like.distinct('postID', { userID: id, postID: { $ne: null } }),
-            getSavedPost(id),
-            EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
-        ]);
-        const post = await Post.aggregate(
-            [
-                {
-                    $match: { _id: new ObjectId(postID) }
-                },
-                addMediaInPost().lookup,
-                addTaggedPeopleInPost().lookup,
-                {
-                    '$lookup': {
-                        'from': 'users',
-                        'let': { 'userID': '$userID' },
-                        'pipeline': [
-                            { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
-                            addBusinessProfileInUser().lookup,
-                            addBusinessProfileInUser().unwindLookup,
-                            addBusinessSubTypeInBusinessProfile().lookup,
-                            addBusinessSubTypeInBusinessProfile().unwindLookup,
-                            {
-                                '$project': {
-                                    "name": 1,
-                                    "profilePic": 1,
-                                    "accountType": 1,
-                                    "businessProfileID": 1,
-                                    "businessProfileRef._id": 1,
-                                    "businessProfileRef.name": 1,
-                                    "businessProfileRef.profilePic": 1,
-                                    "businessProfileRef.rating": 1,
-                                    "businessProfileRef.businessTypeRef": 1,
-                                    "businessProfileRef.businessSubtypeRef": 1,
-                                    "businessProfileRef.address": 1,
-                                }
-                            }
-                        ],
-                        'as': 'postedBy'
-                    }
-                },
-                {
-                    '$unwind': {
-                        'path': '$postedBy',
-                        'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
-                    }
-                },
-                addAnonymousUserInPost().lookup,
-                addAnonymousUserInPost().unwindLookup,
-                addPostedByInPost().unwindLookup,
-                addLikesInPost().lookup,
-                addLikesInPost().addLikeCount,
-                addCommentsInPost().lookup,
-                addCommentsInPost().addCommentCount,
-                addSharedCountInPost().lookup,
-                addSharedCountInPost().addSharedCount,
-                addReviewedBusinessProfileInPost().lookup,
-                addReviewedBusinessProfileInPost().unwindLookup,
-                addGoogleReviewedBusinessProfileInPost().lookup,
-                addGoogleReviewedBusinessProfileInPost().unwindLookup,
-                isLikedByMe(likedByMe),
-                isSavedByMe(savedByMe),
-                imJoining(joiningEvents),
-                addInterestedPeopleInPost().lookup,
-                addInterestedPeopleInPost().addInterestedCount,
-                {
-                    $addFields: {
-                        reviewedBusinessProfileRef: {
-                            $cond: {
-                                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
-                                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
-                                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
-                            }
-                        },
-                        postedBy: {
-                            $cond: {
-                                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
-                                then: "$publicPostedBy", // Replace with publicPostedBy
-                                else: "$postedBy" // Keep the existing value if it exists
-                            }
-                        }
-                    }
-                },
-                {
-                    $sort: { createdAt: -1, id: 1 }
-                },
-                {
-                    $limit: 1,
-                },
-                {
-                    $addFields: {
-                        eventJoinsRef: { $slice: ["$eventJoinsRef", 7] },
-                    }
-                },
-                {
-                    $unset: [
-                        "geoCoordinate",
-                        "publicPostedBy",
-                        "googleReviewedBusinessRef",
-                        "reviews",
-                        "isPublished",
-                        "sharedRef",
-                        "commentsRef",
-                        "likesRef",
-                        "tagged",
-                        "media",
-                        "updatedAt",
-                        "__v"
-                    ]
-                }
-            ]
-        ).exec()
-        if (post.length === 0) {
-            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
-        }
-        return response.send(httpOk(post[0], "Post Fetched"));
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  try {
+    const postID = request?.params?.id;
+    const { id } = request.user;
+    if (!id) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
     }
+    const [likedByMe, savedByMe, joiningEvents] = await Promise.all([
+      Like.distinct('postID', { userID: id, postID: { $ne: null } }),
+      getSavedPost(id),
+      EventJoin.distinct('postID', { userID: id, postID: { $ne: null } }),
+    ]);
+    const post = await Post.aggregate(
+      [
+        {
+          $match: { _id: new ObjectId(postID) }
+        },
+        addMediaInPost().lookup,
+        addMediaInPost().sort_media,
+        addTaggedPeopleInPost().lookup,
+        {
+          '$lookup': {
+            'from': 'users',
+            'let': { 'userID': '$userID' },
+            'pipeline': [
+              { '$match': { '$expr': { '$eq': ['$_id', '$$userID'] } } },
+              addBusinessProfileInUser().lookup,
+              addBusinessProfileInUser().unwindLookup,
+              addBusinessSubTypeInBusinessProfile().lookup,
+              addBusinessSubTypeInBusinessProfile().unwindLookup,
+              {
+                '$project': {
+                  "name": 1,
+                  "profilePic": 1,
+                  "accountType": 1,
+                  "businessProfileID": 1,
+                  "businessProfileRef._id": 1,
+                  "businessProfileRef.name": 1,
+                  "businessProfileRef.profilePic": 1,
+                  "businessProfileRef.rating": 1,
+                  "businessProfileRef.businessTypeRef": 1,
+                  "businessProfileRef.businessSubtypeRef": 1,
+                  "businessProfileRef.address": 1,
+                }
+              }
+            ],
+            'as': 'postedBy'
+          }
+        },
+        {
+          '$unwind': {
+            'path': '$postedBy',
+            'preserveNullAndEmptyArrays': true//false value does not fetch relationship.
+          }
+        },
+        addAnonymousUserInPost().lookup,
+        addAnonymousUserInPost().unwindLookup,
+        addPostedByInPost().unwindLookup,
+        addLikesInPost().lookup,
+        addLikesInPost().addLikeCount,
+        addCommentsInPost().lookup,
+        addCommentsInPost().addCommentCount,
+        addSharedCountInPost().lookup,
+        addSharedCountInPost().addSharedCount,
+        addReviewedBusinessProfileInPost().lookup,
+        addReviewedBusinessProfileInPost().unwindLookup,
+        addGoogleReviewedBusinessProfileInPost().lookup,
+        addGoogleReviewedBusinessProfileInPost().unwindLookup,
+        isLikedByMe(likedByMe),
+        isSavedByMe(savedByMe),
+        imJoining(joiningEvents),
+        addInterestedPeopleInPost().lookup,
+        addInterestedPeopleInPost().addInterestedCount,
+        {
+          $addFields: {
+            reviewedBusinessProfileRef: {
+              $cond: {
+                if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+              }
+            },
+            postedBy: {
+              $cond: {
+                if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                then: "$publicPostedBy", // Replace with publicPostedBy
+                else: "$postedBy" // Keep the existing value if it exists
+              }
+            }
+          }
+        },
+        {
+          $sort: { createdAt: -1, id: 1 }
+        },
+        {
+          $limit: 1,
+        },
+        {
+          $addFields: {
+            eventJoinsRef: { $slice: ["$eventJoinsRef", 7] },
+          }
+        },
+        {
+          $unset: [
+            "geoCoordinate",
+            "publicPostedBy",
+            "googleReviewedBusinessRef",
+            "reviews",
+            "isPublished",
+            "sharedRef",
+            "commentsRef",
+            "likesRef",
+            "tagged",
+            "media",
+            "updatedAt",
+            "__v"
+          ]
+        }
+      ]
+    ).exec()
+    if (post.length === 0) {
+      return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND), ErrorMessage.POST_NOT_FOUND));
+    }
+    return response.send(httpOk(post[0], "Post Fetched"));
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
 
 const storeViews = async (request: Request, response: Response, next: NextFunction) => {
-    try {
-        const { postIDs } = request.body;
-        if (postIDs && isArray(postIDs)) {
-            await Promise.all(postIDs && postIDs.map(async (postID: string) => {
-                const post = await Post.findOne({ _id: postID });
-                if (post) {
-                    post.views = post.views ? post.views + 1 : 1;
-                    await post.save();
-                }
-                return postID;
-            }));
-            return response.send(httpOk(null, "Post views saved successfully."))
-        } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid post id array."), "Invalid post id array."))
+  try {
+    const { postIDs } = request.body;
+    if (postIDs && isArray(postIDs)) {
+      await Promise.all(postIDs && postIDs.map(async (postID: string) => {
+        const post = await Post.findOne({ _id: postID });
+        if (post) {
+          post.views = post.views ? post.views + 1 : 1;
+          await post.save();
         }
-    } catch (error: any) {
-        next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+        return postID;
+      }));
+      return response.send(httpOk(null, "Post views saved successfully."))
+    } else {
+      return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid post id array."), "Invalid post id array."))
     }
+  } catch (error: any) {
+    next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
+  }
 }
 
+async function cloneMediaForStory(
+  media: any,
+  newOwnerID: MongoID,
+  businessProfileID?: MongoID | null
+) {
+  const clonedMedia = new Media({
+    businessProfileID: businessProfileID ?? null,
+    userID: newOwnerID,
+
+    fileName: media.fileName,
+    fileSize: media.fileSize,
+    mediaType: media.mediaType,
+    mimeType: media.mimeType,
+
+    width: media.width,
+    height: media.height,
+    duration: media.duration,
+
+    sourceUrl: media.sourceUrl,
+    thumbnailUrl: media.thumbnailUrl,
+    s3Key: media.s3Key,
+    parentMediaID: media._id, // traceability
+    usedIn: "STORY",
+  });
+
+  return clonedMedia.save();
+}
 
 
 const publishPostAsStory = async (request: Request, response: Response, next: NextFunction) => {
@@ -548,8 +632,8 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 1. Fetch post & media in one go
-    const post = await Post.findOne({ _id: postID }).populate("media").lean();
+    // 1. Fetch post
+    const post = await Post.findOne({ _id: new ObjectId(postID) }).lean();
     if (!post) {
       return response.send(
         httpNotFoundOr404(
@@ -560,30 +644,17 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
     }
 
     // 2. You cannot share your own post
-    if (String(post.userID) === String(id)) {
-      return response.send(
-        httpBadRequest(
-          ErrorMessage.invalidRequest("You cannot share your own post as a story."),
-          "You cannot share your own post as a story."
-        )
-      );
-    }
+    // if (String(post.userID) === String(id)) {
+    //   return response.send(
+    //     httpBadRequest(
+    //       ErrorMessage.invalidRequest("You cannot share your own post as a story."),
+    //       "You cannot share your own post as a story."
+    //     )
+    //   );
+    // }
 
-    // 3. Check following using Set for O(1) lookup
-    const myFollowingIDs = await fetchUserFollowing(id);
-    const followingSet = new Set(myFollowingIDs.map(f => String(f)));
-
-    if (!followingSet.has(String(post.userID))) {
-      return response.send(
-        httpForbidden(
-          ErrorMessage.invalidRequest("You can only share media from users you follow."),
-          "You can only share media from users you follow."
-        )
-      );
-    }
-
-    // 4. Check post media
-    if (!post.media?.length) {
+    // 3. Check post media first (before other checks)
+    if (!post.media || !Array.isArray(post.media) || post.media.length === 0) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has no media to publish as a story."),
@@ -592,21 +663,39 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    const mediaIDs = post.media.map((m: any) => String(m._id));
+    // 4. Fetch all media to filter by type (images and videos only)
+    const allMedia = await Media.find({
+      _id: { $in: post.media.map((m: any) => new ObjectId(m)) },
+      mediaType: { $in: [MediaType.IMAGE, MediaType.VIDEO] }
+    });
 
-    // 5. Find stories already posted in last 24 hours
+    if (allMedia.length === 0) {
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("This post has no images or videos to publish as a story."),
+          "This post has no images or videos to publish as a story."
+        )
+      );
+    }
+
+    // 5. Extract media IDs
+    const mediaIDs = allMedia.map(m => String(m._id));
+
+    // 7. Find stories already posted in last 24 hours
     const existingStories = await Story.find({
       userID: id,
       mediaID: { $in: mediaIDs },
       timeStamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     }).lean();
 
-    const usedMediaIDSet = new Set(existingStories.map(s => String(s.mediaID)));
+    const existingMediaIDs = new Set(existingStories.map(s => String(s.mediaID)));
 
-    // 6. Filter new media IDs
-    const newMedia = post.media.filter((m: any) => !usedMediaIDSet.has(String(m._id)));
+    // 8. Filter new media (exclude already shared media)
+    const newMedia = allMedia.filter(
+      (media) => !existingMediaIDs.has(String(media._id))
+    );
 
-    if (!newMedia.length) {
+    if (newMedia.length === 0) {
       return response.send(
         httpBadRequest(
           ErrorMessage.invalidRequest("This post has already been shared as a story."),
@@ -615,22 +704,37 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
-    // 7. Prepare story docs (no extra DB fetch required)
-    const storyDocs = newMedia.map((m: any) => ({
-      userID: id,
-      mediaID: m._id,
-      duration: m.duration || 10,
-      postID: post._id,
-      businessProfileID: accountType === AccountType.BUSINESS ? businessProfileID : undefined,
-      timeStamp: new Date()
-    }));
+    const storyPromises = newMedia.map(async (media) => {
+      const newStory = new Story();
+      newStory.userID = id;
+      const clonedMedia = await cloneMediaForStory(
+        media,
+        id,
+        businessProfileID
+      );
+      newStory.mediaID = clonedMedia._id as MongoID;
+      newStory.duration = media.duration || 10;
+      (newStory as any).postID = post._id; // optional, helps trace which post story came from (cast to any to satisfy TS)
 
-    // 8. Insert all stories in one go (super fast)
-    const createdStories = await Story.insertMany(storyDocs);
+      if (accountType === AccountType.BUSINESS && businessProfileID) {
+        newStory.businessProfileID = businessProfileID;
+      }
 
-    return response.send(
-      httpCreated(createdStories, "Post published as story successfully.")
-    );
+      return newStory.save();
+    });
+
+    const createdStories = (await Promise.all(storyPromises)).filter(Boolean);
+
+    if (createdStories.length === 0) {
+      return response.send(
+        httpBadRequest(
+          ErrorMessage.invalidRequest("No valid new media found to publish as story."),
+          "No valid new media found to publish as story."
+        )
+      );
+    }
+
+    return response.send(httpCreated(createdStories, "Post published as story successfully."));
 
   } catch (error: any) {
     next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

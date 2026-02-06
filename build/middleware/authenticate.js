@@ -35,7 +35,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateAccessToken = exports.generateRefreshToken = exports.isBusinessUser = exports.isAdministrator = void 0;
+exports.generateAccessToken = exports.generateRefreshToken = exports.isBusinessUser = exports.isTheHotelMediaRootAdmin = exports.isAdministrator = void 0;
 const jsonwebtoken_1 = require("jsonwebtoken");
 const response_1 = require("../utils/response");
 const error_1 = require("../utils/response-message/error");
@@ -44,13 +44,25 @@ const user_model_1 = __importStar(require("../database/models/user.model"));
 const common_1 = require("../common");
 const authToken_model_1 = __importDefault(require("../database/models/authToken.model"));
 const subscription_model_1 = require("../database/models/subscription.model");
+const businessProfile_model_1 = __importDefault(require("../database/models/businessProfile.model"));
+const businessType_model_1 = __importDefault(require("../database/models/businessType.model"));
+const moment_1 = __importDefault(require("moment"));
 function authenticateUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-        const authKey = constants_1.AppConfig.USER_AUTH_TOKEN_KEY;
-        const refreshTokenInCookie = cookies[authKey];
-        const refreshTokenInHeaders = request.headers[authKey.toLowerCase()];
-        const token = refreshTokenInCookie || refreshTokenInHeaders;
+        // Determine which token to use
+        let token;
+        let auth_user_id;
+        const adminToken = cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY] || request.headers[constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY.toLowerCase()];
+        const userToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_KEY] || request.headers[constants_1.AppConfig.USER_AUTH_TOKEN_KEY.toLowerCase()];
+        if (isAdminRoute) {
+            token = adminToken;
+        }
+        else {
+            // On non-admin routes, prioritize user token, but allow admin token as fallback
+            token = (userToken || adminToken);
+        }
         if (!token) {
             return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.unAuthenticatedRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
         }
@@ -66,18 +78,42 @@ function authenticateUser(request, response, next) {
                     //FIXME improve endpoint check
                     const matchedEndpoints = ['/edit-profile-pic', '/edit-profile', '/business-profile/documents', '/questions/answers', '/subscription/plans', '/subscription/checkout', '/subscription', '/business-profile/property-picture', '/apple/purchases/subscriptions/verify', '/google/purchases/subscriptions/verify'];
                     const now = new Date();
-                    if (!matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && !subscription) {
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(auth_user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && !subscription) {
                         console.error("ErrorMessage.NO_SUBSCRIPTION");
                         return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.subscriptionExpired(error_1.ErrorMessage.NO_SUBSCRIPTION), error_1.ErrorMessage.NO_SUBSCRIPTION));
                     }
-                    if (!matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
+                    if (!isWithinGracePeriod && !matchedEndpoints.includes(request.path) && auth_user.accountType === user_model_1.AccountType.BUSINESS && subscription && subscription.expirationDate < now) {
                         console.error("ErrorMessage.SUBSCRIPTION_EXPIRED");
                         return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.subscriptionExpired(error_1.ErrorMessage.SUBSCRIPTION_EXPIRED), error_1.ErrorMessage.SUBSCRIPTION_EXPIRED));
+                    }
+                    // Fetch business type if it's a business account
+                    let businessTypeID = null;
+                    let businessTypeName = null;
+                    if (auth_user.accountType === user_model_1.AccountType.BUSINESS && auth_user.businessProfileID) {
+                        try {
+                            const businessProfile = yield businessProfile_model_1.default.findOne({ _id: auth_user.businessProfileID });
+                            if (businessProfile && businessProfile.businessTypeID) {
+                                businessTypeID = String(businessProfile.businessTypeID);
+                                const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                                if (businessType) {
+                                    businessTypeName = businessType.name;
+                                }
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error fetching business type in authenticate:', error);
+                        }
                     }
                     request.user = {
                         id: auth_user.id,
                         accountType: auth_user.accountType,
                         businessProfileID: auth_user.accountType === user_model_1.AccountType.BUSINESS ? auth_user.businessProfileID : null,
+                        businessTypeID: businessTypeID,
+                        businessTypeName: businessTypeName,
                         role: auth_user.role
                     };
                 }
@@ -104,6 +140,37 @@ function isAdministrator(request, response, next) {
     });
 }
 exports.isAdministrator = isAdministrator;
+/**
+ * Extra safety gate for highly-privileged admin-only endpoints.
+ * Requires: authenticated administrator AND email === admin@thehotelmedia.com
+ */
+function isTheHotelMediaRootAdmin(request, response, next) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
+        try {
+            const userID = (_a = request.user) === null || _a === void 0 ? void 0 : _a.id;
+            if (!userID) {
+                return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.unAuthenticatedRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
+            }
+            const user = yield user_model_1.default.findOne({ _id: userID }).select('email role');
+            if (!user) {
+                return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+            }
+            if (user.role !== common_1.Role.ADMINISTRATOR) {
+                return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
+            }
+            const isAllowedEmail = ((_b = user.email) !== null && _b !== void 0 ? _b : '').toLowerCase() === 'admin@thehotelmedia.com';
+            if (!isAllowedEmail) {
+                return response.status(403).send((0, response_1.httpForbidden)(error_1.ErrorMessage.invalidRequest('You don\'t have the right permissions to access'), 'You don\'t have the right permissions to access'));
+            }
+            return next();
+        }
+        catch (error) {
+            return response.status(500).send((0, response_1.httpInternalServerError)(error, (_c = error === null || error === void 0 ? void 0 : error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        }
+    });
+}
+exports.isTheHotelMediaRootAdmin = isTheHotelMediaRootAdmin;
 function isBusinessUser(request, response, next) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c;
@@ -124,10 +191,37 @@ exports.isBusinessUser = isBusinessUser;
 function generateRefreshToken(user, deviceID) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
+        // Fetch business type information if businessProfileID exists
+        let businessTypeID = undefined;
+        let businessTypeName = undefined;
+        if (user.businessProfileID && user.accountType === user_model_1.AccountType.BUSINESS) {
+            // Use provided businessTypeID if available, otherwise fetch from database
+            if (user.businessTypeID) {
+                businessTypeID = String(user.businessTypeID);
+                businessTypeName = user.businessTypeName;
+            }
+            else {
+                try {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                    if (businessProfile && businessProfile.businessTypeID) {
+                        businessTypeID = String(businessProfile.businessTypeID);
+                        const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                        if (businessType) {
+                            businessTypeName = businessType.name;
+                        }
+                    }
+                }
+                catch (error) {
+                    console.error('Error fetching business type for token:', error);
+                }
+            }
+        }
         const payload = {
             id: String(user.id),
             accountType: user.accountType,
             businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+            businessTypeID: businessTypeID,
+            businessTypeName: businessTypeName,
             role: user.role
         };
         const options = { expiresIn: constants_1.AppConfig.REFRESH_TOKEN_EXPIRES_IN };
@@ -150,10 +244,37 @@ function generateRefreshToken(user, deviceID) {
 exports.generateRefreshToken = generateRefreshToken;
 function generateAccessToken(user, expiresIn) {
     return __awaiter(this, void 0, void 0, function* () {
+        // Fetch business type information if businessProfileID exists
+        let businessTypeID = undefined;
+        let businessTypeName = undefined;
+        if (user.businessProfileID && user.accountType === user_model_1.AccountType.BUSINESS) {
+            // Use provided businessTypeID if available, otherwise fetch from database
+            if (user.businessTypeID) {
+                businessTypeID = String(user.businessTypeID);
+                businessTypeName = user.businessTypeName;
+            }
+            else {
+                try {
+                    const businessProfile = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
+                    if (businessProfile && businessProfile.businessTypeID) {
+                        businessTypeID = String(businessProfile.businessTypeID);
+                        const businessType = yield businessType_model_1.default.findOne({ _id: businessProfile.businessTypeID });
+                        if (businessType) {
+                            businessTypeName = businessType.name;
+                        }
+                    }
+                }
+                catch (error) {
+                    console.error('Error fetching business type for token:', error);
+                }
+            }
+        }
         const payload = {
             id: String(user.id),
             accountType: user.accountType,
             businessProfileID: user.businessProfileID ? String(user.businessProfileID) : undefined,
+            businessTypeID: businessTypeID,
+            businessTypeName: businessTypeName,
             role: user.role
         };
         const options = { expiresIn: (expiresIn !== null && expiresIn !== void 0 ? expiresIn : constants_1.AppConfig.ACCESS_TOKEN_EXPIRES_IN) };

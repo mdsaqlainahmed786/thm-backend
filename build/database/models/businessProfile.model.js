@@ -43,7 +43,7 @@ const BusinessProfileSchema = new mongoose_1.Schema({
         }
     ],
     privateAccount: {
-        type: Boolean, default: true,
+        type: Boolean, default: false,
     },
     coverImage: {
         type: String, default: ""

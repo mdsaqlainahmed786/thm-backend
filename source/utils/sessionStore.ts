@@ -20,12 +20,17 @@ export default class InMemorySessionStore extends SessionStore {
     findAllSessions() {
         return [...this.sessions.values()];
     }
-    destroySession(username: string) {
+    destroySession(userID: string) {
+        // Use userID instead of username for more reliable session management
+        this.sessions.delete(userID);
+    }
+    // Helper method to find session by username (for backward compatibility)
+    findSessionByUsername(username: string): SocketUser | undefined {
         for (let [key, value] of this.sessions) {
             if (value.username === username) {
-                this.sessions.delete(key);
-                break; // Exit loop after the first match (assuming usernames are unique)
+                return value;
             }
         }
+        return undefined;
     }
 }

@@ -32,6 +32,7 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     $match: dbQuery
                 },
                 addMediaInPost().lookup,
+                addMediaInPost().sort_media,
                 {
                     '$lookup': {
                         'from': 'businessprofiles',

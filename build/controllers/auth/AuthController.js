@@ -59,16 +59,41 @@ const EmailNotificationService_1 = __importDefault(require("../../services/Email
 const api_validation_1 = require("../../validation/rules/api-validation");
 const SocialProviders_1 = __importDefault(require("../../services/SocialProviders"));
 const uuid_1 = require("uuid");
+const moment_1 = __importDefault(require("moment"));
+const bcrypt_1 = require("bcrypt");
 const emailNotificationService = new EmailNotificationService_1.default();
+const getAuthKeys = (request, role) => {
+    const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+    const isAdmin = isAdminRoute || role === common_1.Role.ADMINISTRATOR;
+    return {
+        accessTokenKey: isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_KEY,
+        refreshTokenCookieKey: isAdmin ? constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY
+    };
+};
 const login = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const { email, password, deviceID, notificationToken, devicePlatform, lat, lng, language } = request.body;
-        const user = yield user_model_2.default.findOne({ email: email });
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        // If admin route, select adminPassword field as well
+        const userQuery = user_model_2.default.findOne({ email: email });
+        if (isAdminRoute) {
+            userQuery.select('+adminPassword');
+        }
+        const user = yield userQuery;
         if (!user) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
-        const isMatch = yield user.comparePassword(password);
+        // For admin login, check adminPassword if it exists, otherwise check regular password
+        let isMatch = false;
+        if (isAdminRoute && user.role === common_1.Role.ADMINISTRATOR && user.adminPassword) {
+            // Compare with adminPassword
+            isMatch = yield (0, bcrypt_1.compare)(password, user.adminPassword);
+        }
+        else {
+            // Use regular password comparison
+            isMatch = yield user.comparePassword(password);
+        }
         if (!isMatch) {
             return response.status(200).send((0, response_1.httpForbidden)(null, error_1.ErrorMessage.INVALID_OR_INCORRECT_PASSWORD));
         }
@@ -122,14 +147,27 @@ const login = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                 hasAmenities = false;
             }
-            if (!subscription) {
-                hasSubscription = false;
+            // Check if account is within 11-month grace period
+            const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+            const isWithinGracePeriod = accountAgeInMonths < 11;
+            // Only enforce subscription checks if account is 11+ months old
+            // For accounts within grace period, keep hasSubscription = true
+            if (!isWithinGracePeriod) {
+                if (!subscription) {
+                    hasSubscription = false;
+                }
+                else {
+                    const now = new Date();
+                    if (subscription.expirationDate < now) {
+                        hasSubscription = false;
+                    }
+                }
             }
-            if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+            if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
             }
             const now = new Date();
-            if (subscription && subscription.expirationDate < now) {
+            if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
                 hasSubscription = false;
                 return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired.`));
             }
@@ -140,8 +178,9 @@ const login = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
         const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
         const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-        response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-        response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+        response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+        response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
     }
     catch (error) {
@@ -174,9 +213,12 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const [username, user, isPhoneNumberExist] = yield Promise.all([
                     generateUsername(email, user_model_2.AccountType.INDIVIDUAL),
                     user_model_2.default.findOne({ email: email }),
-                    phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+                    phoneNumber ? Promise.all([
+                        user_model_2.default.findOne({ phoneNumber: phoneNumber }),
+                        businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }),
+                    ]) : null,
                 ]);
-                if (phoneNumber && isPhoneNumberExist) {
+                if (phoneNumber && isPhoneNumberExist && (isPhoneNumberExist[0] || isPhoneNumberExist[1])) {
                     return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
                 }
                 if (!user) {
@@ -196,8 +238,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     yield (0, appDeviceConfig_model_1.addUserDevicesConfig)(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                     const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
                 }
                 const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
@@ -241,14 +284,27 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                         hasAmenities = false;
                     }
-                    if (!subscription) {
-                        hasSubscription = false;
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        }
+                        else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
                     }
-                    if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
                     }
                     const now = new Date();
-                    if (subscription && subscription.expirationDate < now) {
+                    if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
                         hasSubscription = false;
                         return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired`));
                     }
@@ -259,8 +315,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
             }
             catch (error) {
@@ -280,9 +337,12 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const [username, user, isPhoneNumberExist] = yield Promise.all([
                     generateUsername(email, user_model_2.AccountType.INDIVIDUAL),
                     user_model_2.default.findOne({ email: email }),
-                    phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+                    phoneNumber ? Promise.all([
+                        user_model_2.default.findOne({ phoneNumber: phoneNumber }),
+                        businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }),
+                    ]) : null,
                 ]);
-                if (phoneNumber && isPhoneNumberExist) {
+                if (phoneNumber && isPhoneNumberExist && (isPhoneNumberExist[0] || isPhoneNumberExist[1])) {
                     return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
                 }
                 if (!user) {
@@ -302,8 +362,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     yield (0, appDeviceConfig_model_1.addUserDevicesConfig)(deviceID, devicePlatform, notificationToken, savedUser.id, savedUser.accountType);
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                     const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, savedUser.role);
+                    response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
                 }
                 const isSocialIDExist = user && user.socialIDs.some((social) => social.socialType === socialType);
@@ -340,21 +401,35 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                     businessProfileRef = businessProfile;
                     const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                     const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser, "15m");
-                    response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                    const { accessTokenKey } = getAuthKeys(request, user.role);
+                    response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                     if (!businessDocument || businessDocument.length === 0) {
                         isDocumentUploaded = false;
                     }
                     if (!businessProfileRef || !businessProfileRef.amenities || businessProfileRef.amenities.length === 0) {
                         hasAmenities = false;
                     }
-                    if (!subscription) {
-                        hasSubscription = false;
+                    // Check if account is within 11-month grace period
+                    const accountAgeInMonths = (0, moment_1.default)().diff((0, moment_1.default)(user.createdAt), 'months', true);
+                    const isWithinGracePeriod = accountAgeInMonths < 11;
+                    // Only enforce subscription checks if account is 11+ months old
+                    // For accounts within grace period, keep hasSubscription = true
+                    if (!isWithinGracePeriod) {
+                        if (!subscription) {
+                            hasSubscription = false;
+                        }
+                        else {
+                            const now = new Date();
+                            if (subscription.expirationDate < now) {
+                                hasSubscription = false;
+                            }
+                        }
                     }
-                    if (!isDocumentUploaded || !hasAmenities || !hasSubscription) {
+                    if (!isDocumentUploaded || !hasAmenities || (!isWithinGracePeriod && !hasSubscription)) {
                         return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), "Your profile is incomplete. Please take a moment to complete it."));
                     }
                     const now = new Date();
-                    if (subscription && subscription.expirationDate < now) {
+                    if (!isWithinGracePeriod && subscription && subscription.expirationDate < now) {
                         hasSubscription = false;
                         return response.send((0, response_1.httpForbidden)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken }), `Your subscription expired`));
                     }
@@ -365,8 +440,9 @@ const socialLogin = (request, response, next) => __awaiter(void 0, void 0, void 
                 const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { businessProfileRef, isDocumentUploaded, hasAmenities, hasSubscription, accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
             }
             catch (error) {
@@ -391,15 +467,16 @@ const signUp = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
     var _e;
     try {
         const { email, name, accountType, dialCode, phoneNumber, password, businessName, businessEmail, businessPhoneNumber, businessDialCode, businessType, businessSubType, bio, businessWebsite, gstn, street, city, zipCode, country, lat, lng, state, placeID, profession, language } = request.body;
-        const [username, isUserExist, isPhoneNumberExist] = yield Promise.all([
+        const [username, isUserExist, isPhoneNumberExistUser, isPhoneNumberExistBusinessProfile] = yield Promise.all([
             generateUsername(email, accountType),
             user_model_2.default.findOne({ email: email }),
             phoneNumber ? user_model_2.default.findOne({ phoneNumber: phoneNumber }) : null,
+            phoneNumber ? businessProfile_model_1.default.findOne({ phoneNumber: phoneNumber }) : null,
         ]);
         if (isUserExist) {
             return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.EMAIL_IN_USE), error_1.ErrorMessage.EMAIL_IN_USE));
         }
-        if (isPhoneNumberExist) {
+        if (isPhoneNumberExistUser || isPhoneNumberExistBusinessProfile) {
             return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
         }
         let geoCoordinate = { type: "Point", coordinates: [78.9629, 20.5937] };
@@ -407,6 +484,14 @@ const signUp = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
             geoCoordinate = { type: "Point", coordinates: [lng, lat] };
         }
         if (accountType === user_model_2.AccountType.BUSINESS) {
+            // Enforce unique business phone number across BOTH Users and BusinessProfiles
+            const [isBusinessPhoneInUser, isBusinessPhoneInBusinessProfile] = yield Promise.all([
+                businessPhoneNumber ? user_model_2.default.findOne({ phoneNumber: businessPhoneNumber }) : null,
+                businessPhoneNumber ? businessProfile_model_1.default.findOne({ phoneNumber: businessPhoneNumber }) : null,
+            ]);
+            if (isBusinessPhoneInUser || isBusinessPhoneInBusinessProfile) {
+                return response.send((0, response_1.httpConflict)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.PHONE_NUMBER_IN_USE), error_1.ErrorMessage.PHONE_NUMBER_IN_USE));
+            }
             const isBusinessTypeExist = yield businessType_model_1.default.findOne({ _id: businessType });
             if (!isBusinessTypeExist) {
                 return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Business type not found"), "Business type not found"));
@@ -490,15 +575,17 @@ const verifyEmail = (request, response, next) => __awaiter(void 0, void 0, void 
             const businessProfileRef = yield businessProfile_model_1.default.findOne({ _id: user.businessProfileID });
             const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser, "15m");
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+            const { accessTokenKey } = getAuthKeys(request, user.role);
+            response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
             return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, savedUser.hideSensitiveData()), { businessProfileRef, accessToken }), success_1.SuccessMessage.OTP_VERIFIED));
         }
         else {
             const authenticateUser = { id: user.id, accountType: user.accountType, businessProfileID: user.businessProfileID, role: user.role };
             const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
             const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-            response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+            const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, user.role);
+            response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+            response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
             return response.send((0, response_1.httpOk)(Object.assign(Object.assign({}, user.hideSensitiveData()), { accessToken, refreshToken }), success_1.SuccessMessage.LOGIN_SUCCESS));
         }
     }
@@ -592,18 +679,19 @@ const verifyOtpLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
                 isDocumentUploaded = false;
             if (!((_h = businessProfileRef === null || businessProfileRef === void 0 ? void 0 : businessProfileRef.amenities) === null || _h === void 0 ? void 0 : _h.length))
                 hasAmenities = false;
-            if (!subscription)
-                hasSubscription = false;
-            const now = new Date();
-            if (subscription && subscription.expirationDate < now) {
-                hasSubscription = false;
-                return res.status(403).json({
-                    status: false,
-                    statusCode: 403,
-                    message: "Your subscription expired",
-                    data: null
-                });
-            }
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // if (!subscription) hasSubscription = false;
+            // COMMENTED OUT: Subscription check bypassed for testing
+            // const now = new Date();
+            // if (subscription && subscription.expirationDate < now) {
+            //     hasSubscription = false;
+            //     return res.status(403).json({
+            //         status: false,
+            //         statusCode: 403,
+            //         message: "Your subscription expired",
+            //         data: null
+            //     });
+            // }
         }
         if (!user.isApproved) {
             return res.status(403).json({
@@ -627,8 +715,9 @@ const verifyOtpLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
         };
         const accessToken = yield (0, authenticate_1.generateAccessToken)(authenticateUser);
         const refreshToken = yield (0, authenticate_1.generateRefreshToken)(authenticateUser, deviceID);
-        res.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
-        res.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(req, user.role);
+        res.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
+        res.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
         // 7️⃣ Final success response — EXACT format requested
         return res.status(200).json({
             status: true,
@@ -648,10 +737,10 @@ const verifyOtpLogin = (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 const logout = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _j;
+    var _j, _k;
     try {
         const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-        const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+        const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
         if (!refreshToken) {
             return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
         }
@@ -671,18 +760,19 @@ const logout = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
             yield appDeviceConfig_model_1.default.deleteMany({ userID: authToken.userID, deviceID: authToken.deviceID });
         }
         yield authToken.deleteOne();
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, constants_2.CookiePolicy);
+        const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, (_j = request.user) === null || _j === void 0 ? void 0 : _j.role);
+        response.clearCookie(refreshTokenCookieKey, constants_2.CookiePolicy);
         response.clearCookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, constants_2.CookiePolicy);
-        response.clearCookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, constants_2.CookiePolicy);
+        response.clearCookie(accessTokenKey, constants_2.CookiePolicy);
         return response.send((0, response_1.httpOk)(null, success_1.SuccessMessage.LOGOUT_SUCCESS));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_j = error.message) !== null && _j !== void 0 ? _j : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_k = error.message) !== null && _k !== void 0 ? _k : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const refreshToken = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     const cookies = request === null || request === void 0 ? void 0 : request.cookies;
-    const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY];
+    const refreshToken = cookies[constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY] || cookies[constants_1.AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY];
     const deviceID = cookies[constants_1.AppConfig.DEVICE_ID_COOKIE_KEY];
     if (!refreshToken) {
         return response.status(401).send((0, response_1.httpUnauthorized)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.TOKEN_REQUIRED), error_1.ErrorMessage.TOKEN_REQUIRED));
@@ -703,9 +793,10 @@ const refreshToken = (request, response, next) => __awaiter(void 0, void 0, void
                 const userWithRole = { id: userData.id, accountType: userData.accountType, businessProfileID: userData.businessProfileID, role: userData.role };
                 const accessToken = yield (0, authenticate_1.generateAccessToken)(userWithRole);
                 const refreshToken = yield (0, authenticate_1.generateRefreshToken)(userWithRole, deviceID);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, refreshToken, constants_2.CookiePolicy);
+                const { accessTokenKey, refreshTokenCookieKey } = getAuthKeys(request, userData.role);
+                response.cookie(refreshTokenCookieKey, refreshToken, constants_2.CookiePolicy);
                 response.cookie(constants_1.AppConfig.DEVICE_ID_COOKIE_KEY, deviceID, constants_2.CookiePolicy);
-                response.cookie(constants_1.AppConfig.USER_AUTH_TOKEN_KEY, accessToken, constants_2.CookiePolicy);
+                response.cookie(accessTokenKey, accessToken, constants_2.CookiePolicy);
                 return response.status(200).send((0, response_1.httpOk)({ accessToken, refreshToken }, `Token Refreshed`));
             }
             else {

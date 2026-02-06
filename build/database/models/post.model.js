@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSavedPost = exports.getPostsCount = exports.getPostQuery = exports.countPostDocument = exports.fetchPosts = exports.imJoining = exports.isSavedByMe = exports.isLikedByMe = exports.addInterestedPeopleInPost = exports.addGoogleReviewedBusinessProfileInPost = exports.addReviewedBusinessProfileInPost = exports.addMediaInPost = exports.addTaggedPeopleInPost = exports.addPostedByInPost = exports.ReviewSchema = exports.PostType = void 0;
 const mongoose_1 = require("mongoose");
+const mongodb_1 = require("mongodb");
 const like_model_1 = require("./like.model");
 const comment_model_1 = require("./comment.model");
 const savedPost_model_1 = __importDefault(require("./savedPost.model"));
@@ -160,11 +161,13 @@ function addPostedByInPost() {
                         "name": 1,
                         "profilePic": 1,
                         "accountType": 1,
+                        "privateAccount": 1,
                         "businessProfileID": 1,
                         "businessProfileRef._id": 1,
                         "businessProfileRef.name": 1,
                         "businessProfileRef.profilePic": 1,
                         "businessProfileRef.rating": 1,
+                        "businessProfileRef.privateAccount": 1,
                         "businessProfileRef.businessTypeRef": 1,
                         "businessProfileRef.businessSubtypeRef": 1,
                         "businessProfileRef.address": 1,
@@ -228,18 +231,22 @@ function addMediaInPost() {
             'from': 'media',
             'let': { 'mediaIDs': '$media' },
             'pipeline': [
-                { '$match': { '$expr': { '$in': ['$_id', '$$mediaIDs'] } } },
+                {
+                    '$match': {
+                        '$expr': {
+                            '$in': ['$_id', { '$ifNull': ['$$mediaIDs', []] }]
+                        }
+                    }
+                },
                 {
                     '$project': {
-                        "userID": 0,
-                        "fileName": 0,
-                        "width": 0,
-                        "height": 0,
-                        "fileSize": 0,
-                        "s3Key": 0,
-                        "createdAt": 0,
-                        "updatedAt": 0,
-                        "__v": 0
+                        "_id": 1,
+                        "mediaType": 1,
+                        "mimeType": 1,
+                        "sourceUrl": 1,
+                        "thumbnailUrl": 1,
+                        "duration": { '$ifNull': ["$duration", 0] },
+                        "videoUrl": 1
                     }
                 }
             ],
@@ -249,7 +256,13 @@ function addMediaInPost() {
     const sort_media = {
         $addFields: {
             mediaRef: {
-                $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                $cond: {
+                    if: { $isArray: "$mediaRef" },
+                    then: {
+                        $sortArray: { input: "$mediaRef", sortBy: { _id: 1 } }
+                    },
+                    else: []
+                }
             },
         }
     };
@@ -467,19 +480,31 @@ function locationBased(lat, lng) {
         return { sort };
     }
 }
-function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng) {
+function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, lat, lng, skipPrivateAccountFilter, followedUserIDs, currentUserID) {
     lng = lng ? parseFloat(lng.toString()) : 0;
     lat = lat ? parseFloat(lat.toString()) : 0;
-    return Post.aggregate([
-        {
+    // Convert followedUserIDs to ObjectIds for comparison
+    // Ensure followedUserIDs is an array before mapping
+    const followedUserObjectIds = (followedUserIDs && Array.isArray(followedUserIDs))
+        ? followedUserIDs.map(id => new mongodb_1.ObjectId(id))
+        : [];
+    // Convert currentUserID to ObjectId for comparison
+    const currentUserObjectId = currentUserID ? new mongodb_1.ObjectId(currentUserID) : null;
+    // Check if we have valid coordinates for geoNear
+    const hasValidCoordinates = lat !== 0 && lng !== 0 && !isNaN(lat) && !isNaN(lng);
+    // Build the aggregation pipeline
+    const pipeline = [];
+    // Use $geoNear only when we have valid coordinates, otherwise use $match
+    if (hasValidCoordinates) {
+        pipeline.push({
             $geoNear: {
                 near: { type: "Point", coordinates: [lng, lat] },
                 spherical: true,
                 query: match,
                 distanceField: "distance"
             }
-        },
-        {
+        });
+        pipeline.push({
             $addFields: {
                 distance: { $toInt: "$distance" },
                 sortDate: {
@@ -489,79 +514,138 @@ function fetchPosts(match, likedByMe, savedByMe, joiningEvents, pageNumber, docu
                     }
                 }
             }
-        },
-        locationBased(lat, lng).sort,
-        // {
-        //     $sort: {
-        //         sortDate: -1, distance: 1,
-        //     }
-        // },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit
-        },
-        addMediaInPost().lookup,
-        addMediaInPost().sort_media,
-        addTaggedPeopleInPost().lookup,
-        addPostedByInPost().lookup,
-        addPostedByInPost().unwindLookup,
-        (0, anonymousUser_model_1.addAnonymousUserInPost)().lookup,
-        (0, anonymousUser_model_1.addAnonymousUserInPost)().unwindLookup,
-        (0, like_model_1.addLikesInPost)().lookup,
-        (0, like_model_1.addLikesInPost)().addLikeCount,
-        (0, comment_model_1.addCommentsInPost)().lookup,
-        (0, comment_model_1.addCommentsInPost)().addCommentCount,
-        (0, comment_model_1.addSharedCountInPost)().lookup,
-        (0, comment_model_1.addSharedCountInPost)().addSharedCount,
-        addReviewedBusinessProfileInPost().lookup,
-        addReviewedBusinessProfileInPost().unwindLookup,
-        addGoogleReviewedBusinessProfileInPost().lookup,
-        addGoogleReviewedBusinessProfileInPost().unwindLookup,
-        addInterestedPeopleInPost().lookup,
-        addInterestedPeopleInPost().addInterestedCount,
-        isLikedByMe(likedByMe),
-        isSavedByMe(savedByMe),
-        imJoining(joiningEvents),
-        {
+        });
+    }
+    else {
+        // Use $match when coordinates are invalid
+        pipeline.push({
+            $match: match
+        });
+        pipeline.push({
             $addFields: {
-                reviewedBusinessProfileRef: {
-                    $cond: {
-                        if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
-                        then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
-                        else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
-                    }
-                },
-                postedBy: {
-                    $cond: {
-                        if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
-                        then: "$publicPostedBy", // Replace with publicPostedBy
-                        else: "$postedBy" // Keep the existing value if it exists
+                sortDate: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt"
                     }
                 }
             }
-        },
-        {
-            $unset: [
-                "geoCoordinate",
-                "distance",
-                "sortDate",
-                "publicPostedBy",
-                "googleReviewedBusinessRef",
-                "eventJoinsRef",
-                "reviews",
-                "isPublished",
-                "sharedRef",
-                "commentsRef",
-                "likesRef",
-                "tagged",
-                "media",
-                "updatedAt",
-                "__v"
-            ]
+        });
+    }
+    pipeline.push(locationBased(lat, lng).sort, {
+        $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+    }, {
+        $limit: documentLimit
+    }, addMediaInPost().lookup, addMediaInPost().sort_media, addTaggedPeopleInPost().lookup, addPostedByInPost().lookup, addPostedByInPost().unwindLookup);
+    // Conditionally add private account filter
+    if (!skipPrivateAccountFilter) {
+        // Build filter conditions
+        const privateAccountConditions = [
+            { "postedBy.privateAccount": { $ne: true } },
+            { "postedBy.privateAccount": { $exists: false } }
+        ];
+        // Allow posts from private accounts that are being followed
+        if (followedUserObjectIds.length > 0) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
         }
-    ]).exec();
+        // Allow user's own posts even if their account is private
+        if (currentUserObjectId) {
+            privateAccountConditions.push({
+                $and: [
+                    { "postedBy.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
+                ]
+            });
+        }
+        const businessPrivateAccountConditions = [
+            { "postedBy.businessProfileRef": { $exists: false } },
+            { "postedBy.businessProfileRef": null },
+            { "postedBy.businessProfileRef.privateAccount": { $ne: true } },
+            { "postedBy.businessProfileRef.privateAccount": { $exists: false } }
+        ];
+        // Allow posts from private business accounts that are being followed
+        // Note: Users follow the account owner (postedBy._id), not the business profile
+        if (followedUserObjectIds.length > 0) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": { $in: followedUserObjectIds } }
+                ]
+            });
+        }
+        // Allow user's own business posts even if the business account is private
+        if (currentUserObjectId) {
+            businessPrivateAccountConditions.push({
+                $and: [
+                    { "postedBy.businessProfileRef.privateAccount": true },
+                    { "postedBy._id": currentUserObjectId }
+                ]
+            });
+        }
+        pipeline.push({
+            $match: {
+                $and: [
+                    { "postedBy": { $ne: null } },
+                    {
+                        $or: privateAccountConditions
+                    },
+                    {
+                        $or: businessPrivateAccountConditions
+                    }
+                ]
+            }
+        });
+    }
+    else {
+        // When skipping the filter, still ensure postedBy is not null
+        pipeline.push({
+            $match: {
+                "postedBy": { $ne: null }
+            }
+        });
+    }
+    pipeline.push((0, anonymousUser_model_1.addAnonymousUserInPost)().lookup, (0, anonymousUser_model_1.addAnonymousUserInPost)().unwindLookup, (0, like_model_1.addLikesInPost)().lookup, (0, like_model_1.addLikesInPost)().addLikeCount, (0, comment_model_1.addCommentsInPost)().lookup, (0, comment_model_1.addCommentsInPost)().addCommentCount, (0, comment_model_1.addSharedCountInPost)().lookup, (0, comment_model_1.addSharedCountInPost)().addSharedCount, addReviewedBusinessProfileInPost().lookup, addReviewedBusinessProfileInPost().unwindLookup, addGoogleReviewedBusinessProfileInPost().lookup, addGoogleReviewedBusinessProfileInPost().unwindLookup, addInterestedPeopleInPost().lookup, addInterestedPeopleInPost().addInterestedCount, isLikedByMe(likedByMe), isSavedByMe(savedByMe), imJoining(joiningEvents), {
+        $addFields: {
+            reviewedBusinessProfileRef: {
+                $cond: {
+                    if: { $eq: [{ $ifNull: ["$reviewedBusinessProfileRef", null] }, null] }, // Check if field is null or doesn't exist
+                    then: "$googleReviewedBusinessRef", // Replace with googleReviewedBusinessRef
+                    else: "$reviewedBusinessProfileRef" // Keep the existing value if it exists
+                }
+            },
+            postedBy: {
+                $cond: {
+                    if: { $eq: [{ $ifNull: ["$postedBy", null] }, null] }, // Check if field is null or doesn't exist
+                    then: "$publicPostedBy", // Replace with publicPostedBy
+                    else: "$postedBy" // Keep the existing value if it exists
+                }
+            }
+        }
+    }, {
+        $unset: [
+            "geoCoordinate",
+            "distance",
+            "sortDate",
+            "publicPostedBy",
+            "googleReviewedBusinessRef",
+            "eventJoinsRef",
+            "reviews",
+            "isPublished",
+            "sharedRef",
+            "commentsRef",
+            "likesRef",
+            "tagged",
+            "media",
+            "updatedAt",
+            "__v"
+        ]
+    });
+    return Post.aggregate(pipeline).exec();
 }
 exports.fetchPosts = fetchPosts;
 function countPostDocument(filter) {
@@ -571,7 +655,15 @@ exports.countPostDocument = countPostDocument;
 exports.getPostQuery = { isPublished: true, isDeleted: false };
 function getPostsCount(userID) {
     return __awaiter(this, void 0, void 0, function* () {
-        return Post.find(Object.assign({ userID: userID }, exports.getPostQuery)).countDocuments();
+        return Post.find(Object.assign(Object.assign({}, exports.getPostQuery), { $and: [
+                { postType: { $in: [PostType.POST, PostType.EVENT] } },
+                {
+                    $or: [
+                        { userID: userID }, // user's own posts
+                        { collaborators: userID } // collaborated posts
+                    ]
+                }
+            ] })).countDocuments();
     });
 }
 exports.getPostsCount = getPostsCount;

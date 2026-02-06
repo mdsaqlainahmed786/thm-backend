@@ -60,7 +60,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         }
         const dbQuery = Object.assign(Object.assign({}, post_model_2.getPostQuery), { _id: { $in: savedByMe } });
         const [documents, totalDocument] = yield Promise.all([
-            (0, post_model_2.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            (0, post_model_2.fetchPosts)(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, false, undefined, id),
             (0, post_model_1.countPostDocument)(dbQuery),
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;

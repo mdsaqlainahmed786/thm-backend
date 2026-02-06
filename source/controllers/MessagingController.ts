@@ -16,7 +16,9 @@ import BusinessProfile from '../database/models/businessProfile.model';
 import { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import { MediaType } from '../database/models/media.model';
+import Media from '../database/models/media.model';
 import { storeMedia } from './MediaController';
+import Post from '../database/models/post.model';
 /**
  * 
  * @param query 
@@ -29,7 +31,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
     return Message.aggregate([
         { $match: query },
         {
-            $sort: { createdAt: -1, id: 1 }
+            $sort: { createdAt: -1, _id: 1 }
         },
         {
             $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
@@ -47,7 +49,17 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 'from': 'stories',
                 'let': { 'storyID': '$storyID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$storyID'] }, timeStamp: { $gte: storyTimeStamp } } },
+                    {
+                        '$match': {
+                            '$expr': {
+                                '$and': [
+                                    { '$ne': ['$$storyID', null] },
+                                    { '$eq': ['$_id', '$$storyID'] }
+                                ]
+                            },
+                            timeStamp: { $gte: storyTimeStamp }
+                        }
+                    },
                 ],
                 'as': 'storiesRef'
             }
@@ -63,7 +75,16 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
                 'from': 'media',
                 'let': { 'mediaID': '$mediaID' },
                 'pipeline': [
-                    { '$match': { '$expr': { '$eq': ['$_id', '$$mediaID'] } } },
+                    {
+                        '$match': {
+                            '$expr': {
+                                '$and': [
+                                    { '$ne': ['$$mediaID', null] },
+                                    { '$eq': ['$_id', '$$mediaID'] }
+                                ]
+                            }
+                        }
+                    },
                     {
                         '$project': {
                             '_id': 0,
@@ -130,6 +151,7 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
 
         {
             $project: {
+                _id: 1,
                 mediaRef: 0,
                 updatedAt: 0,
                 targetUserID: 0,
@@ -142,15 +164,12 @@ function fetchMessagesByUserID(query: { [key: string]: any; }, userID: MongoID, 
 }
 
 function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:146', message: 'fetchChatByUserID entry', data: { userID: String(userID), pageNumber, documentLimit, query: JSON.stringify(query) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'A' }) }).catch(() => { });
+    // #endregion
     return Message.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
-        {
-            $limit: documentLimit,
-        },
         {
             $addFields: {
                 sentByMe: { "$eq": ["$userID", new ObjectId(userID)] }
@@ -179,6 +198,13 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 newRoot: { $mergeObjects: ["$$ROOT", "$document"] }
             }
         },
+        { $sort: { createdAt: -1 } },
+        {
+            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
+        },
+        {
+            $limit: documentLimit,
+        },
         {
             '$lookup': {
                 'from': 'users',
@@ -205,7 +231,7 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 'as': 'usersRef'
             }
         },
-        { $unwind: '$usersRef' },
+        { $unwind: { path: '$usersRef', preserveNullAndEmptyArrays: false } },
         {
             $replaceRoot: { // Replace the root document with the merged document and other fields
                 newRoot: { $mergeObjects: ["$$ROOT", "$usersRef"] }
@@ -225,16 +251,24 @@ function fetchChatByUserID(query: { [key: string]: any; }, userID: MongoID, page
                 usersRef: 0,
             }
         }
-    ])
+    ]).then(results => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:231', message: 'fetchChatByUserID results', data: { resultCount: results.length, userID: String(userID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'B' }) }).catch(() => { });
+        // #endregion
+        return results;
+    })
 }
 
-function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
-    const chats: any = Message.aggregate([
+async function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumber: number, documentLimit: number) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:233', message: 'getChatCount entry', data: { userID: String(userID), pageNumber, documentLimit, query: JSON.stringify(query) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'C' }) }).catch(() => { });
+    // #endregion
+    const chats: any[] = await Message.aggregate([
         { $match: query },
         { $sort: { createdAt: -1, _id: 1 } },
         {
             $addFields: {
-                sentByMe: { "$eq": [userID, "$userID"] }
+                sentByMe: { "$eq": [new ObjectId(userID), "$userID"] }
             }
         },
         {
@@ -261,12 +295,11 @@ function getChatCount(query: { [key: string]: any; }, userID: MongoID, pageNumbe
             }
         },
         { $sort: { createdAt: -1 } },
-        {
-            $skip: pageNumber > 0 ? ((pageNumber - 1) * documentLimit) : 0
-        },
         { $group: { _id: null, count: { $sum: 1 } } }
     ])
-
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/5ee1b17b-c31a-45bb-a825-3cd9c47c82b7', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MessagingController.ts:269', message: 'getChatCount result', data: { count: chats?.[0]?.count ?? 0, chatsLength: chats?.length ?? 0, userID: String(userID), pageNumber, documentLimit }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
+    // #endregion
     return chats?.[0]?.count as number ?? 0;
 }
 
@@ -276,7 +309,14 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         const { messageType, username, message } = request.body;
         const requestedUserID = request.user?.id;
         const sendedBy = await User.findOne({ _id: requestedUserID });
-        const sendTo = await User.findOne({ username: username });
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let sendTo = await User.findOne({ username: username });
+        if (!sendTo) {
+            const businessProfile = await BusinessProfile.findOne({ username: username });
+            if (businessProfile) {
+                sendTo = await User.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
         if (!sendedBy) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
@@ -284,11 +324,25 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const singleFile = files.media;
+        const mediaFiles = files && files.media as Express.Multer.S3File[] | undefined;
+
+        if (!mediaFiles || mediaFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Media file is required"), "Media file is required"))
+        }
+
+        // Validate that files have the S3 key property (required for S3 operations)
+        const validFiles = mediaFiles.filter((file): file is Express.Multer.S3File => {
+            return file !== null && file !== undefined && typeof file === 'object' && 'key' in file && typeof file.key === 'string' && file.key.length > 0;
+        });
+
+        if (validFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Invalid media file format - S3 key is missing"), "Invalid media file format - S3 key is missing"))
+        }
+
         const type = messageType as MediaType;
         const [uploadedFiles] = await Promise.all([
             //@ts-ignore
-            storeMedia(singleFile, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
+            storeMedia(validFiles, id, businessProfileID, AwsS3AccessEndpoints.MESSAGING, 'POST'),
         ])
         if (uploadedFiles && uploadedFiles.length === 0) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest(`${type.capitalize()} is required`), `${type.capitalize()} is required`))
@@ -308,6 +362,121 @@ const sendMediaMessage = async (request: Request, response: Response, next: Next
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
+
+
+const sharingPostMediaMessage = async (
+    request: Request,
+    response: Response,
+    next: NextFunction
+) => {
+    try {
+        const { id } = request.user;
+        const { messageType, username, message, postID } = request.body;
+
+        if (!postID) {
+            return response.send(
+                httpBadRequest(ErrorMessage.invalidRequest("Post ID is required"), "Post ID is required")
+            );
+        }
+
+        const sender = await User.findById(id);
+        // Helper to find user by username (checks both User and BusinessProfile)
+        let receiver = await User.findOne({ username });
+        if (!receiver) {
+            const businessProfile = await BusinessProfile.findOne({ username });
+            if (businessProfile) {
+                receiver = await User.findOne({ businessProfileID: businessProfile._id });
+            }
+        }
+
+        if (!sender || !receiver) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND),
+                    ErrorMessage.USER_NOT_FOUND
+                )
+            );
+        }
+
+        const post = await Post.findOne({
+            _id: new ObjectId(postID),
+            isDeleted: false,
+            isPublished: true,
+        });
+
+        if (!post) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest(ErrorMessage.POST_NOT_FOUND),
+                    ErrorMessage.POST_NOT_FOUND
+                )
+            );
+        }
+
+        // ✅ Extract existing media (NO re-upload)
+        const mediaID = post.media?.[0]; // assuming single-media post
+
+        if (!mediaID) {
+            return response.send(
+                httpBadRequest(
+                    ErrorMessage.invalidRequest("Post has no media"),
+                    "Post has no media"
+                )
+            );
+        }
+
+        const media = await Media.findById(mediaID);
+        if (!media) {
+            return response.send(
+                httpBadRequest(
+                    ErrorMessage.invalidRequest("Media not found"),
+                    "Media not found"
+                )
+            );
+        }
+
+        const postOwner = await User.findById(post.userID);
+        if (!postOwner) {
+            return response.send(
+                httpNotFoundOr404(
+                    ErrorMessage.invalidRequest("Post owner not found"),
+                    "Post owner not found"
+                )
+            );
+        }
+
+        const postOwnerUsername =
+            postOwner.accountType === AccountType.BUSINESS && postOwner.businessProfileID
+                ? (
+                    await BusinessProfile.findById(postOwner.businessProfileID)
+                )?.name || postOwner.username
+                : postOwner.username;
+
+        // ✅ Message references existing S3 media
+        const messageObject: PrivateIncomingMessagePayload = {
+            to: username,
+            message: {
+                type: messageType,
+                message: message ?? "",
+                mediaUrl: media.sourceUrl,
+                thumbnailUrl: media.thumbnailUrl,
+                mediaID: media._id.toString(),
+                postID,
+                postOwnerUsername,
+            },
+        };
+
+        return response.send(httpOk(messageObject, "Post shared successfully"));
+    } catch (error: any) {
+        next(
+            httpInternalServerError(
+                error,
+                error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR
+            )
+        );
+    }
+};
+
 
 const deleteChat = async (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -404,4 +573,4 @@ const exportChat = async (request: Request, response: Response, next: NextFuncti
 }
 
 
-export default { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, deleteChat, exportChat }
+export default { fetchChatByUserID, getChatCount, fetchMessagesByUserID, sendMediaMessage, sharingPostMediaMessage, deleteChat, exportChat }

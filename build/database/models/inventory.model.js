@@ -38,12 +38,12 @@ const Inventory = (0, mongoose_1.model)('Inventory', InventorySchema);
 exports.default = Inventory;
 function checkRoomsAvailability(businessProfileID, checkIn, checkOut) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log(checkIn);
-        console.log(checkOut);
+        console.log(`[checkRoomsAvailability] businessProfileID: ${businessProfileID}, checkIn: ${checkIn}, checkOut: ${checkOut}`);
         const roomWithInventory = yield room_model_1.default.aggregate([
             {
                 $match: {
                     businessProfileID: new mongodb_1.ObjectId(businessProfileID),
+                    availability: true, // Only check available rooms
                 }
             },
             {

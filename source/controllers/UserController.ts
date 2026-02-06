@@ -17,7 +17,7 @@ import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCou
 import { parseQueryParam } from '../utils/helper/basic';
 import Like from '../database/models/like.model';
 import Media, { MediaType } from '../database/models/media.model';
-import { MongoID } from '../common';
+import { MongoID, Role } from '../common';
 import { storeMedia } from './MediaController';
 import { deleteUnwantedFiles } from './MediaController';
 import PropertyPictures from '../database/models/propertyPicture.model';
@@ -27,9 +27,10 @@ import BlockedUser from '../database/models/blockedUser.model';
 import EventJoin from '../database/models/eventJoin.model';
 import UserAddress from '../database/models/user-address.model';
 import { SuccessMessage } from '../utils/response-message/success';
+import EnvironmentService from "../services/EnvironmentService";
 const editProfile = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language } = request.body;
+        const { dialCode, phoneNumber, bio, acceptedTerms, website, name, gstn, email, businessTypeID, businessSubTypeID, privateAccount, notificationEnabled, profession, language, username } = request.body;
         const { id } = request.user;
         const user = await User.findOne({ _id: id });
         if (!user) {
@@ -44,6 +45,22 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             const businessProfileRef = await BusinessProfile.findOne({ _id: user.businessProfileID });
 
             if (businessProfileRef) {
+                // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+                // (excluding the current user/business profile)
+                if (phoneNumber && phoneNumber !== "" && phoneNumber !== businessProfileRef.phoneNumber) {
+                    const [existingUser, existingBusinessProfile] = await Promise.all([
+                        User.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                        BusinessProfile.findOne({ phoneNumber: phoneNumber, _id: { $ne: businessProfileRef._id } }),
+                    ]);
+                    if (existingUser || existingBusinessProfile) {
+                        return response.send(
+                            httpBadRequest(
+                                ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE),
+                                ErrorMessage.PHONE_NUMBER_IN_USE
+                            )
+                        );
+                    }
+                }
                 businessProfileRef.bio = bio ?? businessProfileRef.bio;
                 businessProfileRef.website = website ?? businessProfileRef.website;
                 businessProfileRef.phoneNumber = phoneNumber ?? businessProfileRef.phoneNumber;
@@ -52,6 +69,16 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
                 businessProfileRef.gstn = gstn ?? businessProfileRef.gstn;
                 businessProfileRef.email = email ?? businessProfileRef.email;
                 businessProfileRef.privateAccount = privateAccount ?? businessProfileRef.privateAccount;
+
+                // Update username if provided and check for uniqueness
+                if (username && username !== "" && username !== businessProfileRef.username) {
+                    const existingBusinessProfile = await BusinessProfile.findOne({ username: username, _id: { $ne: businessProfileRef._id } });
+                    if (existingBusinessProfile) {
+                        return response.send(httpBadRequest(ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                    }
+                    businessProfileRef.username = username;
+                }
+
                 /**
                  * 
                  * Ensure the business or business sub type is exits or not
@@ -76,12 +103,39 @@ const editProfile = async (request: Request, response: Response, next: NextFunct
             user.profession = profession ?? user.profession;
             user.name = name ?? user.name;
             user.dialCode = dialCode ?? user.dialCode;
+
+            // Enforce unique phone numbers across BOTH Users and BusinessProfiles
+            // (excluding the current user/business profile)
+            if (phoneNumber && phoneNumber !== "" && phoneNumber !== user.phoneNumber) {
+                const [existingUser, existingBusinessProfile] = await Promise.all([
+                    User.findOne({ phoneNumber: phoneNumber, _id: { $ne: user._id } }),
+                    BusinessProfile.findOne({ phoneNumber: phoneNumber }),
+                ]);
+                if (existingUser || existingBusinessProfile) {
+                    return response.send(
+                        httpBadRequest(
+                            ErrorMessage.invalidRequest(ErrorMessage.PHONE_NUMBER_IN_USE),
+                            ErrorMessage.PHONE_NUMBER_IN_USE
+                        )
+                    );
+                }
+            }
             user.phoneNumber = phoneNumber ?? user.phoneNumber;
             user.bio = bio ?? user.bio;
             user.language = language ?? user.language;
             user.acceptedTerms = acceptedTerms ?? user.acceptedTerms;
             user.privateAccount = privateAccount ?? user.privateAccount;
             user.notificationEnabled = notificationEnabled ?? user.notificationEnabled;
+
+            // Update username if provided and check for uniqueness
+            if (username && username !== "" && username !== user.username) {
+                const existingUser = await User.findOne({ username: username, _id: { $ne: user._id } });
+                if (existingUser) {
+                    return response.send(httpBadRequest(ErrorMessage.invalidRequest("Username is already taken"), "Username is already taken"));
+                }
+                user.username = username;
+            }
+
             const savedUser = await user.save();
             return response.send(httpOk(savedUser.hideSensitiveData(), SuccessMessage.PROFILE_UPDATE));
         }
@@ -126,6 +180,27 @@ const profile = async (request: Request, response: Response, next: NextFunction)
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
+
+        // Attach weather/AQI for business profiles (based on business location)
+        try {
+            const businessProfileRef: any = (user[0] as any)?.businessProfileRef;
+            const lat = Number(businessProfileRef?.address?.lat ?? 0);
+            const lng = Number(businessProfileRef?.address?.lng ?? 0);
+            if (accountType === AccountType.BUSINESS && businessProfileRef && lat !== 0 && lng !== 0) {
+                const env = await EnvironmentService.getForLocation({
+                    cacheKey: `bp:${String(businessProfileRef?._id ?? (user[0] as any)?.businessProfileID ?? id)}`,
+                    lat,
+                    lng
+                });
+                (user[0] as any).businessProfileRef = Object.assign({}, businessProfileRef, {
+                    weatherReport: env.weatherReport,
+                    environment: env.summary
+                });
+            }
+        } catch {
+            // non-fatal
+        }
+
         let responseData = { posts: posts, follower: follower, following: following, profileCompleted, address: userAddress };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0] })
@@ -146,6 +221,27 @@ const publicProfile = async (request: Request, response: Response, next: NextFun
         if (user.length === 0) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND))
         }
+
+        // Attach weather/AQI for business profiles (based on business location)
+        try {
+            const businessProfileRef: any = (user[0] as any)?.businessProfileRef;
+            const lat = Number(businessProfileRef?.address?.lat ?? 0);
+            const lng = Number(businessProfileRef?.address?.lng ?? 0);
+            if ((user[0] as any)?.accountType === AccountType.BUSINESS && businessProfileRef && lat !== 0 && lng !== 0) {
+                const env = await EnvironmentService.getForLocation({
+                    cacheKey: `bp:${String(businessProfileRef?._id ?? (user[0] as any)?.businessProfileID ?? userID)}`,
+                    lat,
+                    lng
+                });
+                (user[0] as any).businessProfileRef = Object.assign({}, businessProfileRef, {
+                    weatherReport: env.weatherReport,
+                    environment: env.summary
+                });
+            }
+        } catch {
+            // non-fatal
+        }
+
         let responseData = { posts: posts, follower: follower, following: following };
         if (accountType === AccountType.BUSINESS) {
             Object.assign(responseData, { ...user[0], isConnected: myConnection?.status === ConnectionStatus.ACCEPTED ? true : false, isRequested: myConnection?.status === ConnectionStatus.PENDING ? true : false, isBlockedByMe: isBlocked ? true : false });
@@ -321,8 +417,13 @@ const userPosts = async (request: Request, response: Response, next: NextFunctio
             );
         }
 
+        // Skip private account filter when user is viewing their own profile
+        const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's profile and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
+
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             Post.find(dbQuery).countDocuments(),
         ]);
 
@@ -346,18 +447,18 @@ const userPostMedia = async (request: Request, response: Response, next: NextFun
             User.findOne({ _id: userID }),
             UserConnection.findOne({ following: userID, follower: id, status: ConnectionStatus.ACCEPTED }),
             // All media from user's own posts
-            Post.distinct('media', { 
-                ...getPostQuery, 
-                userID: new ObjectId(userID), 
-                postType: { $in: [PostType.POST] } 
+            Post.distinct('media', {
+                ...getPostQuery,
+                userID: new ObjectId(userID),
+                postType: { $in: [PostType.POST] }
             }),
             // Property media
             PropertyPictures.distinct('mediaID', { userID: new ObjectId(userID) }),
             // All media from posts where this user is a collaborator
-            Post.distinct('media', { 
-                ...getPostQuery, 
-                collaborators: new ObjectId(userID), 
-                postType: { $in: [PostType.POST] } 
+            Post.distinct('media', {
+                ...getPostQuery,
+                collaborators: new ObjectId(userID),
+                postType: { $in: [PostType.POST] }
             })
         ]);
 
@@ -466,8 +567,13 @@ const userReviews = async (request: Request, response: Response, next: NextFunct
         } else {
             Object.assign(dbQuery, { userID: user._id });
         }
+        // Skip private account filter when user is viewing their own reviews
+        const skipPrivateAccountFilter = userID === id;
+        // Pass followedUserIDs when viewing another user's reviews and following them
+        const followedUserIDs = (userID !== id && inMyFollowing) ? [userID] : undefined;
+
         const [documents, totalDocument] = await Promise.all([
-            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit),
+            fetchPosts(dbQuery, likedByMe, savedByMe, joiningEvents, pageNumber, documentLimit, undefined, undefined, skipPrivateAccountFilter, followedUserIDs, id),
             Post.find(dbQuery).countDocuments()
         ]);
         const totalPagesCount = Math.ceil(totalDocument / documentLimit) || 1;
@@ -480,14 +586,93 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
     try {
         const { id, accountType, businessProfileID } = request.user;
 
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const images = files && files.images as Express.Multer.S3File[];
+        // This endpoint allows multiple property pictures. The client may sometimes resend
+        // previous selections, so we defensively enforce limits here (and delete extras).
+        // Multer may provide files as:
+        // - Express.Multer.File[] (when using `.any()` / `.array()`)
+        // - { [fieldname]: Express.Multer.File[] } (when using `.fields()`)
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+
+        // Accept common variants from clients
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const imagesAll = allFiles.filter((f) => allowedFieldNames.has(f.fieldname));
+
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+
+        if (!imagesAll || imagesAll.length === 0) {
+            // If client sent files but under a wrong field name, help debug that quickly
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`),
+                `Property pictures field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`
+            ));
+        }
+
+        // Enforce max TOTAL property pictures (not just per-request) and dedupe retries.
+        // We dedupe by (fileName, fileSize, mimeType) which is stable across retries for the same file.
+        const MAX_TOTAL_PROPERTY_IMAGES = 6;
+
+        // 1) Deduplicate within this request (clients sometimes include the same file multiple times)
+        const requestSeen = new Set<string>();
+        const requestDuplicates: Express.Multer.S3File[] = [];
+        const requestUnique: Express.Multer.S3File[] = [];
+        for (const f of imagesAll) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (requestSeen.has(sig)) requestDuplicates.push(f);
+            else {
+                requestSeen.add(sig);
+                requestUnique.push(f);
+            }
+        }
+        if (requestDuplicates.length > 0) {
+            await deleteUnwantedFiles(requestDuplicates);
+        }
+
+        // 2) Deduplicate against existing property pictures for this business profile
+        const existingPropertyPictures = await PropertyPictures.find({ businessProfileID: businessProfileID }, 'mediaID').lean();
+        const existingMediaIDs = existingPropertyPictures.map((p: any) => p.mediaID).filter(Boolean);
+        const existingMedia = existingMediaIDs.length > 0
+            ? await Media.find({ _id: { $in: existingMediaIDs } }, 'fileName fileSize mimeType').lean()
+            : [];
+        const existingSignatures = new Set<string>(
+            (existingMedia as any[]).map((m) => `${m.fileName}|${m.fileSize}|${m.mimeType}`)
+        );
+
+        const alreadyHave: Express.Multer.S3File[] = [];
+        const candidates: Express.Multer.S3File[] = [];
+        for (const f of requestUnique) {
+            const sig = `${f.originalname}|${f.size}|${f.mimetype}`;
+            if (existingSignatures.has(sig)) alreadyHave.push(f);
+            else candidates.push(f);
+        }
+        if (alreadyHave.length > 0) {
+            // Delete re-uploaded duplicates to avoid wasting S3 storage
+            await deleteUnwantedFiles(alreadyHave);
+        }
+
+        const remainingSlots = Math.max(0, MAX_TOTAL_PROPERTY_IMAGES - existingMediaIDs.length);
+        if (remainingSlots === 0) {
+            if (candidates.length > 0) await deleteUnwantedFiles(candidates);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`),
+                `You can upload at most ${MAX_TOTAL_PROPERTY_IMAGES} property pictures.`
+            ));
+        }
+
+        const images = candidates.slice(0, remainingSlots);
+        const extraImages = candidates.slice(remainingSlots);
+        if (extraImages.length > 0) {
+            await deleteUnwantedFiles(extraImages);
+        }
 
         if (!accountType && !id) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
-        }
-        if (!images) {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Content is required for creating a post"), 'Content is required for creating a post'))
         }
         if (accountType !== AccountType.BUSINESS && !businessProfileID) {
             await deleteUnwantedFiles(images);
@@ -501,7 +686,7 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
             businessProfileID?: MongoID;
             mediaID: MongoID;
         }[] = [];
-        let coverImage = "";
+        let coverImage: string | null = null;
         if (images && images.length !== 0) {
             const imageList = await storeMedia(images, id, businessProfileID, AwsS3AccessEndpoints.BUSINESS_PROPERTY, 'POST');
             if (imageList && imageList.length !== 0) {
@@ -513,11 +698,17 @@ const businessPropertyPictures = async (request: Request, response: Response, ne
                 }));
             }
         }
-        const [propertyPictures] = await Promise.all([
-            PropertyPictures.create(newPropertyPictures),
-            BusinessProfile.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage })
-        ]);
-        return response.send(httpCreated(propertyPictures, 'Property pictures uploaded successfully'));
+
+        const updates: Promise<any>[] = [];
+        if (newPropertyPictures.length > 0) {
+            updates.push(PropertyPictures.create(newPropertyPictures));
+        }
+        if (coverImage) {
+            updates.push(BusinessProfile.findOneAndUpdate({ _id: businessProfileID }, { coverImage: coverImage }));
+        }
+        const results = updates.length > 0 ? await Promise.all(updates) : [];
+        const createdPropertyPictures = results.find((r) => Array.isArray(r)) ?? [];
+        return response.send(httpCreated(createdPropertyPictures, 'Property pictures uploaded successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -581,10 +772,14 @@ const deactivateAccount = async (request: Request, response: Response, next: Nex
         }
         user.isActivated = false;
         await user.save();
-        // You can reactivate it anytime by logging back in.
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || request.user?.role === Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_KEY : AppConfig.USER_AUTH_TOKEN_KEY;
+
+        response.clearCookie(refreshTokenCookieKey, CookiePolicy);
         response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        response.clearCookie(accessTokenKey, CookiePolicy);
         return response.send(httpNoContent(null, 'Your account has been successfully deactivated. We\'re sorry to see you go!'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
@@ -599,9 +794,14 @@ const deleteAccount = async (request: Request, response: Response, next: NextFun
         }
         user.isDeleted = true;
         await user.save();
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_COOKIE_KEY, CookiePolicy);
+        const isAdminRoute = request.baseUrl.includes('/admin') || request.path.includes('/admin');
+        const isAdmin = isAdminRoute || request.user?.role === Role.ADMINISTRATOR;
+        const refreshTokenCookieKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY : AppConfig.USER_AUTH_TOKEN_COOKIE_KEY;
+        const accessTokenKey = isAdmin ? AppConfig.ADMIN_AUTH_TOKEN_KEY : AppConfig.USER_AUTH_TOKEN_KEY;
+
+        response.clearCookie(refreshTokenCookieKey, CookiePolicy);
         response.clearCookie(AppConfig.DEVICE_ID_COOKIE_KEY, CookiePolicy);
-        response.clearCookie(AppConfig.USER_AUTH_TOKEN_KEY, CookiePolicy);
+        response.clearCookie(accessTokenKey, CookiePolicy);
         return response.send(httpNoContent(null, 'Your account will be permanently deleted in 30 days. You can reactivate it within this period if you change your mind.'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));

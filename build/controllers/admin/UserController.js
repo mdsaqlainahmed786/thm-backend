@@ -45,6 +45,7 @@ const userConnection_model_1 = require("./../../database/models/userConnection.m
 const userConnection_model_2 = __importDefault(require("../../database/models/userConnection.model"));
 const businessProfile_model_1 = __importDefault(require("../../database/models/businessProfile.model"));
 const common_1 = require("../../common");
+const bcrypt_1 = require("bcrypt");
 const index = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -151,6 +152,8 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             {
                 $project: {
                     password: 0,
+                    otp: 0,
+                    adminPassword: 0,
                     updatedAt: 0,
                     __v: 0,
                     followersRef: 0
@@ -171,17 +174,53 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
         next((0, response_1.httpInternalServerError)(error, (_a = error.message) !== null && _a !== void 0 ? _a : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+/**
+ * Root-admin-only endpoint to fetch ALL users with administrator role only.
+ */
+const fetchAllUsers = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _b;
     try {
-        // return response.send(httpNoContent(null, 'Not implemented'));
+        const matchQuery = {
+            role: common_1.Role.ADMINISTRATOR
+        };
+        const pipeline = [
+            { $match: matchQuery },
+            (0, user_model_1.addBusinessProfileInUser)().lookup,
+            {
+                $unwind: {
+                    path: (0, user_model_1.addBusinessProfileInUser)().unwindLookup.$unwind.path,
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    password: 0,
+                    otp: 0,
+                    adminPassword: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ];
+        const documents = yield user_model_1.default.aggregate(pipeline);
+        return response.send((0, response_1.httpOk)(documents, "Administrators fetched."));
     }
     catch (error) {
         next((0, response_1.httpInternalServerError)(error, (_b = error.message) !== null && _b !== void 0 ? _b : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+const store = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _c;
+    try {
+        // return response.send(httpNoContent(null, 'Not implemented'));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _d;
     try {
         let { id } = request.params;
         const { name, bio, isVerified, isApproved, isActivated, isDeleted, role } = request.body;
@@ -202,20 +241,20 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         return response.send((0, response_1.httpAcceptedOrUpdated)(savedUser, 'User updated'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_c = error.message) !== null && _c !== void 0 ? _c : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _d;
+    var _e;
     try {
         // return response.send(httpNoContent({}, 'Not implemented'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_d = error.message) !== null && _d !== void 0 ? _d : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e;
+    var _f;
     try {
         let { id } = request.params;
         const dbQuery = { _id: new mongodb_1.ObjectId(id) };
@@ -288,7 +327,119 @@ const show = (request, response, next) => __awaiter(void 0, void 0, void 0, func
         return response.send((0, response_1.httpOk)(responseData, "User data fetched"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_e = error.message) !== null && _e !== void 0 ? _e : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_f = error.message) !== null && _f !== void 0 ? _f : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
-exports.default = { index, store, update, destroy, show };
+const addAdmin = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _g;
+    try {
+        const { username, adminPassword } = request.body;
+        // Find user by username
+        const user = yield user_model_1.default.findOne({ username: username });
+        if (!user) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        // Check if user is already an administrator
+        if (user.role === common_1.Role.ADMINISTRATOR) {
+            return response.send((0, response_1.httpBadRequest)(null, "User is already an administrator"));
+        }
+        // Update role to administrator
+        user.role = common_1.Role.ADMINISTRATOR;
+        // Set adminPassword if provided, otherwise set to null
+        if (adminPassword && adminPassword.trim() !== "") {
+            // Hash the admin password before storing
+            const salt = yield (0, bcrypt_1.genSalt)(10);
+            user.adminPassword = yield (0, bcrypt_1.hash)(adminPassword, salt);
+        }
+        else {
+            user.adminPassword = null;
+        }
+        // Save the updated user
+        const savedUser = yield user.save();
+        // Remove sensitive data from response
+        const userResponse = savedUser.hideSensitiveData();
+        delete userResponse.adminPassword;
+        return response.send((0, response_1.httpAcceptedOrUpdated)(userResponse, "User successfully promoted to administrator"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_g = error.message) !== null && _g !== void 0 ? _g : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+const demoteAdmin = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _h;
+    try {
+        let { id } = request.params;
+        // Find user by ID
+        const user = yield user_model_1.default.findOne({ _id: id });
+        if (!user) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
+        }
+        // Prevent demoting the root admin
+        if (user.email === 'admin@thehotelmedia.com') {
+            return response.send((0, response_1.httpBadRequest)(null, "Root admin cannot be demoted"));
+        }
+        // Check if user is an administrator
+        if (user.role !== common_1.Role.ADMINISTRATOR) {
+            return response.send((0, response_1.httpBadRequest)(null, "User is not an administrator"));
+        }
+        // Update role to user
+        user.role = common_1.Role.USER;
+        // Clear adminPassword when demoting
+        user.adminPassword = null;
+        // Save the updated user
+        const savedUser = yield user.save();
+        // Remove sensitive data from response
+        const userResponse = savedUser.hideSensitiveData();
+        delete userResponse.adminPassword;
+        return response.send((0, response_1.httpAcceptedOrUpdated)(userResponse, "User successfully demoted from administrator to user"));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_h = error.message) !== null && _h !== void 0 ? _h : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+/**
+ * Admin-only: Fetch the Nth signed-up user (i.e., the Nth created account in the users collection).
+ * Route: GET /v1/admin/users/nth-signup/:n
+ * Query:
+ *  - includeAdmins=true|false (default false): whether admin accounts should be considered in the ranking.
+ */
+const nthSignupUser = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _j, _k, _l;
+    try {
+        const n = Number(request.params.n);
+        const includeAdmins = String((_j = request.query.includeAdmins) !== null && _j !== void 0 ? _j : "false") === "true";
+        if (!Number.isInteger(n) || n < 1) {
+            return response.send((0, response_1.httpBadRequest)(null, "n must be a positive integer"));
+        }
+        const matchQuery = { isDeleted: false };
+        if (!includeAdmins) {
+            matchQuery.role = { $ne: common_1.Role.ADMINISTRATOR };
+        }
+        const pipeline = [
+            { $match: matchQuery },
+            // stable ordering: createdAt asc, then _id asc
+            { $sort: { createdAt: 1, _id: 1 } },
+            { $skip: n - 1 },
+            { $limit: 1 },
+            {
+                $project: {
+                    password: 0,
+                    otp: 0,
+                    adminPassword: 0,
+                    updatedAt: 0,
+                    __v: 0,
+                }
+            }
+        ];
+        const documents = yield user_model_1.default.aggregate(pipeline);
+        const user = (_k = documents === null || documents === void 0 ? void 0 : documents[0]) !== null && _k !== void 0 ? _k : null;
+        if (!user) {
+            return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest("Milestone not reached yet"), "Milestone not reached yet"));
+        }
+        return response.send((0, response_1.httpOk)({ n, user }, `Fetched ${n}th signup user.`));
+    }
+    catch (error) {
+        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+    }
+});
+exports.default = { index, fetchAllUsers, store, update, destroy, show, addAdmin, demoteAdmin, nthSignupUser };

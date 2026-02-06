@@ -25,6 +25,7 @@ import AmenityEndpoints from "./booking/amenity";
 import RoomEndpoints from "./booking/room";
 import PricePresetEndpoints from "./booking/price-preset";
 import BanksEndpoints from "./booking/bank";
+import RoomImageEndpoints from "./booking/room-image";
 import { isBusinessUser } from "../../middleware/authenticate";
 const ApiEndpoints: Router = express.Router();
 ApiEndpoints.use('', HomeEndpoints);
@@ -49,6 +50,7 @@ ApiEndpoints.use('/booking', BookingEndpoints);
 ApiEndpoints.use('/hotels', authenticateUser, isBusinessUser, HotelEndpoints);
 ApiEndpoints.use('/amenities', authenticateUser, isBusinessUser, AmenityEndpoints);
 ApiEndpoints.use('/rooms', authenticateUser, RoomEndpoints);
+ApiEndpoints.use('/room-images', authenticateUser, RoomImageEndpoints);
 ApiEndpoints.use('/price-preset', authenticateUser, isBusinessUser, PricePresetEndpoints);
 ApiEndpoints.use('/banks', BanksEndpoints);
 

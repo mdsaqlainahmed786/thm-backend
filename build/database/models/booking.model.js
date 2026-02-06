@@ -30,6 +30,7 @@ var BookingStatus;
     BookingStatus["CANCELED"] = "canceled";
     BookingStatus["NO_SHOW"] = "no show";
     BookingStatus["CANCELED_BY_BUSINESS"] = "canceled by business";
+    BookingStatus["CANCELED_BY_USER"] = "canceled by user";
 })(BookingStatus || (exports.BookingStatus = BookingStatus = {}));
 var BookingType;
 (function (BookingType) {

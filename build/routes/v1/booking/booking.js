@@ -12,6 +12,7 @@ const BookingEndpoints = express_1.default.Router();
 BookingEndpoints.get('/', BookingController_1.default.index);
 BookingEndpoints.get('/:id', BookingController_1.default.show);
 BookingEndpoints.delete("/:id", BookingController_1.default.cancelBooking);
+BookingEndpoints.delete("/user/cancel/:id", BookingController_1.default.userCancelHotelBooking);
 BookingEndpoints.post('/check-in', api_validation_1.checkInApiValidator, api_request_validator_1.validateRequest, BookingController_1.default.checkIn);
 BookingEndpoints.post('/checkout', api_validation_1.checkoutApiValidator, api_request_validator_1.validateRequest, BookingController_1.default.checkout);
 BookingEndpoints.post('/checkout/confirm', api_validation_1.confirmCheckoutApiValidator, api_request_validator_1.validateRequest, BookingController_1.default.confirmCheckout);

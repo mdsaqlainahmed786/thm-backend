@@ -7,7 +7,7 @@ import { AccountType, addBusinessProfileInUser, addStoriesInUser } from "../data
 import { storeMedia } from './MediaController';
 import Media, { MediaType } from '../database/models/media.model';
 import { MongoID } from '../common';
-import Story, { addMediaInStory, storyTimeStamp } from '../database/models/story.model';
+import Story, { addMediaInStory, addTaggedUsersInStory, storyTimeStamp } from '../database/models/story.model';
 import { parseQueryParam } from '../utils/helper/basic';
 import User from '../database/models/user.model';
 import Like, { addUserInLike } from '../database/models/like.model';
@@ -15,6 +15,7 @@ import View, { addUserInView } from '../database/models/view.model.';
 import S3Service from '../services/S3Service';
 import { AwsS3AccessEndpoints } from '../config/constants';
 import Notification, { NotificationType } from '../database/models/notification.model';
+import AppNotificationController from './AppNotificationController';
 const s3Service = new S3Service();
 //FIXME Remove likes and view views
 const index = async (request: Request, response: Response, next: NextFunction) => {
@@ -39,6 +40,12 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                     addMediaInStory().unwindLookup,
                     addMediaInStory().replaceRootAndMergeObjects,
                     addMediaInStory().project,
+                    addTaggedUsersInStory().addFieldsBeforeUnwind,
+                    addTaggedUsersInStory().unwind,
+                    addTaggedUsersInStory().lookup,
+                    addTaggedUsersInStory().addFields,
+                    addTaggedUsersInStory().group,
+                    addTaggedUsersInStory().replaceRoot,
                     {
                         '$lookup': {
                             'from': 'likes',
@@ -188,7 +195,19 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
-        const { content, placeName, lat, lng, tagged, feelings } = request.body;
+        const {
+            content,
+            placeName,
+            lat,
+            lng,
+            userTagged,
+            userTaggedId,
+            userTaggedPositionX,
+            userTaggedPositionY,
+            feelings,
+            locationPositionX,
+            locationPositionY
+        } = request.body;
         const files = request.files as { [fieldname: string]: Express.Multer.File[] };
         const images = files && files.images as Express.Multer.S3File[];
         const videos = files && files.videos as Express.Multer.S3File[];
@@ -228,10 +247,64 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             newStory.businessProfileID = businessProfileID;
         }
         newStory.duration = duration;
+
         newStory.userID = id;
         newStory.mediaID = mediaIDs;
+
+        // Set location position coordinates if provided
+        if (locationPositionX !== undefined) {
+            newStory.locationPositionX = typeof locationPositionX === 'string' ? parseFloat(locationPositionX) : locationPositionX;
+        }
+        if (locationPositionY !== undefined) {
+            newStory.locationPositionY = typeof locationPositionY === 'string' ? parseFloat(locationPositionY) : locationPositionY;
+        }
+
+        // Set location only if all location fields are provided
+        if (placeName && lat && lng) {
+            newStory.location = {
+                placeName,
+                lat: typeof lat === 'string' ? parseFloat(lat) : lat,
+                lng: typeof lng === 'string' ? parseFloat(lng) : lng
+            };
+        }
+
+        // Handle single user tagging with position coordinates
+        if (userTaggedId) {
+            newStory.userTaggedId = userTaggedId;
+            if (userTagged) {
+                newStory.userTagged = userTagged;
+            }
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
+        } else if (userTagged) {
+            // If only username is provided without ID, still save it
+            newStory.userTagged = userTagged;
+            if (userTaggedPositionX !== undefined) {
+                newStory.userTaggedPositionX = typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+            }
+            if (userTaggedPositionY !== undefined) {
+                newStory.userTaggedPositionY = typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+            }
+        }
+
         const savedStory = await newStory.save();
-        return response.send(httpCreated(savedStory, 'Your story has been created successfully'));
+
+        // spawn notification (non-blocking) when a user is tagged in a story
+        if (savedStory && userTaggedId) {
+            AppNotificationController
+                .store(id, userTaggedId, NotificationType.TAGGED, {
+                    entityType: 'story',
+                    storyID: savedStory._id,
+                    userID: userTaggedId,
+                    userTagged: userTagged ?? "",
+                })
+                .catch((err: any) => console.error('Story tag notification error:', err));
+        }
+        return response.send(httpCreated(savedStory.toObject(), 'Your story has been created successfully'));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -244,6 +317,26 @@ const update = async (request: Request, response: Response, next: NextFunction) 
     }
 }
 
+/**
+ * Checks if an S3 key is still referenced by other Media documents
+ * This prevents deletion of shared S3 files when one Media document is deleted
+ * @param s3Key - The S3 key to check
+ * @param excludeMediaID - Media ID to exclude from the check (the one being deleted)
+ * @returns true if the S3 key is still in use by other Media documents, false otherwise
+ */
+async function isS3KeyStillReferenced(s3Key: string, excludeMediaID: MongoID): Promise<boolean> {
+    if (!s3Key) return false;
+
+    // Check if there are other Media documents with the same s3Key (excluding the one being deleted)
+    // If other Media documents exist with the same key, the S3 file is shared and should not be deleted
+    const otherMediaWithSameKey = await Media.findOne({
+        s3Key: s3Key,
+        _id: { $ne: excludeMediaID }
+    });
+
+    return !!otherMediaWithSameKey;
+}
+
 const destroy = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID } = request.user;
@@ -253,15 +346,27 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story not found."), "Story not found."));
         }
         const media = await Media.findOne({ _id: story.mediaID });
-        if (media && media.s3Key) {
-            await Promise.all([
-                s3Service.deleteS3Object(media.s3Key),
-                s3Service.deleteS3Asset(media.thumbnailUrl),
+        if (media) {
+            // Check if the S3 key is still referenced by other Media documents
+            const s3KeyStillInUse = await isS3KeyStillReferenced(media.s3Key || '', media._id as MongoID);
+
+            // Prepare deletion tasks
+            const deletionTasks: Promise<any>[] = [
                 media.deleteOne(),
                 Like.deleteMany({ storyID: story._id }),
                 View.deleteMany({ storyID: story._id }),
                 Notification.deleteMany({ type: NotificationType.LIKE_A_STORY, "metadata.storyID": story._id })
-            ]);
+            ];
+
+            // Only delete S3 files if they're not still in use by other Media documents
+            if (media.s3Key && !s3KeyStillInUse) {
+                deletionTasks.push(
+                    s3Service.deleteS3Object(media.s3Key),
+                    s3Service.deleteS3Asset(media.thumbnailUrl)
+                );
+            }
+
+            await Promise.all(deletionTasks);
         }
         await story.deleteOne();
         return response.send(httpNoContent(null, 'Story removed.'));
@@ -271,7 +376,95 @@ const destroy = async (request: Request, response: Response, next: NextFunction)
 }
 const show = async (request: Request, response: Response, next: NextFunction) => {
     try {
-        // return response.send(httpOk(null, "Not implemented"));
+        const { id, accountType } = request.user;
+        const storyID = request.params.id;
+        if (!accountType && !id) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.USER_NOT_FOUND), ErrorMessage.USER_NOT_FOUND));
+        }
+
+        // fetch story with same enrichments as the feed (media + tagged users + likes/views refs)
+        const [storyAgg] = await Story.aggregate([
+            {
+                $match: {
+                    _id: new ObjectId(storyID),
+                    timeStamp: { $gte: storyTimeStamp }
+                }
+            },
+            addMediaInStory().lookup,
+            addMediaInStory().unwindLookup,
+            addMediaInStory().replaceRootAndMergeObjects,
+            addMediaInStory().project,
+            addTaggedUsersInStory().addFieldsBeforeUnwind,
+            addTaggedUsersInStory().unwind,
+            addTaggedUsersInStory().lookup,
+            addTaggedUsersInStory().addFields,
+            addTaggedUsersInStory().group,
+            addTaggedUsersInStory().replaceRoot,
+            {
+                '$lookup': {
+                    'from': 'likes',
+                    'let': { 'storyID': '$_id' },
+                    'pipeline': [
+                        { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                        addUserInLike().lookup,
+                        addUserInLike().unwindLookup,
+                        addUserInLike().replaceRoot,
+                    ],
+                    'as': 'likesRef'
+                }
+            },
+            {
+                $addFields: {
+                    likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    likesRef: { $slice: ["$likesRef", 4] },
+                }
+            },
+            {
+                $lookup: {
+                    from: 'views',
+                    let: { storyID: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                        addUserInView().lookup,
+                        addUserInView().unwindLookup,
+                        addUserInView().replaceRoot,
+                    ],
+                    as: 'viewsRef'
+                }
+            },
+            {
+                $addFields: {
+                    views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                }
+            },
+            {
+                $addFields: {
+                    viewsRef: { $slice: ["$viewsRef", 4] },
+                }
+            },
+        ]).exec();
+
+        // if story is expired (older than 24h) or TTL-deleted, return the requested message
+        if (!storyAgg) {
+            return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest("Story no longer available"), "Story no longer available"));
+        }
+
+        const [isLiked, isViewed] = await Promise.all([
+            Like.findOne({ storyID: storyAgg._id, userID: id }),
+            View.findOne({ storyID: storyAgg._id, userID: id, createdAt: { $gte: storyTimeStamp } }),
+        ]);
+
+        const story = {
+            ...storyAgg,
+            likedByMe: !!isLiked,
+            seenByMe: !!isViewed,
+        };
+
+        return response.send(httpOk(story, "Story fetched."));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -394,4 +587,4 @@ const storyViews = async (request: Request, response: Response, next: NextFuncti
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
-export default { index, store, update, destroy, storeViews, storyLikes, storyViews };
+export default { index, store, update, destroy, show, storeViews, storyLikes, storyViews };

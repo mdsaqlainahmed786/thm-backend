@@ -31,7 +31,7 @@ const posts = async (request: Request, response: Response, next: NextFunction) =
             User.findOne({ _id: decryptedUserID }),
         ]);
         const [post, isSharedBefore,] = await Promise.all([
-            fetchPosts({ _id: new ObjectId(decryptedPostID), ...getPostQuery }, likedByMe, savedByMe, joiningEvents, 1, 1),
+            fetchPosts({ _id: new ObjectId(decryptedPostID), ...getPostQuery }, likedByMe, savedByMe, joiningEvents, 1, 1, undefined, undefined, false, undefined, id),
             SharedContent.findOne({ contentID: decryptedPostID, userID: decryptedUserID, contentType: ContentType.POST }),
         ])
         if (!post || post?.length === 0) {

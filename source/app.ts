@@ -2,7 +2,7 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from 'cors';
 import path from "path";
-import { httpInternalServerError } from "./utils/response";
+import { httpInternalServerError, httpServiceUnavailable } from "./utils/response";
 import ApiEndpoints from "./routes/api";
 import { connectDB } from "./database/Database";
 const App: Express = express();
@@ -23,6 +23,8 @@ export const allowedOrigins: Array<string> = [
     "https://www.thehotelmedia.com",
     "https://admin.thehotelmedia.com",
     "https://www.admin.thehotelmedia.com",
+    "https://hotels.thehotelmedia.com",
+    "https://www.hotels.thehotelmedia.com",
     "ec2-13-202-52-159.ap-south-1.compute.amazonaws.com",
     "13.202.52.159"
 ];
@@ -56,20 +58,35 @@ App.use((err: any, request: Request, response: Response, next: NextFunction) => 
     )
     next(err)
 });
+
+function isTimeoutLikeError(err: any): boolean {
+    if (!err) return false;
+    if (err.code === "ETIMEDOUT") return true;
+    if (err.name === "TimeoutError") return true;
+    // AWS SDK v3 AggregateError includes an internal [errors] array
+    const innerErrors = err?.errors ?? err?.[Symbol.for("errors")] ?? err?.["errors"] ?? err?.["$metadata"]?.errors;
+    if (Array.isArray(err?.errors) && err.errors.some((e: any) => e?.code === "ETIMEDOUT")) return true;
+    if (Array.isArray(err?.["errors"]) && err["errors"].some((e: any) => e?.code === "ETIMEDOUT")) return true;
+    if (Array.isArray(err?.["$metadata"]?.errors) && err["$metadata"].errors.some((e: any) => e?.code === "ETIMEDOUT")) return true;
+    if (Array.isArray(innerErrors) && innerErrors.some((e: any) => e?.code === "ETIMEDOUT")) return true;
+    return false;
+}
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
     if (request.xhr) {
-        const statusCode = err.status || 500;
-        const errorMessage = err.message || 'Internal Server Error';
-        response.status(statusCode).send(httpInternalServerError(err, errorMessage))
+        const isTimeout = isTimeoutLikeError(err);
+        const statusCode = err.status || (isTimeout ? 503 : 500);
+        const errorMessage = err.message || (isTimeout ? 'Storage service is temporarily unreachable. Please try again.' : 'Internal Server Error');
+        response.status(statusCode).send(isTimeout ? httpServiceUnavailable(err, errorMessage) : httpInternalServerError(err, errorMessage))
     } else {
         next(err)
     }
 });
 
 App.use((err: any, request: Request, response: Response, next: NextFunction) => {
-    const statusCode = err.status || 500;
-    const errorMessage = err.message || 'Internal Server Error';
-    return response.status(statusCode).send(httpInternalServerError(err, errorMessage))
+    const isTimeout = isTimeoutLikeError(err);
+    const statusCode = err.status || (isTimeout ? 503 : 500);
+    const errorMessage = err.message || (isTimeout ? 'Storage service is temporarily unreachable. Please try again.' : 'Internal Server Error');
+    return response.status(statusCode).send(isTimeout ? httpServiceUnavailable(err, errorMessage) : httpInternalServerError(err, errorMessage))
 });
 
 export default App;

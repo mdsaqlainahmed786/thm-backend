@@ -22,9 +22,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var _a, _b, _c, _d, _e, _f, _g, _h;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
+exports.MarketingNotifications = exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 class AppConfig {
@@ -43,14 +43,26 @@ AppConfig.APP_REFRESH_TOKEN_SECRET = process.env.APP_REFRESH_TOKEN_SECRET;
 AppConfig.ACCESS_TOKEN_EXPIRES_IN = (_c = process.env.ACCESS_TOKEN_EXPIRES_IN) !== null && _c !== void 0 ? _c : "3m";
 AppConfig.REFRESH_TOKEN_EXPIRES_IN = (_d = process.env.REFRESH_TOKEN_EXPIRES_IN) !== null && _d !== void 0 ? _d : "10d";
 AppConfig.USER_AUTH_TOKEN_COOKIE_KEY = 'SessionToken';
+AppConfig.ADMIN_AUTH_TOKEN_COOKIE_KEY = 'AdminSessionToken';
 AppConfig.DEVICE_ID_COOKIE_KEY = "UserDeviceID";
 AppConfig.USER_AUTH_TOKEN_KEY = 'X-Access-Token';
+AppConfig.ADMIN_AUTH_TOKEN_KEY = 'X-Admin-Access-Token';
 //Aws S3 Configurations
 AppConfig.AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 AppConfig.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 AppConfig.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 AppConfig.AWS_S3_BUCKET_ARN = process.env.AWS_S3_BUCKET_ARN;
 AppConfig.AWS_REGION = process.env.AWS_REGION;
+/**
+ * Optional S3 client tuning.
+ * These help avoid hanging requests when the runtime cannot reach S3 (firewall/DNS/routing issues).
+ */
+AppConfig.AWS_S3_ENDPOINT = process.env.AWS_S3_ENDPOINT; // e.g. https://s3.ap-south-1.amazonaws.com or an S3-compatible endpoint
+AppConfig.AWS_S3_FORCE_PATH_STYLE = ((_e = process.env.AWS_S3_FORCE_PATH_STYLE) !== null && _e !== void 0 ? _e : "false") === "true";
+AppConfig.AWS_S3_MAX_ATTEMPTS = Number((_f = process.env.AWS_S3_MAX_ATTEMPTS) !== null && _f !== void 0 ? _f : 2);
+AppConfig.AWS_S3_CONNECTION_TIMEOUT_MS = Number((_g = process.env.AWS_S3_CONNECTION_TIMEOUT_MS) !== null && _g !== void 0 ? _g : 3000);
+AppConfig.AWS_S3_SOCKET_TIMEOUT_MS = Number((_h = process.env.AWS_S3_SOCKET_TIMEOUT_MS) !== null && _h !== void 0 ? _h : 15000);
+AppConfig.AWS_S3_MAX_SOCKETS = Number((_j = process.env.AWS_S3_MAX_SOCKETS) !== null && _j !== void 0 ? _j : 50);
 AppConfig.POST_DIMENSION = {
     WIDTH: 500,
     HEIGHT: 500
@@ -80,10 +92,10 @@ AppConfig.SENDGRID = {
 };
 // Amazon SES
 AppConfig.SES = {
-    REGION: (_e = process.env.AWS_REGION) !== null && _e !== void 0 ? _e : "ap-south-1",
-    ACCESS_KEY_ID: (_f = process.env.AWS_ACCESS_KEY_ID) !== null && _f !== void 0 ? _f : "",
-    SECRET_ACCESS_KEY: (_g = process.env.AWS_SECRET_ACCESS_KEY) !== null && _g !== void 0 ? _g : "",
-    FROM_ADDRESS: (_h = process.env.SES_FROM_ADDRESS) !== null && _h !== void 0 ? _h : process.env.SENDGRID_FROM_ADDRESS
+    REGION: (_k = process.env.AWS_REGION) !== null && _k !== void 0 ? _k : "ap-south-1",
+    ACCESS_KEY_ID: (_l = process.env.AWS_ACCESS_KEY_ID) !== null && _l !== void 0 ? _l : "",
+    SECRET_ACCESS_KEY: (_m = process.env.AWS_SECRET_ACCESS_KEY) !== null && _m !== void 0 ? _m : "",
+    FROM_ADDRESS: (_o = process.env.SES_FROM_ADDRESS) !== null && _o !== void 0 ? _o : process.env.SENDGRID_FROM_ADDRESS
 };
 //Mailersend
 AppConfig.MAILER_SEND = {
@@ -128,6 +140,8 @@ SocketChannel.IN_CHAT = "in chat";
 SocketChannel.LEAVE_CHAT = "leave chat";
 SocketChannel.IN_PRIVATE_CHAT = "in private chat";
 SocketChannel.LEAVE_PRIVATE_CHAT = "leave private chat";
+SocketChannel.EDIT_MESSAGE = "edit message";
+SocketChannel.DELETE_MESSAGE = "delete message";
 exports.CookiePolicy = { httpOnly: true, sameSite: "none" };
 class AwsS3AccessEndpoints {
     static getEndpoint(path) {
@@ -175,3 +189,51 @@ CronSchedule.EVERY_TWO_MINUTE = "*/2 * * * *";
 CronSchedule.EVERY_TWO_HOURS = "0 */2 * * *";
 CronSchedule.EVERY_DAY_AT_00 = "0 0 * * *";
 CronSchedule.ONLY_ON_MONDAY_AND_THURSDAY = "0 15 * * 1,4";
+CronSchedule.MARKETING_NOTIFICATION_DAILY = "0 10 * * *"; // Daily at 10:00 AM
+CronSchedule.MARKETING_NOTIFICATION_EVERY_6_HOURS = "0 */6 * * *"; // Every 6 hours
+class MarketingNotifications {
+}
+exports.MarketingNotifications = MarketingNotifications;
+MarketingNotifications.MESSAGES = [
+    // Booking & Hotel Reservations - Anytime
+    { message: "🏨 Struggling to book hotels and reservations? We've got you covered! ✨" },
+    { message: "✈️ Your next adventure is just a tap away! Book hotels, rooms & stays instantly 🎯" },
+    { message: "🌟 Weekend plans? Discover amazing hotels and home stays near you 🏖️", isWeekend: true },
+    { message: "📞 No more calling hotels! Book rooms directly from your phone 📱" },
+    { message: "🔍 Planning a trip? Browse verified hotels with real guest reviews ⭐" },
+    { message: "⚡ Last-minute stay? Find available rooms in minutes, not hours! 🚀" },
+    { message: "🎒 Travel made simple. Book, review, and share your hotel experiences 🌍" },
+    // Social & Community Features - Anytime
+    { message: "👥 Join thousands sharing their travel stories! Your journey matters 📸" },
+    { message: "🔔 See what's happening in the hotel world. Follow travelers like you! ✈️" },
+    { message: "💬 Share your stay experience. Help others discover amazing places 🌟" },
+    { message: "🤝 Connect with fellow travelers. Share tips, reviews, and memories 📝" },
+    { message: "✨ Your travel story could inspire someone's next adventure! 🌈" },
+    // Events & Activities
+    { message: "🎉 Exciting events happening near you! Don't miss out on the fun 🎊" },
+    { message: "🏖️ Weekend getaway? Check out trending events and hotel deals! 💰", isWeekend: true },
+    { message: "🗓️ Discover local events and book your stay in one place! 🎯" },
+    // Reviews & Recommendations - Anytime
+    { message: "⭐ Real reviews from real guests. Make informed booking decisions! 💯" },
+    { message: "📝 Your honest review helps others find their perfect stay 🏨" },
+    { message: "👀 See what guests are saying. Trusted reviews for every property ⭐⭐⭐" },
+    // App Benefits & Features - Anytime
+    { message: "🎯 One app for everything travel! Book, share, connect, and explore 🌐" },
+    { message: "🚀 From booking to sharing. Your complete travel companion! ✈️" },
+    { message: "🎁 Why use 5 apps when one does it all? Book, review, and socialize! 💪" },
+    // { message: "👑 Premium features unlocked! Post unlimited, go ad-free 🚫📢" },
+    { message: "🌐 Your travel social network. Where bookings meet community! 🤝" },
+    // Time-based & Contextual
+    { message: "🎉 Friday vibes! Time to plan that weekend getaway! 🏖️", daysOfWeek: [5] }, // Friday only
+    { message: "🌅 New week, new adventures! Explore trending hotels 🏨", daysOfWeek: [1] }, // Monday only
+    { message: "☀️ Summer is here! Book your perfect vacation stay 🏖️", months: [5, 6, 7] }, // June, July, August
+    { message: "🎄 Holiday season approaching! Secure your bookings early ⏰", months: [10, 11] }, // November, December
+    // Engagement & Retention - Anytime
+    { message: "💔 We miss you! Come back and discover what's new ✨" },
+    { message: "📱 Your feed is waiting! See the latest from hotels you follow 🔔" },
+    { message: "🆕 New hotels added daily! Be the first to discover them 🌟" },
+    { message: "🎁 Special deals just for you! Check out exclusive offers 💰" },
+    // Business Features - Anytime
+    { message: "🏢 Hotel owners: Showcase your property to thousands of travelers! 📈" },
+    { message: "💼 Grow your business! Connect with guests and boost bookings 📊" }
+];

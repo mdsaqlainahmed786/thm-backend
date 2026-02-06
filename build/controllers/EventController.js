@@ -114,6 +114,20 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             if (imageList && imageList.length !== 0) {
                 imageList.map((image) => mediaIDs.push(image.id));
             }
+            // CRITICAL: Validate that ALL media documents exist before saving the post
+            if (mediaIDs.length > 0) {
+                const existingMedia = yield media_model_1.default.find({ _id: { $in: mediaIDs } }).select('_id').lean();
+                const existingMediaIDs = existingMedia.map(m => m._id.toString());
+                const missingMediaIDs = mediaIDs.filter(id => !existingMediaIDs.includes(id.toString()));
+                if (missingMediaIDs.length > 0) {
+                    console.error('CRITICAL: Media validation failed - some media documents do not exist:', missingMediaIDs);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Failed to create media. Please try again."), "Media creation failed"));
+                }
+                if (mediaIDs.length !== existingMedia.length) {
+                    console.error('CRITICAL: Media count mismatch. Expected:', mediaIDs.length, 'Found:', existingMedia.length);
+                    return response.send((0, response_1.httpInternalServerError)(error_1.ErrorMessage.invalidRequest("Media validation failed. Please try again."), "Media validation failed"));
+                }
+            }
         }
         newPost.media = mediaIDs;
         newPost.isPublished = true;

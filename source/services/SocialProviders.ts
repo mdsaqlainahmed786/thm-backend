@@ -22,24 +22,29 @@ class SocialProviders {
        * @returns The user data extracted from the payload
        */
     static async verifyGoogleToken(token: string): Promise<TokenPayload> {
-        const ticket: LoginTicket = await googleOAuth2Client.verifyIdToken({
-            idToken: token,
-            audience: [
-                '863883177284-fo7lcn907hhfntd7t31k14o7omhkg93h.apps.googleusercontent.com',
-                 '156125638721-h1m1s5c074frscov5be4j38q22bm50r0.apps.googleusercontent.com',
-                '156125638721-8pgj2054svmllf7301tk85vau993ujkb.apps.googleusercontent.com',
-                '156125638721-eeh3s3mk2te4g38d3emuif6mqnlb7e15.apps.googleusercontent.com'
-            ], // CLIENT_ID of the app that accesses the backend
+        const ticket = await googleOAuth2Client.verifyIdToken({
+          idToken: token,
         });
-
-        // Extract the payload from the verified ticket
+      
         const payload = ticket.getPayload();
-
         if (!payload) {
-            throw new Error('No payload returned from the token.');
+          throw new Error('Invalid Google token');
         }
+      
+        const ALLOWED_AUDIENCES = new Set([
+          '863883177284-fo7lcn907hhfntd7t31k14o7omhkg93h.apps.googleusercontent.com', // Android (web client)
+          '156125638721-h1m1s5c074frscov5be4j38q22bm50r0.apps.googleusercontent.com', // iOS
+          '156125638721-8pgj2054svmllf7301tk85vau993ujkb.apps.googleusercontent.com', // iOS
+          '156125638721-eeh3s3mk2te4g38d3emuif6mqnlb7e15.apps.googleusercontent.com', // iOS
+        ]);
+      
+        if (!ALLOWED_AUDIENCES.has(payload.aud)) {
+          throw new Error(`Unauthorized Google client: ${payload.aud}`);
+        }
+      
         return payload;
-    }
+      }
+      
     static async getAppleAuthorizationToken(code: string) {
         try {
             const options = {

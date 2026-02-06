@@ -6,7 +6,9 @@ import BusinessProfile from './businessProfile.model';
 import { isArray } from "../../utils/helper/basic";
 import { GeoCoordinate, IProfilePic, ProfileSchema } from "./common.model";
 import { Language, MongoID, Role } from "../../common";
-import { addMediaInStory } from "./story.model";
+import { addMediaInStory, addTaggedUsersInStory } from "./story.model";
+import { addUserInLike } from "./like.model";
+import { addUserInView } from "./view.model.";
 import Post, { getPostsCount } from "./post.model";
 import UserConnection, { ConnectionStatus, fetchFollowerCount, fetchFollowingCount } from "./userConnection.model";
 import BlockedUser from "./blockedUser.model";
@@ -15,7 +17,7 @@ import { generateOTP } from "../../utils/helper/basic";
 import EmailNotificationService from "../../services/EmailNotificationService";
 import BusinessType from "./businessType.model";
 import WeatherService from "../../services/WeatherService";
-import { RedisClient } from "../../server";
+import { RedisClient } from "../../services/RedisClient";
 const emailNotificationService = new EmailNotificationService();
 export enum SocialAccount {
     FACEBOOK = "facebook",
@@ -63,6 +65,7 @@ export interface Individual {
     geoCoordinate: GeoCoordinate;
     language: string;
     mobileVerified: boolean;
+    adminPassword?: string | null; // Password set by admin for administrator accounts
 }
 
 export interface Business {
@@ -127,7 +130,7 @@ const UserSchema: Schema = new Schema<IUser>(
             type: Boolean, default: false,
         },
         privateAccount: {
-            type: Boolean, default: true,
+            type: Boolean, default: false,
         },
         notificationEnabled: {
             type: Boolean, default: true,
@@ -155,6 +158,11 @@ const UserSchema: Schema = new Schema<IUser>(
             coordinates: {
                 type: [Number],
             }
+        },
+        adminPassword: {
+            type: String,
+            default: null,
+            select: false // Don't select by default for security
         },
 
     },
@@ -413,6 +421,58 @@ export function addStoriesInUser(likeIDs?: MongoID[] | null, viewedStories?: Mon
                 addMediaInStory().unwindLookup,
                 addMediaInStory().replaceRootAndMergeObjects,
                 addMediaInStory().project,
+                addTaggedUsersInStory().addFieldsBeforeUnwind,
+                addTaggedUsersInStory().unwind,
+                addTaggedUsersInStory().lookup,
+                addTaggedUsersInStory().addFields,
+                addTaggedUsersInStory().group,
+                addTaggedUsersInStory().replaceRoot,
+                {
+                    '$lookup': {
+                        'from': 'likes',
+                        'let': { 'storyID': '$_id' },
+                        'pipeline': [
+                            { '$match': { '$expr': { '$eq': ['$storyID', '$$storyID'] } } },
+                            addUserInLike().lookup,
+                            addUserInLike().unwindLookup,
+                            addUserInLike().replaceRoot,
+                        ],
+                        'as': 'likesRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        likes: { $cond: { if: { $isArray: "$likesRef" }, then: { $size: "$likesRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        likesRef: { $slice: ["$likesRef", 4] },
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'views',
+                        let: { storyID: '$_id' },
+                        pipeline: [
+                            { $match: { $expr: { $eq: ['$storyID', '$$storyID'] } } },
+                            addUserInView().lookup,
+                            addUserInView().unwindLookup,
+                            addUserInView().replaceRoot,
+                        ],
+                        as: 'viewsRef'
+                    }
+                },
+                {
+                    $addFields: {
+                        views: { $cond: { if: { $isArray: "$viewsRef" }, then: { $size: "$viewsRef" }, else: 0 } }
+                    }
+                },
+                {
+                    $addFields: {
+                        viewsRef: { $slice: ["$viewsRef", 4] },
+                    }
+                },
             ],
             'as': 'storiesRef'
         }
@@ -664,8 +724,10 @@ export async function createUserAccount(data: any, sendOTP: boolean) {
     if (isApproved !== undefined && isApproved !== null && isApproved === false) {
         newUser.isApproved = isApproved;//The business account needs to be approved by the admin; the default value of 'isApproved' is true.
     }
-    if (privateAccount !== undefined && privateAccount !== null && privateAccount === false) {
-        newUser.privateAccount = privateAccount;// All business account is public account 
+    if (privateAccount !== undefined && privateAccount !== null) {
+        newUser.privateAccount = privateAccount;
+    } else {
+        newUser.privateAccount = false; // Default to public account
     }
     if (socialIDs && isArray(socialIDs)) {
         newUser.socialIDs = socialIDs;
@@ -700,6 +762,10 @@ export async function createBusinessProfile(data: any) {
     newBusinessProfile.website = website;
     newBusinessProfile.gstn = gstn;
     newBusinessProfile.placeID = placeID;
-    newBusinessProfile.privateAccount = privateAccount;
+    if (privateAccount !== undefined && privateAccount !== null) {
+        newBusinessProfile.privateAccount = privateAccount;
+    } else {
+        newBusinessProfile.privateAccount = false; // Default to public account
+    }
     return await newBusinessProfile.save();
 }

@@ -63,6 +63,7 @@ const index = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
                     $match: dbQuery
                 },
                 (0, post_model_1.addMediaInPost)().lookup,
+                (0, post_model_1.addMediaInPost)().sort_media,
                 {
                     '$lookup': {
                         'from': 'businessprofiles',

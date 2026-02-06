@@ -20,15 +20,24 @@ import S3Service from "../services/S3Service";
 const s3Service = new S3Service();
 
 function sanitizeImage(request: Request, file: any, cb: any) {
-    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".gif", ".mp4", ".pdf", ".doc", ".docx", ".mov"];
+    const fileExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic", ".mp4", ".pdf", ".doc", ".docx", ".mov"];
 
-    const isAllowedExt = fileExts.includes(
-        path.extname(file.originalname.toLowerCase())
-    );
+    const fileExtension = path.extname(file.originalname.toLowerCase());
+    const isAllowedExt = fileExts.includes(fileExtension);
     const isAllowedImageMimeType = file.mimetype.startsWith("image/");
     const isAllowedVideoMimeType = file.mimetype.startsWith("video/");
     const isAllowedDocumentMimeType = file.mimetype.startsWith("application/");
 
+    // Log file details for debugging
+    console.log("File validation:", {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        extension: fileExtension,
+        isAllowedExt,
+        isAllowedImageMimeType,
+        isAllowedVideoMimeType,
+        isAllowedDocumentMimeType
+    });
 
     if ((isAllowedExt && isAllowedImageMimeType) ||
         (isAllowedExt && isAllowedVideoMimeType) ||
@@ -36,8 +45,9 @@ function sanitizeImage(request: Request, file: any, cb: any) {
     ) {
         return cb(null, true);
     } else {
-        const error: any = new Error('Error: File type not allowed!');
+        const error: any = new Error(`File type not allowed. Allowed types: ${fileExts.join(', ')}. Received: ${fileExtension} (${file.mimetype})`);
         error.status = 400;
+        console.error("File validation failed:", error.message);
         cb(error, false);
     }
 }

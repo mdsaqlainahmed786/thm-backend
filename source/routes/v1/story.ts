@@ -30,4 +30,7 @@ StoryEndpoints.get('/comments/:id', [paramIDValidationRule], validateRequest, Co
 StoryEndpoints.patch('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.update);
 StoryEndpoints.delete('/comments/:id', [paramIDValidationRule], validateRequest, CommentController.destroy);
 
+// Must be declared after more specific routes (likes/views/comments), otherwise it will capture them.
+StoryEndpoints.get('/:id', [paramIDValidationRule], validateRequest, StoryController.show);
+
 export default StoryEndpoints;

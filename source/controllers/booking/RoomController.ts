@@ -5,7 +5,7 @@ import { isArray, parseQueryParam } from "../../utils/helper/basic";
 import Amenity from '../../database/models/amenity.model';
 import Room, { addAmenitiesInRoom, addRoomImagesInRoom } from "../../database/models/room.model";
 import BusinessProfile from "../../database/models/businessProfile.model";
-import { generateThumbnail } from "../MediaController";
+import { generateThumbnail, deleteUnwantedFiles } from "../MediaController";
 import RoomImage from "../../database/models/roomImage.model";
 import AccountReach from "../../database/models/accountReach.model";
 import { AccountType, addAmenitiesInBusinessProfile } from "../../database/models/user.model";
@@ -57,9 +57,18 @@ const index = async (request: Request, response: Response, next: NextFunction) =
                 {
                     $limit: documentLimit
                 },
+                addAmenitiesInRoom().lookup,
+                {
+                    $addFields: {
+                        amenities: {
+                            $ifNull: ['$amenitiesRef', []]
+                        }
+                    }
+                },
                 {
                     $project: {
                         __v: 0,
+                        amenitiesRef: 0,
                     }
                 },
             ]),
@@ -74,9 +83,76 @@ const index = async (request: Request, response: Response, next: NextFunction) =
 const store = async (request: Request, response: Response, next: NextFunction) => {
     try {
         const { id, accountType, businessProfileID, role } = request.user;
-        const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const mediaFiles = files && files.images as Express.Multer.S3File[];
+        // Handle amenities - could be in amenities or amenities[] field (multipart form data)
+        // When multiple amenities are sent, they might come as an array or multiple fields
+        let amenities = request.body.amenities || request.body['amenities[]'];
+        
+        // Debug: Log all request body keys to see what we're receiving
+        console.log(`[Room Store] All request.body keys:`, Object.keys(request.body));
+        console.log(`[Room Store] Raw amenities value:`, amenities);
+        
+        // Check if amenities might be sent as multiple fields (amenities[0], amenities[1], etc.)
+        if (!isArray(amenities)) {
+            const amenityKeys = Object.keys(request.body).filter(key => 
+                key === 'amenities' || 
+                key === 'amenities[]' || 
+                key.startsWith('amenities[') || 
+                key.match(/^amenities\[\d+\]$/)
+            );
+            
+            if (amenityKeys.length > 1) {
+                // Multiple amenity fields found, collect them all
+                amenities = amenityKeys
+                    .sort() // Sort to maintain order
+                    .map(key => request.body[key])
+                    .filter(Boolean);
+                console.log(`[Room Store] Collected ${amenities.length} amenities from multiple fields`);
+            } else if (amenityKeys.length === 1 && typeof request.body[amenityKeys[0]] === 'string') {
+                // Single string - might be comma-separated or JSON
+                const value = request.body[amenityKeys[0]];
+                if (value.includes(',') || value.trim().startsWith('[')) {
+                    // Likely comma-separated or JSON string, will be handled in parsing
+                    amenities = value;
+                }
+            }
+        }
+        
+        const { description, price, currency, title, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
+        
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+        
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname)) as Express.Multer.S3File[];
+        
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+        
+        // Validate field name - provide helpful error if wrong field name was used
+        if (allFiles.length > 0 && mediaFiles.length === 0) {
+            const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
+            return response.send(httpBadRequest(
+                ErrorMessage.invalidRequest(`Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`),
+                `Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`
+            ));
+        }
+        
+        // Enforce max count of 5 images
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            await deleteUnwantedFiles(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
+        
         let businessProfile = businessProfileID || request?.body?.businessProfileID;
         if (!businessProfile) {
             return response.send(httpBadRequest(ErrorMessage.invalidRequest("Business profile id is required"), "Business profile id is required"))
@@ -85,9 +161,71 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         if (!businessProfileRef) {
             return response.send(httpNotFoundOr404(ErrorMessage.invalidRequest(ErrorMessage.BUSINESS_PROFILE_NOT_FOUND), ErrorMessage.BUSINESS_PROFILE_NOT_FOUND))
         }
-        let amenitiesArray: string[] = [];
-        if (amenities && isArray(amenities)) {
-            amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenities } }) as string[];
+        let amenitiesArray: any[] = [];
+        if (amenities) {
+            // Debug: Log what we received
+            console.log(`[Room Store] Received amenities:`, amenities, `Type:`, typeof amenities, `IsArray:`, isArray(amenities));
+            console.log(`[Room Store] Full request.body keys:`, Object.keys(request.body));
+            
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
+            let parsedAmenities: any[] = [];
+            
+            if (isArray(amenities)) {
+                parsedAmenities = amenities;
+                console.log(`[Room Store] Parsed as array, count:`, parsedAmenities.length);
+            } else if (typeof amenities === 'string') {
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = isArray(parsed) ? parsed : [parsed];
+                        console.log(`[Room Store] Parsed as JSON, count:`, parsedAmenities.length);
+                    } catch {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+                            console.log(`[Room Store] Parsed as comma-separated, count:`, parsedAmenities.length);
+                        } else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                            console.log(`[Room Store] Parsed as single ID`);
+                        }
+                    }
+                }
+            }
+            
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id: any) => {
+                    try {
+                        return new ObjectId(id);
+                    } catch (error) {
+                        return null;
+                    }
+                }).filter((id: any) => id !== null);
+                
+                console.log(`[Room Store] Converted to ObjectIds, count:`, amenityObjectIds.length);
+                
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = await Amenity.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity: any) => amenity._id);
+                    // Debug: Log if amenities were found
+                    if (amenitiesArray.length === 0 && parsedAmenities.length > 0) {
+                        console.warn(`[Room Store] No valid amenities found for IDs: ${parsedAmenities.join(', ')}`);
+                    } else if (amenitiesArray.length > 0) {
+                        console.log(`[Room Store] Found ${amenitiesArray.length} valid amenities out of ${parsedAmenities.length} requested`);
+                        if (parsedAmenities.length === 1) {
+                            console.warn(`[Room Store] ⚠️ Only 1 amenity received. If you selected multiple amenities in the frontend, ensure they are sent as an array, JSON string, or comma-separated string.`);
+                        }
+                    }
+                }
+            } else {
+                console.warn(`[Room Store] ⚠️ No amenities parsed from input. Received:`, amenities);
+            }
+        } else {
+            console.log(`[Room Store] No amenities provided in request`);
         }
         // const room = await checkAvailability(roomType, checkIn, checkOut);
 
@@ -106,22 +244,53 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         newRoom.children = children;
         newRoom.adults = adults;
         newRoom.totalRooms = totalRooms;
+        
+        // Validate images before proceeding
+        if (!validMediaFiles || validMediaFiles.length === 0) {
+            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Room images is required."), "Room images is required."))
+        }
+
+        // Save the room FIRST to get a valid _id
+        const savedRoom = await newRoom.save();
+
         /**
          * Handle Room Images 
+         * Process images after room is saved to ensure we have a valid roomID
          */
-        if (mediaFiles && mediaFiles.length !== 0) {
-            await Promise.all(mediaFiles.map(async (mediaFile, index) => {
-                const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324);
-                const newRoomImage = new RoomImage();
-                newRoomImage.roomID = newRoom.id;
-                newRoomImage.isCoverImage = index === 0 ? true : false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
-                const savedRoomImage = await newRoomImage.save();
-                return savedRoomImage.id;
+        try {
+            await Promise.all(validMediaFiles.map(async (mediaFile, index) => {
+                try {
+                    // Generate thumbnail with error handling - if it fails, use original image
+                    const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
+                        console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                        return null; // Return null if thumbnail generation fails
+                    });
+                    
+                    const newRoomImage = new RoomImage();
+                    newRoomImage.roomID = savedRoom._id; // Use saved room's _id
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
+                    const savedRoomImage = await newRoomImage.save();
+                    return savedRoomImage.id;
+                } catch (error: any) {
+                    // Log error but don't fail the entire operation for a single image
+                    console.error(`Error processing room image ${index}:`, error);
+                    // Still create the room image record with the original URL if thumbnail fails
+                    const newRoomImage = new RoomImage();
+                    newRoomImage.roomID = savedRoom._id;
+                    newRoomImage.isCoverImage = index === 0 ? true : false;
+                    newRoomImage.sourceUrl = mediaFile.location;
+                    newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                    await newRoomImage.save().catch((saveError) => {
+                        console.error(`Failed to save room image ${index}:`, saveError);
+                    });
+                }
             }));
-        } else {
-            return response.send(httpBadRequest(ErrorMessage.invalidRequest("Room images is required."), "Room images is required."))
+        } catch (error: any) {
+            // If all images fail, we still have the room saved, but log the error
+            console.error("Error processing room images:", error);
+            // Continue - room is already saved
         }
 
         // // Mark dates as unavailable
@@ -134,9 +303,28 @@ const store = async (request: Request, response: Response, next: NextFunction) =
         //     current.setDate(current.getDate() + 1);
         // }
 
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = await Room.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            addAmenitiesInRoom().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
 
-        const savedAmenity = await newRoom.save();
-        return response.send(httpCreated(savedAmenity, CREATED));
+        return response.send(httpCreated(roomWithAmenities[0] || savedRoom, CREATED));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -146,8 +334,31 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         const { id, accountType, businessProfileID, role } = request.user;
         const ID = request?.params?.id;
         const { description, price, currency, title, amenities, bedType, roomType, mealPlan, children, adults, totalRooms } = request.body;
-        const files = request.files as { [fieldname: string]: Express.Multer.File[] };
-        const mediaFiles = files && files.images as Express.Multer.S3File[];
+        
+        // Handle files from .any() - can be array or object with fieldnames
+        // Accept common variants from clients (images, images[])
+        const allFiles: Express.Multer.S3File[] = Array.isArray(request.files)
+            ? (request.files as Express.Multer.S3File[])
+            : Object.values((request.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ?? {})
+                .flat() as Express.Multer.S3File[];
+        
+        const allowedFieldNames = new Set(['images', 'images[]']);
+        const unexpectedFiles = allFiles.filter((f) => !allowedFieldNames.has(f.fieldname));
+        const mediaFiles = allFiles.filter((f) => allowedFieldNames.has(f.fieldname)) as Express.Multer.S3File[];
+        
+        // Delete any unexpected files that were uploaded
+        if (unexpectedFiles.length > 0) {
+            await deleteUnwantedFiles(unexpectedFiles);
+        }
+        
+        // Enforce max count of 5 images for updates
+        const MAX_IMAGES = 5;
+        if (mediaFiles.length > MAX_IMAGES) {
+            const extraFiles = mediaFiles.slice(MAX_IMAGES);
+            await deleteUnwantedFiles(extraFiles);
+            // Continue with only the first 5 images
+        }
+        const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
 
         const query = { _id: ID };
         if (accountType === AccountType.BUSINESS && businessProfileID) {
@@ -161,9 +372,48 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.description = description ?? room.description;
         room.currency = currency ?? room.currency;
         room.title = title ?? room.title;
-        let amenitiesArray: string[] = [];
-        if (amenities && isArray(amenities)) {
-            amenitiesArray = await Amenity.distinct("_id", { _id: { $in: amenities } }) as string[];
+        let amenitiesArray: any[] = [];
+        if (amenities) {
+            // Handle different formats: array, JSON string, comma-separated string, or single string ID
+            let parsedAmenities: any[] = [];
+            
+            if (isArray(amenities)) {
+                parsedAmenities = amenities;
+            } else if (typeof amenities === 'string') {
+                const trimmed = amenities.trim();
+                if (trimmed.length > 0) {
+                    try {
+                        // Try parsing as JSON first
+                        const parsed = JSON.parse(trimmed);
+                        parsedAmenities = isArray(parsed) ? parsed : [parsed];
+                    } catch {
+                        // If not JSON, try comma-separated string or treat as single ID
+                        if (trimmed.includes(',')) {
+                            parsedAmenities = trimmed.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+                        } else {
+                            // Single string ID
+                            parsedAmenities = [trimmed];
+                        }
+                    }
+                }
+            }
+            
+            if (parsedAmenities.length > 0) {
+                // Convert string IDs to ObjectIds for MongoDB query
+                const amenityObjectIds = parsedAmenities.map((id: any) => {
+                    try {
+                        return new ObjectId(id);
+                    } catch (error) {
+                        return null;
+                    }
+                }).filter((id: any) => id !== null);
+                
+                if (amenityObjectIds.length > 0) {
+                    // Find valid amenities and get their ObjectIds
+                    const validAmenities = await Amenity.find({ _id: { $in: amenityObjectIds } }).select('_id');
+                    amenitiesArray = validAmenities.map((amenity: any) => amenity._id);
+                }
+            }
             room.amenities = amenitiesArray.length !== 0 ? amenitiesArray : room.amenities;
         }
         room.bedType = bedType ?? room.bedType;
@@ -172,17 +422,42 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         room.adults = adults ?? room.adults;
         room.roomType = roomType ?? room.roomType;
         room.totalRooms = totalRooms ?? room.totalRooms;
-        if (mediaFiles && mediaFiles.length !== 0) {
-            await Promise.all(mediaFiles.map(async (mediaFile, index) => {
-                const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324);
-                const newRoomImage = new RoomImage();
-                newRoomImage.roomID = room.id;
-                newRoomImage.isCoverImage = false;
-                newRoomImage.sourceUrl = mediaFile.location;
-                newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
-                const savedRoomImage = await newRoomImage.save();
-                return savedRoomImage.id;
-            }));
+        if (validMediaFiles && validMediaFiles.length !== 0) {
+            try {
+                await Promise.all(validMediaFiles.map(async (mediaFile, index) => {
+                    try {
+                        // Generate thumbnail with error handling - if it fails, use original image
+                        const mediaFileThumbnail = await generateThumbnail(mediaFile, "image", 486, 324).catch((error) => {
+                            console.error(`Failed to generate thumbnail for image ${index}:`, error);
+                            return null; // Return null if thumbnail generation fails
+                        });
+                        
+                        const newRoomImage = new RoomImage();
+                        newRoomImage.roomID = room._id; // Use room's _id
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = mediaFileThumbnail?.Location || mediaFile.location;
+                        const savedRoomImage = await newRoomImage.save();
+                        return savedRoomImage.id;
+                    } catch (error: any) {
+                        // Log error but don't fail the entire operation for a single image
+                        console.error(`Error processing room image ${index}:`, error);
+                        // Still create the room image record with the original URL if thumbnail fails
+                        const newRoomImage = new RoomImage();
+                        newRoomImage.roomID = room._id;
+                        newRoomImage.isCoverImage = false;
+                        newRoomImage.sourceUrl = mediaFile.location;
+                        newRoomImage.thumbnailUrl = mediaFile.location; // Fallback to original
+                        await newRoomImage.save().catch((saveError) => {
+                            console.error(`Failed to save room image ${index}:`, saveError);
+                        });
+                    }
+                }));
+            } catch (error: any) {
+                // If all images fail, we still have the room updated, but log the error
+                console.error("Error processing room images:", error);
+                // Continue - room is already updated
+            }
         }
         const [savedRoom, pricePresets] = await Promise.all([
             room.save(),
@@ -191,7 +466,29 @@ const update = async (request: Request, response: Response, next: NextFunction) 
         await Promise.all(pricePresets.map(async (pricePreset) => {
             await generatePricePresetForRoom(pricePreset.id)
         }))
-        return response.send(httpAcceptedOrUpdated(savedRoom, UPDATED));
+        
+        // Fetch the room with populated amenities using aggregation
+        const roomWithAmenities = await Room.aggregate([
+            {
+                $match: { _id: savedRoom._id }
+            },
+            addAmenitiesInRoom().lookup,
+            {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
+                $project: {
+                    __v: 0,
+                    amenitiesRef: 0,
+                }
+            }
+        ]);
+
+        return response.send(httpAcceptedOrUpdated(roomWithAmenities[0] || savedRoom, UPDATED));
     } catch (error: any) {
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
@@ -294,8 +591,16 @@ const show = async (request: Request, response: Response, next: NextFunction) =>
             addRoomImagesInRoom().addRoomCoverAndThumbnailImage,
             addAmenitiesInRoom().lookup,
             {
+                $addFields: {
+                    amenities: {
+                        $ifNull: ['$amenitiesRef', []]
+                    }
+                }
+            },
+            {
                 '$project': {
                     'businessProfileRef': 0,
+                    'amenitiesRef': 0,
                 }
             }
         ]);

@@ -41,6 +41,11 @@ export interface IMessage extends Document {
     deletedByID: MongoID[];
     storyID: MongoID;
     mediaID: MongoID;
+    postID: MongoID;
+    isEdited: boolean;
+    editedAt?: Date;
+    clientMessageID?: string;
+    isDeleted: boolean;
 }
 const MessageSchema: Schema = new Schema<IMessage>(
     {
@@ -60,7 +65,12 @@ const MessageSchema: Schema = new Schema<IMessage>(
         // mediaUrl: { type: String },
         mediaID: { type: Schema.Types.ObjectId, ref: "Media" },
         storyID: { type: Schema.Types.ObjectId, ref: "Story" },
-        location: LocationSchema
+        postID: { type: Schema.Types.ObjectId, ref: "Post" },
+        location: LocationSchema,
+        isEdited: { type: Boolean, default: false },
+        editedAt: { type: Date },
+        clientMessageID: { type: String },
+        isDeleted: { type: Boolean, default: false }
     },
     {
         timestamps: true
@@ -68,6 +78,15 @@ const MessageSchema: Schema = new Schema<IMessage>(
 );
 MessageSchema.set('toObject', { virtuals: true });
 MessageSchema.set('toJSON', { virtuals: true });
+
+// Performance indexes for message queries
+MessageSchema.index({ userID: 1, createdAt: -1 });
+MessageSchema.index({ targetUserID: 1, createdAt: -1 });
+MessageSchema.index({ userID: 1, targetUserID: 1, createdAt: -1 });
+MessageSchema.index({ targetUserID: 1, userID: 1, createdAt: -1 });
+MessageSchema.index({ deletedByID: 1 });
+MessageSchema.index({ mediaID: 1 });
+MessageSchema.index({ storyID: 1 });
 
 export interface IMessageModel extends Model<IMessage> {
 }
