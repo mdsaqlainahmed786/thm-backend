@@ -131,11 +131,16 @@ class EnvironmentService {
                     },
                 };
             }
-            const redisKey = `env::${cacheKey}`;
+            // Versioned cache key to allow schema evolution without stale payloads.
+            const redisKey = `env:v2::${cacheKey}`;
             try {
                 const cached = yield RedisClient_1.RedisClient.get(redisKey);
                 if (cached) {
-                    return JSON.parse(cached);
+                    const parsed = JSON.parse(cached);
+                    // Safety: if cache contains an older schema without numeric AQI fields, treat as miss.
+                    if ((parsed === null || parsed === void 0 ? void 0 : parsed.summary) && Object.prototype.hasOwnProperty.call(parsed.summary, "aqi")) {
+                        return parsed;
+                    }
                 }
             }
             catch (_s) {
