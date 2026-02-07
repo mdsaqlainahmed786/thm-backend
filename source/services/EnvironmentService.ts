@@ -197,7 +197,30 @@ class EnvironmentService {
       const tempMaxK = weather?.main?.temp_max ?? null;
 
       const payload = {
-        weatherReport: { ...weather, airPollution },
+        weatherReport: {
+          ...weather,
+          airPollution: airPollution
+            ? {
+                ...airPollution,
+                list: Array.isArray((airPollution as any).list)
+                  ? (airPollution as any).list.map((item: any, idx: number) => {
+                      if (idx !== 0) return item;
+                      const oldIndex = item?.main?.aqi ?? null;
+                      return {
+                        ...item,
+                        main: {
+                          ...(item?.main ?? {}),
+                          // `aqi` should be the numeric AQI value clients expect (e.g. 168).
+                          // Preserve the original OpenWeather index (1..5) as `aqiIndex`.
+                          aqi: computedAqi,
+                          aqiIndex: oldIndex,
+                        },
+                      };
+                    })
+                  : (airPollution as any).list,
+              }
+            : airPollution,
+        },
         summary: {
           lat,
           lng,

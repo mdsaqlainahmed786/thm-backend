@@ -170,7 +170,19 @@ class EnvironmentService {
                 const tempMinK = (_p = (_o = weather === null || weather === void 0 ? void 0 : weather.main) === null || _o === void 0 ? void 0 : _o.temp_min) !== null && _p !== void 0 ? _p : null;
                 const tempMaxK = (_r = (_q = weather === null || weather === void 0 ? void 0 : weather.main) === null || _q === void 0 ? void 0 : _q.temp_max) !== null && _r !== void 0 ? _r : null;
                 const payload = {
-                    weatherReport: Object.assign(Object.assign({}, weather), { airPollution }),
+                    weatherReport: Object.assign(Object.assign({}, weather), { airPollution: airPollution
+                            ? Object.assign(Object.assign({}, airPollution), { list: Array.isArray(airPollution.list)
+                                    ? airPollution.list.map((item, idx) => {
+                                        var _a, _b, _c;
+                                        if (idx !== 0)
+                                            return item;
+                                        const oldIndex = (_b = (_a = item === null || item === void 0 ? void 0 : item.main) === null || _a === void 0 ? void 0 : _a.aqi) !== null && _b !== void 0 ? _b : null;
+                                        return Object.assign(Object.assign({}, item), { main: Object.assign(Object.assign({}, ((_c = item === null || item === void 0 ? void 0 : item.main) !== null && _c !== void 0 ? _c : {})), { 
+                                                // `aqi` should be the numeric AQI value clients expect (e.g. 168).
+                                                // Preserve the original OpenWeather index (1..5) as `aqiIndex`.
+                                                aqi: computedAqi, aqiIndex: oldIndex }) });
+                                    })
+                                    : airPollution.list }) : airPollution }),
                     summary: {
                         lat,
                         lng,
