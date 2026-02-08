@@ -569,6 +569,9 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
     try {
         const { id, accountType, businessProfileID } = request.user;
         const { id: postID } = request.params;
+        const { 
+        // keep parity with StoryController.store (even if not all fields are persisted on Story model)
+        content, placeName, lat, lng, userTagged, userTaggedId, userTaggedPositionX, userTaggedPositionY, feelings, locationPositionX, locationPositionY } = request.body;
         if (!id) {
             return response.send((0, response_1.httpNotFoundOr404)(error_1.ErrorMessage.invalidRequest(error_1.ErrorMessage.USER_NOT_FOUND), error_1.ErrorMessage.USER_NOT_FOUND));
         }
@@ -622,7 +625,81 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
             if (accountType === user_model_1.AccountType.BUSINESS && businessProfileID) {
                 newStory.businessProfileID = businessProfileID;
             }
-            return newStory.save();
+            // --- match StoryController.store behaviour (metadata/tagging/location), without touching S3 ---
+            // (content/feelings currently not persisted on Story model; destructured for API parity)
+            void content;
+            void feelings;
+            // Set location position coordinates if provided
+            if (locationPositionX !== undefined) {
+                newStory.locationPositionX =
+                    typeof locationPositionX === 'string' ? parseFloat(locationPositionX) : locationPositionX;
+            }
+            if (locationPositionY !== undefined) {
+                newStory.locationPositionY =
+                    typeof locationPositionY === 'string' ? parseFloat(locationPositionY) : locationPositionY;
+            }
+            // Set location only if all location fields are provided
+            if (placeName && lat && lng) {
+                newStory.location = {
+                    placeName,
+                    lat: typeof lat === 'string' ? parseFloat(lat) : lat,
+                    lng: typeof lng === 'string' ? parseFloat(lng) : lng
+                };
+            }
+            // Handle single user tagging with position coordinates (legacy fields)
+            if (userTaggedId) {
+                newStory.userTaggedId = userTaggedId;
+                if (userTagged) {
+                    newStory.userTagged = userTagged;
+                }
+                if (userTaggedPositionX !== undefined) {
+                    newStory.userTaggedPositionX =
+                        typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+                }
+                if (userTaggedPositionY !== undefined) {
+                    newStory.userTaggedPositionY =
+                        typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+                }
+            }
+            else if (userTagged) {
+                // If only username is provided without ID, still save it
+                newStory.userTagged = userTagged;
+                if (userTaggedPositionX !== undefined) {
+                    newStory.userTaggedPositionX =
+                        typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX;
+                }
+                if (userTaggedPositionY !== undefined) {
+                    newStory.userTaggedPositionY =
+                        typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY;
+                }
+            }
+            // New taggedUsers array (used by aggregation pipelines) - only if we have all required fields
+            if (userTaggedId &&
+                userTagged &&
+                userTaggedPositionX !== undefined &&
+                userTaggedPositionY !== undefined) {
+                newStory.taggedUsers = [
+                    {
+                        userTagged,
+                        userTaggedId,
+                        positionX: typeof userTaggedPositionX === 'string' ? parseFloat(userTaggedPositionX) : userTaggedPositionX,
+                        positionY: typeof userTaggedPositionY === 'string' ? parseFloat(userTaggedPositionY) : userTaggedPositionY,
+                    }
+                ];
+            }
+            const savedStory = yield newStory.save();
+            // spawn notification (non-blocking) when a user is tagged in a story
+            if (savedStory && userTaggedId) {
+                AppNotificationController_1.default
+                    .store(id, userTaggedId, notification_model_1.NotificationType.TAGGED, {
+                    entityType: 'story',
+                    storyID: savedStory._id,
+                    userID: userTaggedId,
+                    userTagged: userTagged !== null && userTagged !== void 0 ? userTagged : "",
+                })
+                    .catch((err) => console.error('Story tag notification error:', err));
+            }
+            return savedStory;
         }));
         const createdStories = (yield Promise.all(storyPromises)).filter(Boolean);
         if (createdStories.length === 0) {
