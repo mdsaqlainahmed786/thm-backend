@@ -224,6 +224,10 @@ const store = async (
         const jobTitle = metadata?.title ?? "a job";
         description = `${name} posted a new job: ${jobTitle}.`;
         break;
+      case NotificationType.SHARE_POST_TO_STORY:
+        postType = metadata.postType ?? "post";
+        description = `${name} shared your ${postType} to their story.`;
+        break;
       default:
         description = `Unknown notification type: ${type}`;
     }

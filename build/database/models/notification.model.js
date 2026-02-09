@@ -22,6 +22,7 @@ var NotificationType;
     NotificationType["BOOKING"] = "booking";
     NotificationType["JOB"] = "job";
     NotificationType["MARKETING"] = "marketing";
+    NotificationType["SHARE_POST_TO_STORY"] = "share-post-to-story";
 })(NotificationType || (exports.NotificationType = NotificationType = {}));
 const NotificationSchema = new mongoose_1.Schema({
     userID: {

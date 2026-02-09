@@ -156,7 +156,7 @@ const status = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0, void 0, function* () {
-    var _c, _d, _e, _f, _g, _h, _j, _k;
+    var _c, _d, _e, _f, _g, _h, _j, _k, _l;
     try {
         console.log("   [STORE] Start creating notification:");
         console.log("   → Type:", type);
@@ -238,6 +238,10 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 const jobTitle = (_j = metadata === null || metadata === void 0 ? void 0 : metadata.title) !== null && _j !== void 0 ? _j : "a job";
                 description = `${name} posted a new job: ${jobTitle}.`;
                 break;
+            case notification_model_1.NotificationType.SHARE_POST_TO_STORY:
+                postType = (_k = metadata.postType) !== null && _k !== void 0 ? _k : "post";
+                description = `${name} shared your ${postType} to their story.`;
+                break;
             default:
                 description = `Unknown notification type: ${type}`;
         }
@@ -270,7 +274,7 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
                 const extraData = type === notification_model_1.NotificationType.TAGGED && ((metadata === null || metadata === void 0 ? void 0 : metadata.entityType) === 'story' || (metadata === null || metadata === void 0 ? void 0 : metadata.storyID))
                     ? {
                         entityType: 'story',
-                        storyID: String((_k = metadata === null || metadata === void 0 ? void 0 : metadata.storyID) !== null && _k !== void 0 ? _k : ''),
+                        storyID: String((_l = metadata === null || metadata === void 0 ? void 0 : metadata.storyID) !== null && _l !== void 0 ? _l : ''),
                     }
                     : undefined;
                 yield Promise.all(devicesConfigs.map((devicesConfig) => __awaiter(void 0, void 0, void 0, function* () {
@@ -303,12 +307,12 @@ const store = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0
     }
 });
 const update = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _l;
+    var _m;
     try {
         // return response.send(httpAcceptedOrUpdated(null, 'Not implemented'));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_l = error.message) !== null && _l !== void 0 ? _l : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 const destroy = (userID, targetUserID, type, metadata) => __awaiter(void 0, void 0, void 0, function* () {
@@ -361,12 +365,12 @@ const destroy = (userID, targetUserID, type, metadata) => __awaiter(void 0, void
     }
 });
 const show = (request, response, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _m;
+    var _o;
     try {
         // return response.send(httpOk(null, "Not implemented"));
     }
     catch (error) {
-        next((0, response_1.httpInternalServerError)(error, (_m = error.message) !== null && _m !== void 0 ? _m : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
+        next((0, response_1.httpInternalServerError)(error, (_o = error.message) !== null && _o !== void 0 ? _o : error_1.ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 });
 exports.default = { index, status, store, update, destroy };

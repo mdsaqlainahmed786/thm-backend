@@ -830,6 +830,18 @@ const publishPostAsStory = async (request: Request, response: Response, next: Ne
       );
     }
 
+    // notify the post owner (once per share action), skip self-share
+    if (String((post as any).userID) !== String(id)) {
+      AppNotificationController
+        .store(id, (post as any).userID, NotificationType.SHARE_POST_TO_STORY, {
+          postID: post._id,
+          userID: (post as any).userID,
+          postType: (post as any).postType,
+          storyIDs: createdStories.map((s: any) => String(s?._id)),
+        })
+        .catch((err: any) => console.error('Post share-to-story notification error:', err));
+    }
+
     return response.send(httpCreated(createdStories, "Post published as story successfully."));
 
   } catch (error: any) {

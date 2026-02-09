@@ -705,6 +705,17 @@ const publishPostAsStory = (request, response, next) => __awaiter(void 0, void 0
         if (createdStories.length === 0) {
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest("No valid new media found to publish as story."), "No valid new media found to publish as story."));
         }
+        // notify the post owner (once per share action), skip self-share
+        if (String(post.userID) !== String(id)) {
+            AppNotificationController_1.default
+                .store(id, post.userID, notification_model_1.NotificationType.SHARE_POST_TO_STORY, {
+                postID: post._id,
+                userID: post.userID,
+                postType: post.postType,
+                storyIDs: createdStories.map((s) => String(s === null || s === void 0 ? void 0 : s._id)),
+            })
+                .catch((err) => console.error('Post share-to-story notification error:', err));
+        }
         return response.send((0, response_1.httpCreated)(createdStories, "Post published as story successfully."));
     }
     catch (error) {
