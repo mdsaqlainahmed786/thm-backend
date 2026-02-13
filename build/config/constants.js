@@ -28,6 +28,13 @@ exports.MarketingNotifications = exports.CronSchedule = exports.GeoLocation = ex
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 class AppConfig {
+    // Debug: Log Razorpay config on startup (safely, without exposing secrets)
+    static logRazorpayConfig() {
+        console.log('[AppConfig] Razorpay Configuration:');
+        console.log(`[AppConfig] KEY_ID: ${this.RAZOR_PAY.KEY_ID ? this.RAZOR_PAY.KEY_ID.substring(0, 8) + '... (length: ' + this.RAZOR_PAY.KEY_ID.length + ')' : 'NOT SET'}`);
+        console.log(`[AppConfig] KEY_SECRET: ${this.RAZOR_PAY.KEY_SECRET ? '*** (length: ' + this.RAZOR_PAY.KEY_SECRET.length + ')' : 'NOT SET'}`);
+        console.log(`[AppConfig] MERCHANT_ID: ${this.RAZOR_PAY.MERCHANT_ID ? this.RAZOR_PAY.MERCHANT_ID.substring(0, 4) + '... (length: ' + this.RAZOR_PAY.MERCHANT_ID.length + ')' : 'NOT SET'}`);
+    }
 }
 exports.AppConfig = AppConfig;
 AppConfig.APP_NAME = (_a = process.env.APP_NAME) !== null && _a !== void 0 ? _a : "The Hotel Media";

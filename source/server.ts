@@ -12,6 +12,10 @@ export const SocketServer = createSocketServer(httpServer);
 httpServer.listen(AppConfig.PORT, async () => {
     //Basic Details for server
     console.log(`The server is running\tPORT: ${AppConfig.PORT}\tDATED: ${new Date()}`,);
+    
+    // Log Razorpay configuration on startup
+    AppConfig.logRazorpayConfig();
+    
     DBOptimization.start();
     THMFollow.start();
     THMRating.start();

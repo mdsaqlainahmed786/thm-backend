@@ -71,6 +71,14 @@ export abstract class AppConfig {
         KEY_SECRET: process.env.RAZORPAY_KEY_SECRET?.replace(/^["']|["']$/g, '').trim() || '',
         MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID?.replace(/^["']|["']$/g, '').trim() || ''
     }
+    
+    // Debug: Log Razorpay config on startup (safely, without exposing secrets)
+    static logRazorpayConfig() {
+        console.log('[AppConfig] Razorpay Configuration:');
+        console.log(`[AppConfig] KEY_ID: ${this.RAZOR_PAY.KEY_ID ? this.RAZOR_PAY.KEY_ID.substring(0, 8) + '... (length: ' + this.RAZOR_PAY.KEY_ID.length + ')' : 'NOT SET'}`);
+        console.log(`[AppConfig] KEY_SECRET: ${this.RAZOR_PAY.KEY_SECRET ? '*** (length: ' + this.RAZOR_PAY.KEY_SECRET.length + ')' : 'NOT SET'}`);
+        console.log(`[AppConfig] MERCHANT_ID: ${this.RAZOR_PAY.MERCHANT_ID ? this.RAZOR_PAY.MERCHANT_ID.substring(0, 4) + '... (length: ' + this.RAZOR_PAY.MERCHANT_ID.length + ')' : 'NOT SET'}`);
+    }
 
     //SendGrid
     static readonly SENDGRID = {

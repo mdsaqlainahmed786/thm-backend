@@ -28,6 +28,8 @@ exports.SocketServer = (0, socket_server_1.default)(httpServer);
 httpServer.listen(constants_1.AppConfig.PORT, () => __awaiter(void 0, void 0, void 0, function* () {
     //Basic Details for server
     console.log(`The server is running\tPORT: ${constants_1.AppConfig.PORT}\tDATED: ${new Date()}`);
+    // Log Razorpay configuration on startup
+    constants_1.AppConfig.logRazorpayConfig();
     DbOptimizationCron_1.default.start();
     THMFollowCron_1.default.start();
     THMRatingCron_1.default.start();

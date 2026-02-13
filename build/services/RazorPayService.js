@@ -23,6 +23,11 @@ class RazorPayService {
         // Validate Razorpay configuration
         const keyId = ((_a = constants_1.AppConfig.RAZOR_PAY.KEY_ID) === null || _a === void 0 ? void 0 : _a.trim()) || '';
         const keySecret = ((_b = constants_1.AppConfig.RAZOR_PAY.KEY_SECRET) === null || _b === void 0 ? void 0 : _b.trim()) || '';
+        // Debug: Log what we're actually reading (safely)
+        console.log('[RazorPayService] Reading environment variables:');
+        console.log(`[RazorPayService] KEY_ID from env: ${process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 8) + '... (length: ' + process.env.RAZORPAY_KEY_ID.length + ')' : 'NOT SET'}`);
+        console.log(`[RazorPayService] KEY_SECRET from env: ${process.env.RAZORPAY_KEY_SECRET ? '*** (length: ' + process.env.RAZORPAY_KEY_SECRET.length + ')' : 'NOT SET'}`);
+        console.log(`[RazorPayService] After processing - KEY_ID length: ${keyId.length}, KEY_SECRET length: ${keySecret.length}`);
         if (!keyId || !keySecret) {
             console.error('[RazorPayService] Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
             return;
