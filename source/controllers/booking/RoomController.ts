@@ -144,12 +144,12 @@ const store = async (request: Request, response: Response, next: NextFunction) =
             ));
         }
         
-        // Enforce max count of 5 images
-        const MAX_IMAGES = 5;
+        // Enforce max count of 20 images
+        const MAX_IMAGES = 20;
         if (mediaFiles.length > MAX_IMAGES) {
             const extraFiles = mediaFiles.slice(MAX_IMAGES);
             await deleteUnwantedFiles(extraFiles);
-            // Continue with only the first 5 images
+            // Continue with only the first 20 images
         }
         const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
         
@@ -351,12 +351,12 @@ const update = async (request: Request, response: Response, next: NextFunction) 
             await deleteUnwantedFiles(unexpectedFiles);
         }
         
-        // Enforce max count of 5 images for updates
-        const MAX_IMAGES = 5;
+        // Enforce max count of 20 images for updates
+        const MAX_IMAGES = 20;
         if (mediaFiles.length > MAX_IMAGES) {
             const extraFiles = mediaFiles.slice(MAX_IMAGES);
             await deleteUnwantedFiles(extraFiles);
-            // Continue with only the first 5 images
+            // Continue with only the first 20 images
         }
         const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
 
