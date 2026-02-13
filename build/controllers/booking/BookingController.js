@@ -417,6 +417,9 @@ const checkout = (request, response, next) => __awaiter(void 0, void 0, void 0, 
                 }
             }, 'Payment gateway is not properly configured. Please contact support.'));
         }
+        // Log Razorpay diagnostics before creating order
+        const razorpayDiagnostics = razorPayService.getDiagnostics();
+        console.log('[Checkout] Razorpay diagnostics:', razorpayDiagnostics);
         const razorpayData = {
             description: room.title ? `Room Booking '${room.title}' - Booking ID: ${booking.bookingID} ` : `Room Booking - Booking ID: ${booking.bookingID} `,
             email: "",

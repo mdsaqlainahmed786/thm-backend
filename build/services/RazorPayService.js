@@ -38,9 +38,32 @@ class RazorPayService {
             console.error('[RazorPayService] Failed to initialize Razorpay:', error);
         }
     }
+    /**
+     * Get diagnostic information about Razorpay configuration (without exposing secrets)
+     */
+    getDiagnostics() {
+        var _a, _b;
+        const hasKeyId = !!constants_1.AppConfig.RAZOR_PAY.KEY_ID && constants_1.AppConfig.RAZOR_PAY.KEY_ID.trim() !== '';
+        const hasKeySecret = !!constants_1.AppConfig.RAZOR_PAY.KEY_SECRET && constants_1.AppConfig.RAZOR_PAY.KEY_SECRET.trim() !== '';
+        const keyIdPreview = hasKeyId ? constants_1.AppConfig.RAZOR_PAY.KEY_ID.substring(0, 8) + '...' : 'NOT SET';
+        const keyIdPrefix = hasKeyId ? constants_1.AppConfig.RAZOR_PAY.KEY_ID.substring(0, 4) : '';
+        const isTestKey = keyIdPrefix === 'rzp_';
+        const isLiveKey = keyIdPrefix === 'rzp_';
+        return {
+            isInitialized: !!this.instance,
+            hasKeyId,
+            hasKeySecret,
+            keyIdPreview,
+            keyIdLength: ((_a = constants_1.AppConfig.RAZOR_PAY.KEY_ID) === null || _a === void 0 ? void 0 : _a.length) || 0,
+            keySecretLength: ((_b = constants_1.AppConfig.RAZOR_PAY.KEY_SECRET) === null || _b === void 0 ? void 0 : _b.length) || 0,
+            environment: keyIdPrefix === 'rzp_' ? (constants_1.AppConfig.RAZOR_PAY.KEY_ID.includes('test') ? 'TEST' : 'LIVE') : 'UNKNOWN'
+        };
+    }
     createOrder(amount, data) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.instance) {
+                const diagnostics = this.getDiagnostics();
+                console.error('[RazorPayService] Cannot create order - Razorpay not initialized. Diagnostics:', diagnostics);
                 throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
             }
             try {
@@ -89,22 +112,36 @@ class RazorPayService {
                         // Object.assign(options, { customer_details: {billing_address,} })
                     }
                 }
+                const diagnostics = this.getDiagnostics();
                 console.log('[RazorPayService] Creating order with options:', {
                     amount: options.amount,
                     currency: options.currency,
                     receipt: options.receipt,
-                    notes: options.notes
+                    notes: options.notes,
+                    diagnostics: diagnostics
                 });
                 const order = yield this.instance.orders.create(options);
                 console.log('[RazorPayService] Order created successfully:', order.id);
                 return order;
             }
             catch (error) {
+                const diagnostics = this.getDiagnostics();
                 console.error('[RazorPayService] Error creating order:', {
                     statusCode: error.statusCode,
                     error: error.error,
-                    message: error.message
+                    message: error.message,
+                    diagnostics: diagnostics
                 });
+                // Provide more helpful error message for 401 errors
+                if (error.statusCode === 401) {
+                    const helpfulMessage = `Razorpay authentication failed. Please verify:
+1. Your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correct
+2. The keys match each other (same key pair)
+3. You're using the correct environment (test vs live keys)
+4. The keys haven't been revoked in your Razorpay dashboard
+Current Key ID: ${diagnostics.keyIdPreview}, Environment: ${diagnostics.environment}`;
+                    console.error('[RazorPayService]', helpfulMessage);
+                }
                 throw error;
             }
         });

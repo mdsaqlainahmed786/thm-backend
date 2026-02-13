@@ -412,6 +412,10 @@ const checkout = async (request: Request, response: Response, next: NextFunction
             ));
         }
 
+        // Log Razorpay diagnostics before creating order
+        const razorpayDiagnostics = razorPayService.getDiagnostics();
+        console.log('[Checkout] Razorpay diagnostics:', razorpayDiagnostics);
+
         const razorpayData = {
             description: room.title ? `Room Booking '${room.title}' - Booking ID: ${booking.bookingID} ` : `Room Booking - Booking ID: ${booking.bookingID} `,
             email: "",
