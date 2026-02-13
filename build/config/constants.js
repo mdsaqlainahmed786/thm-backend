@@ -22,7 +22,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarketingNotifications = exports.CronSchedule = exports.GeoLocation = exports.AwsS3AccessEndpoints = exports.CookiePolicy = exports.SocketChannel = exports.AppConfig = void 0;
 const dotenv = __importStar(require("dotenv"));
@@ -81,9 +81,9 @@ AppConfig.FIREBASE = {
 };
 //RazorPay
 AppConfig.RAZOR_PAY = {
-    KEY_ID: process.env.RAZORPAY_KEY_ID,
-    KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
-    MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID
+    KEY_ID: ((_k = process.env.RAZORPAY_KEY_ID) === null || _k === void 0 ? void 0 : _k.replace(/^["']|["']$/g, '').trim()) || '',
+    KEY_SECRET: ((_l = process.env.RAZORPAY_KEY_SECRET) === null || _l === void 0 ? void 0 : _l.replace(/^["']|["']$/g, '').trim()) || '',
+    MERCHANT_ID: ((_m = process.env.RAZORPAY_MERCHANT_ID) === null || _m === void 0 ? void 0 : _m.replace(/^["']|["']$/g, '').trim()) || ''
 };
 //SendGrid
 AppConfig.SENDGRID = {
@@ -92,10 +92,10 @@ AppConfig.SENDGRID = {
 };
 // Amazon SES
 AppConfig.SES = {
-    REGION: (_k = process.env.AWS_REGION) !== null && _k !== void 0 ? _k : "ap-south-1",
-    ACCESS_KEY_ID: (_l = process.env.AWS_ACCESS_KEY_ID) !== null && _l !== void 0 ? _l : "",
-    SECRET_ACCESS_KEY: (_m = process.env.AWS_SECRET_ACCESS_KEY) !== null && _m !== void 0 ? _m : "",
-    FROM_ADDRESS: (_o = process.env.SES_FROM_ADDRESS) !== null && _o !== void 0 ? _o : process.env.SENDGRID_FROM_ADDRESS
+    REGION: (_o = process.env.AWS_REGION) !== null && _o !== void 0 ? _o : "ap-south-1",
+    ACCESS_KEY_ID: (_p = process.env.AWS_ACCESS_KEY_ID) !== null && _p !== void 0 ? _p : "",
+    SECRET_ACCESS_KEY: (_q = process.env.AWS_SECRET_ACCESS_KEY) !== null && _q !== void 0 ? _q : "",
+    FROM_ADDRESS: (_r = process.env.SES_FROM_ADDRESS) !== null && _r !== void 0 ? _r : process.env.SENDGRID_FROM_ADDRESS
 };
 //Mailersend
 AppConfig.MAILER_SEND = {

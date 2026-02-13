@@ -67,9 +67,9 @@ export abstract class AppConfig {
     }
     //RazorPay
     static readonly RAZOR_PAY = {
-        KEY_ID: process.env.RAZORPAY_KEY_ID!,
-        KEY_SECRET: process.env.RAZORPAY_KEY_SECRET!,
-        MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID!
+        KEY_ID: process.env.RAZORPAY_KEY_ID?.replace(/^["']|["']$/g, '').trim() || '',
+        KEY_SECRET: process.env.RAZORPAY_KEY_SECRET?.replace(/^["']|["']$/g, '').trim() || '',
+        MERCHANT_ID: process.env.RAZORPAY_MERCHANT_ID?.replace(/^["']|["']$/g, '').trim() || ''
     }
 
     //SendGrid

@@ -28,14 +28,22 @@ class RazorPayService {
         
         // Validate key lengths (Razorpay keys have specific length requirements)
         // KEY_ID: typically 20-25 characters (rzp_test_... or rzp_live_...)
-        // KEY_SECRET: typically 32+ characters
+        // KEY_SECRET: typically 32+ characters, but some older test keys might be shorter
         if (keyId.length < 20 || keyId.length > 30) {
             console.warn(`[RazorPayService] KEY_ID length (${keyId.length}) seems unusual. Expected 20-30 characters.`);
         }
+        
+        // Check for common issues
+        if (keySecret.includes('"') || keySecret.includes("'")) {
+            console.error(`[RazorPayService] KEY_SECRET appears to contain quotes! This suggests the .env file may have quotes that weren't stripped.`);
+            console.error(`[RazorPayService] Current KEY_SECRET value (first 10 chars): ${keySecret.substring(0, 10)}...`);
+        }
+        
+        // Warn if key is shorter than expected, but allow it to proceed (some test keys might be shorter)
         if (keySecret.length < 32) {
-            console.error(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is too short! Expected at least 32 characters. This is likely the cause of authentication failures.`);
-            console.error('[RazorPayService] Please check your RAZORPAY_KEY_SECRET environment variable - it may be truncated or incomplete.');
-            return;
+            console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is shorter than expected (typically 32+ characters).`);
+            console.warn(`[RazorPayService] If authentication fails, verify the complete key in your Razorpay dashboard.`);
+            // Don't return - allow it to try, as some keys might work even if shorter
         }
         if (keySecret.length > 50) {
             console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) seems unusually long. Expected 32-40 characters.`);
@@ -67,9 +75,19 @@ class RazorPayService {
         const isTestKey = keyId.includes('test');
         const isLiveKey = keyId.includes('live');
         
-        // Check if key lengths are valid
+        // Check if key lengths are valid (note: some older test keys might be shorter)
         const keyIdLengthValid = hasKeyId && keyId.length >= 20 && keyId.length <= 30;
         const keySecretLengthValid = hasKeySecret && keySecret.length >= 32;
+        const keySecretLengthWarning = hasKeySecret && keySecret.length < 32 && keySecret.length >= 20;
+        
+        let warning = null;
+        if (!keySecretLengthValid && keySecretLengthWarning) {
+            warning = 'KEY_SECRET is shorter than typical (25 chars vs expected 32+). Verify complete key in Razorpay dashboard.';
+        } else if (!keySecretLengthValid) {
+            warning = 'KEY_SECRET is too short (expected >= 32 chars)';
+        } else if (!keyIdLengthValid) {
+            warning = 'KEY_ID length seems unusual';
+        }
         
         return {
             isInitialized: !!this.instance,
@@ -80,9 +98,9 @@ class RazorPayService {
             keySecretLength: keySecret.length,
             keyIdLengthValid,
             keySecretLengthValid,
+            keySecretLengthWarning,
             environment: isTestKey ? 'TEST' : (isLiveKey ? 'LIVE' : 'UNKNOWN'),
-            warning: !keySecretLengthValid ? 'KEY_SECRET is too short (expected >= 32 chars)' : 
-                    !keyIdLengthValid ? 'KEY_ID length seems unusual' : null
+            warning
         };
     }
 
