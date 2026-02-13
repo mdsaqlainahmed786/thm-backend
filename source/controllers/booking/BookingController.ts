@@ -24,6 +24,7 @@ import Inventory, { checkRoomsAvailability } from "../../database/models/invento
 import EmailNotificationService from "../../services/EmailNotificationService";
 import AppNotificationController from '../AppNotificationController';
 import Notification, { NotificationType } from '../../database/models/notification.model';
+import { AppConfig } from "../../config/constants";
 
 const razorPayService = new RazorPayService();
 const NOT_FOUND = "Booking not found.";
@@ -390,6 +391,21 @@ const checkout = async (request: Request, response: Response, next: NextFunction
                 booking.promoCodeID = promocode.id;
             }
         }
+        // Validate Razorpay configuration
+        if (!AppConfig.RAZOR_PAY.KEY_ID || !AppConfig.RAZOR_PAY.KEY_SECRET) {
+            console.error('[Checkout] Razorpay configuration missing: KEY_ID or KEY_SECRET not set');
+            return response.status(500).send(httpInternalServerError(
+                { 
+                    statusCode: 500, 
+                    error: { 
+                        description: 'Payment gateway configuration error. Razorpay API keys are not configured.', 
+                        code: 'CONFIGURATION_ERROR' 
+                    } 
+                }, 
+                'Payment gateway is not properly configured. Please contact support.'
+            ));
+        }
+
         const razorpayData = {
             description: room.title ? `Room Booking '${room.title}' - Booking ID: ${booking.bookingID} ` : `Room Booking - Booking ID: ${booking.bookingID} `,
             email: "",
@@ -471,6 +487,33 @@ const checkout = async (request: Request, response: Response, next: NextFunction
         }
         return response.send(httpOk(responseData, "Checkout summary"));
     } catch (error: any) {
+        // Handle Razorpay errors specifically
+        if (error.error && error.statusCode) {
+            // Razorpay authentication error (401)
+            if (error.statusCode === 401) {
+                const errorMessage = error.error.description || 'Razorpay authentication failed. Please check your Razorpay API keys configuration.';
+                console.error('[Checkout] Razorpay authentication error:', error);
+                return response.status(500).send(httpInternalServerError(
+                    { 
+                        statusCode: error.statusCode, 
+                        error: error.error 
+                    }, 
+                    errorMessage
+                ));
+            }
+            // Other Razorpay errors
+            const errorMessage = error.error.description || 'Payment gateway error occurred';
+            console.error('[Checkout] Razorpay error:', error);
+            return response.status(500).send(httpInternalServerError(
+                { 
+                    statusCode: error.statusCode, 
+                    error: error.error 
+                }, 
+                errorMessage
+            ));
+        }
+        // Handle other errors
+        console.error('[Checkout] Error:', error);
         next(httpInternalServerError(error, error.message ?? ErrorMessage.INTERNAL_SERVER_ERROR));
     }
 }
