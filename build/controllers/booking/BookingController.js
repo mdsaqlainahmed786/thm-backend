@@ -494,6 +494,24 @@ const checkout = (request, response, next) => __awaiter(void 0, void 0, void 0, 
         return response.send((0, response_1.httpOk)(responseData, "Checkout summary"));
     }
     catch (error) {
+        // Handle Razorpay not initialized error
+        if (error.message && error.message.includes('Razorpay is not initialized')) {
+            const diagnostics = razorPayService.getDiagnostics();
+            console.error('[Checkout] Razorpay not initialized:', diagnostics);
+            return response.status(500).send((0, response_1.httpInternalServerError)({
+                statusCode: 500,
+                error: {
+                    description: diagnostics.warning || 'Razorpay payment gateway is not properly configured.',
+                    code: 'CONFIGURATION_ERROR',
+                    diagnostics: {
+                        keyIdLength: diagnostics.keyIdLength,
+                        keySecretLength: diagnostics.keySecretLength,
+                        keySecretLengthValid: diagnostics.keySecretLengthValid,
+                        warning: diagnostics.warning
+                    }
+                }
+            }, diagnostics.warning || 'Payment gateway configuration error. Please contact support.'));
+        }
         // Handle Razorpay errors specifically
         if (error.error && error.statusCode) {
             // Razorpay authentication error (401)
