@@ -39,11 +39,25 @@ class RazorPayService {
             console.error(`[RazorPayService] Current KEY_SECRET value (first 10 chars): ${keySecret.substring(0, 10)}...`);
         }
         
-        // Warn if key is shorter than expected, but allow it to proceed (some test keys might be shorter)
+        // Check if this is a live key
+        const isLiveKey = keyId.includes('live');
+        const isTestKey = keyId.includes('test');
+        
+        // Warn if key is shorter than expected
         if (keySecret.length < 32) {
-            console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is shorter than expected (typically 32+ characters).`);
-            console.warn(`[RazorPayService] If authentication fails, verify the complete key in your Razorpay dashboard.`);
-            // Don't return - allow it to try, as some keys might work even if shorter
+            if (isLiveKey) {
+                console.error(`[RazorPayService] LIVE KEY_SECRET length (${keySecret.length}) is too short! Live keys must be 32+ characters.`);
+                console.error(`[RazorPayService] This will likely cause authentication failures. Please verify the complete key in your Razorpay dashboard.`);
+                // For live keys, we should be more strict
+                if (keySecret.length < 30) {
+                    console.error(`[RazorPayService] Live key secret is critically short. Refusing to initialize.`);
+                    return;
+                }
+            } else {
+                console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is shorter than expected (typically 32+ characters).`);
+                console.warn(`[RazorPayService] If authentication fails, verify the complete key in your Razorpay dashboard.`);
+                // Test keys might work with shorter lengths
+            }
         }
         if (keySecret.length > 50) {
             console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) seems unusually long. Expected 32-40 characters.`);
@@ -51,7 +65,8 @@ class RazorPayService {
         
         // Log key ID (first 8 chars) for debugging without exposing full key
         const keyIdPreview = keyId.substring(0, 8) + '...';
-        console.log(`[RazorPayService] Initializing Razorpay with Key ID: ${keyIdPreview}, Key lengths - ID: ${keyId.length}, Secret: ${keySecret.length}`);
+        const keyType = isLiveKey ? 'LIVE' : (isTestKey ? 'TEST' : 'UNKNOWN');
+        console.log(`[RazorPayService] Initializing Razorpay ${keyType} mode with Key ID: ${keyIdPreview}, Key lengths - ID: ${keyId.length}, Secret: ${keySecret.length}`);
         
         try {
             this.instance = new Razorpay({
