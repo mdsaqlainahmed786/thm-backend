@@ -18,13 +18,31 @@ const constants_1 = require("../config/constants");
 const uuid_1 = require("uuid");
 class RazorPayService {
     constructor() {
-        this.instance = new razorpay_1.default({
-            key_id: constants_1.AppConfig.RAZOR_PAY.KEY_ID, // Replace with your Razorpay Key ID
-            key_secret: constants_1.AppConfig.RAZOR_PAY.KEY_SECRET, // Replace with your Razorpay Key Secret
-        });
+        this.instance = null;
+        // Validate Razorpay configuration
+        if (!constants_1.AppConfig.RAZOR_PAY.KEY_ID || !constants_1.AppConfig.RAZOR_PAY.KEY_SECRET ||
+            constants_1.AppConfig.RAZOR_PAY.KEY_ID.trim() === '' || constants_1.AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+            console.error('[RazorPayService] Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            return;
+        }
+        // Log key ID (first 8 chars) for debugging without exposing full key
+        const keyIdPreview = constants_1.AppConfig.RAZOR_PAY.KEY_ID.substring(0, 8) + '...';
+        console.log(`[RazorPayService] Initializing Razorpay with Key ID: ${keyIdPreview}`);
+        try {
+            this.instance = new razorpay_1.default({
+                key_id: constants_1.AppConfig.RAZOR_PAY.KEY_ID,
+                key_secret: constants_1.AppConfig.RAZOR_PAY.KEY_SECRET,
+            });
+        }
+        catch (error) {
+            console.error('[RazorPayService] Failed to initialize Razorpay:', error);
+        }
     }
     createOrder(amount, data) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!this.instance) {
+                throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            }
             try {
                 amount = amount * 100;
                 const options = {
@@ -71,17 +89,31 @@ class RazorPayService {
                         // Object.assign(options, { customer_details: {billing_address,} })
                     }
                 }
-                console.log(options);
+                console.log('[RazorPayService] Creating order with options:', {
+                    amount: options.amount,
+                    currency: options.currency,
+                    receipt: options.receipt,
+                    notes: options.notes
+                });
                 const order = yield this.instance.orders.create(options);
+                console.log('[RazorPayService] Order created successfully:', order.id);
                 return order;
             }
             catch (error) {
+                console.error('[RazorPayService] Error creating order:', {
+                    statusCode: error.statusCode,
+                    error: error.error,
+                    message: error.message
+                });
                 throw error;
             }
         });
     }
     verifyPayment(order_id, payment_id, signature) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!constants_1.AppConfig.RAZOR_PAY.KEY_SECRET || constants_1.AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+                throw new Error('Razorpay KEY_SECRET is not configured');
+            }
             const hmac = crypto_1.default.createHmac('sha256', constants_1.AppConfig.RAZOR_PAY.KEY_SECRET);
             hmac.update(order_id + '|' + payment_id);
             const generated_signature = hmac.digest('hex');
@@ -90,6 +122,9 @@ class RazorPayService {
     }
     fetchOrder(orderID) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!this.instance) {
+                throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            }
             try {
                 const order = yield this.instance.orders.fetch(orderID);
                 return order;
@@ -101,6 +136,9 @@ class RazorPayService {
     }
     fetchPayments(orderID) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!this.instance) {
+                throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            }
             try {
                 const payments = yield this.instance.orders.fetchPayments(orderID);
                 return payments;
@@ -112,6 +150,9 @@ class RazorPayService {
     }
     fetchPayment(paymentID) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (!this.instance) {
+                throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            }
             try {
                 const payment = yield this.instance.payments.fetch(paymentID);
                 return payment;

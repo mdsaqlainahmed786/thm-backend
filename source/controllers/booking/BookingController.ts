@@ -392,8 +392,14 @@ const checkout = async (request: Request, response: Response, next: NextFunction
             }
         }
         // Validate Razorpay configuration
-        if (!AppConfig.RAZOR_PAY.KEY_ID || !AppConfig.RAZOR_PAY.KEY_SECRET) {
-            console.error('[Checkout] Razorpay configuration missing: KEY_ID or KEY_SECRET not set');
+        if (!AppConfig.RAZOR_PAY.KEY_ID || !AppConfig.RAZOR_PAY.KEY_SECRET || 
+            AppConfig.RAZOR_PAY.KEY_ID.trim() === '' || AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+            console.error('[Checkout] Razorpay configuration missing or empty:', {
+                hasKeyId: !!AppConfig.RAZOR_PAY.KEY_ID,
+                hasKeySecret: !!AppConfig.RAZOR_PAY.KEY_SECRET,
+                keyIdLength: AppConfig.RAZOR_PAY.KEY_ID?.length || 0,
+                keySecretLength: AppConfig.RAZOR_PAY.KEY_SECRET?.length || 0
+            });
             return response.status(500).send(httpInternalServerError(
                 { 
                     statusCode: 500, 

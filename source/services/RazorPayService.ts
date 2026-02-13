@@ -15,14 +15,32 @@ export interface BillingDetails {
 }
 
 class RazorPayService {
-    private instance: Razorpay;
+    private instance: Razorpay | null = null;
     constructor() {
-        this.instance = new Razorpay({
-            key_id: AppConfig.RAZOR_PAY.KEY_ID, // Replace with your Razorpay Key ID
-            key_secret: AppConfig.RAZOR_PAY.KEY_SECRET, // Replace with your Razorpay Key Secret
-        });
+        // Validate Razorpay configuration
+        if (!AppConfig.RAZOR_PAY.KEY_ID || !AppConfig.RAZOR_PAY.KEY_SECRET || 
+            AppConfig.RAZOR_PAY.KEY_ID.trim() === '' || AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+            console.error('[RazorPayService] Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+            return;
+        }
+        
+        // Log key ID (first 8 chars) for debugging without exposing full key
+        const keyIdPreview = AppConfig.RAZOR_PAY.KEY_ID.substring(0, 8) + '...';
+        console.log(`[RazorPayService] Initializing Razorpay with Key ID: ${keyIdPreview}`);
+        
+        try {
+            this.instance = new Razorpay({
+                key_id: AppConfig.RAZOR_PAY.KEY_ID,
+                key_secret: AppConfig.RAZOR_PAY.KEY_SECRET,
+            });
+        } catch (error) {
+            console.error('[RazorPayService] Failed to initialize Razorpay:', error);
+        }
     }
     async createOrder(amount: number, data?: BillingDetails | undefined) {
+        if (!this.instance) {
+            throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+        }
         try {
             amount = amount * 100;
             const options: Orders.RazorpayOrderBaseRequestBody = {
@@ -71,20 +89,37 @@ class RazorPayService {
                     // Object.assign(options, { customer_details: {billing_address,} })
                 }
             }
-            console.log(options);
+            console.log('[RazorPayService] Creating order with options:', {
+                amount: options.amount,
+                currency: options.currency,
+                receipt: options.receipt,
+                notes: options.notes
+            });
             const order = await this.instance.orders.create(options);
+            console.log('[RazorPayService] Order created successfully:', order.id);
             return order;
-        } catch (error) {
+        } catch (error: any) {
+            console.error('[RazorPayService] Error creating order:', {
+                statusCode: error.statusCode,
+                error: error.error,
+                message: error.message
+            });
             throw error;
         }
     }
     async verifyPayment(order_id: string, payment_id: string, signature: string) {
+        if (!AppConfig.RAZOR_PAY.KEY_SECRET || AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+            throw new Error('Razorpay KEY_SECRET is not configured');
+        }
         const hmac = crypto.createHmac('sha256', AppConfig.RAZOR_PAY.KEY_SECRET);
         hmac.update(order_id + '|' + payment_id);
         const generated_signature = hmac.digest('hex');
         return generated_signature === signature;
     }
     async fetchOrder(orderID: string) {
+        if (!this.instance) {
+            throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+        }
         try {
             const order = await this.instance.orders.fetch(orderID);
             return order;
@@ -93,6 +128,9 @@ class RazorPayService {
         }
     }
     async fetchPayments(orderID: string) {
+        if (!this.instance) {
+            throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+        }
         try {
             const payments = await this.instance.orders.fetchPayments(orderID);
             return payments;
@@ -101,6 +139,9 @@ class RazorPayService {
         }
     }
     async fetchPayment(paymentID: string) {
+        if (!this.instance) {
+            throw new Error('Razorpay is not initialized. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+        }
         try {
             const payment = await this.instance.payments.fetch(paymentID);
             return payment;
