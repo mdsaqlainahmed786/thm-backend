@@ -25,9 +25,15 @@ class RazorPayService {
         const keySecret = ((_b = constants_1.AppConfig.RAZOR_PAY.KEY_SECRET) === null || _b === void 0 ? void 0 : _b.trim()) || '';
         // Debug: Log what we're actually reading (safely)
         console.log('[RazorPayService] Reading environment variables:');
-        console.log(`[RazorPayService] KEY_ID from env: ${process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 8) + '... (length: ' + process.env.RAZORPAY_KEY_ID.length + ')' : 'NOT SET'}`);
-        console.log(`[RazorPayService] KEY_SECRET from env: ${process.env.RAZORPAY_KEY_SECRET ? '*** (length: ' + process.env.RAZORPAY_KEY_SECRET.length + ')' : 'NOT SET'}`);
+        const rawKeyId = process.env.RAZORPAY_KEY_ID || '';
+        const rawKeySecret = process.env.RAZORPAY_KEY_SECRET || '';
+        console.log(`[RazorPayService] Raw KEY_ID from env: ${rawKeyId ? rawKeyId.substring(0, 8) + '... (length: ' + rawKeyId.length + ', hasQuotes: ' + (rawKeyId.includes('"') || rawKeyId.includes("'")) + ')' : 'NOT SET'}`);
+        console.log(`[RazorPayService] Raw KEY_SECRET from env: length: ${rawKeySecret.length}, hasQuotes: ${rawKeySecret.includes('"') || rawKeySecret.includes("'")}, firstChars: ${rawKeySecret.substring(0, 4)}, lastChars: ${rawKeySecret.substring(Math.max(0, rawKeySecret.length - 4))}`);
         console.log(`[RazorPayService] After processing - KEY_ID length: ${keyId.length}, KEY_SECRET length: ${keySecret.length}`);
+        // Check for truncation issues
+        if (rawKeySecret.length !== keySecret.length) {
+            console.warn(`[RazorPayService] WARNING: Key secret length changed after processing! Raw: ${rawKeySecret.length}, Processed: ${keySecret.length}`);
+        }
         if (!keyId || !keySecret) {
             console.error('[RazorPayService] Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
             return;
@@ -46,21 +52,17 @@ class RazorPayService {
         // Check if this is a live key
         const isLiveKey = keyId.includes('live');
         const isTestKey = keyId.includes('test');
-        // Warn if key is shorter than expected
+        // Warn if key is shorter than expected, but allow it to proceed
+        // Razorpay will validate the key when we try to use it
         if (keySecret.length < 32) {
             if (isLiveKey) {
-                console.error(`[RazorPayService] LIVE KEY_SECRET length (${keySecret.length}) is too short! Live keys must be 32+ characters.`);
-                console.error(`[RazorPayService] This will likely cause authentication failures. Please verify the complete key in your Razorpay dashboard.`);
-                // For live keys, we should be more strict
-                if (keySecret.length < 30) {
-                    console.error(`[RazorPayService] Live key secret is critically short. Refusing to initialize.`);
-                    return;
-                }
+                console.warn(`[RazorPayService] LIVE KEY_SECRET length (${keySecret.length}) is shorter than typical (usually 32+).`);
+                console.warn(`[RazorPayService] Proceeding anyway - Razorpay will validate when we use it.`);
+                // Don't block initialization - let Razorpay API tell us if it's invalid
             }
             else {
                 console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is shorter than expected (typically 32+ characters).`);
                 console.warn(`[RazorPayService] If authentication fails, verify the complete key in your Razorpay dashboard.`);
-                // Test keys might work with shorter lengths
             }
         }
         if (keySecret.length > 50) {
