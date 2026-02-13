@@ -18,20 +18,37 @@ class RazorPayService {
     private instance: Razorpay | null = null;
     constructor() {
         // Validate Razorpay configuration
-        if (!AppConfig.RAZOR_PAY.KEY_ID || !AppConfig.RAZOR_PAY.KEY_SECRET || 
-            AppConfig.RAZOR_PAY.KEY_ID.trim() === '' || AppConfig.RAZOR_PAY.KEY_SECRET.trim() === '') {
+        const keyId = AppConfig.RAZOR_PAY.KEY_ID?.trim() || '';
+        const keySecret = AppConfig.RAZOR_PAY.KEY_SECRET?.trim() || '';
+        
+        if (!keyId || !keySecret) {
             console.error('[RazorPayService] Razorpay API keys are not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
             return;
         }
         
+        // Validate key lengths (Razorpay keys have specific length requirements)
+        // KEY_ID: typically 20-25 characters (rzp_test_... or rzp_live_...)
+        // KEY_SECRET: typically 32+ characters
+        if (keyId.length < 20 || keyId.length > 30) {
+            console.warn(`[RazorPayService] KEY_ID length (${keyId.length}) seems unusual. Expected 20-30 characters.`);
+        }
+        if (keySecret.length < 32) {
+            console.error(`[RazorPayService] KEY_SECRET length (${keySecret.length}) is too short! Expected at least 32 characters. This is likely the cause of authentication failures.`);
+            console.error('[RazorPayService] Please check your RAZORPAY_KEY_SECRET environment variable - it may be truncated or incomplete.');
+            return;
+        }
+        if (keySecret.length > 50) {
+            console.warn(`[RazorPayService] KEY_SECRET length (${keySecret.length}) seems unusually long. Expected 32-40 characters.`);
+        }
+        
         // Log key ID (first 8 chars) for debugging without exposing full key
-        const keyIdPreview = AppConfig.RAZOR_PAY.KEY_ID.substring(0, 8) + '...';
-        console.log(`[RazorPayService] Initializing Razorpay with Key ID: ${keyIdPreview}`);
+        const keyIdPreview = keyId.substring(0, 8) + '...';
+        console.log(`[RazorPayService] Initializing Razorpay with Key ID: ${keyIdPreview}, Key lengths - ID: ${keyId.length}, Secret: ${keySecret.length}`);
         
         try {
             this.instance = new Razorpay({
-                key_id: AppConfig.RAZOR_PAY.KEY_ID,
-                key_secret: AppConfig.RAZOR_PAY.KEY_SECRET,
+                key_id: keyId,
+                key_secret: keySecret,
             });
         } catch (error) {
             console.error('[RazorPayService] Failed to initialize Razorpay:', error);
@@ -41,21 +58,31 @@ class RazorPayService {
      * Get diagnostic information about Razorpay configuration (without exposing secrets)
      */
     getDiagnostics() {
-        const hasKeyId = !!AppConfig.RAZOR_PAY.KEY_ID && AppConfig.RAZOR_PAY.KEY_ID.trim() !== '';
-        const hasKeySecret = !!AppConfig.RAZOR_PAY.KEY_SECRET && AppConfig.RAZOR_PAY.KEY_SECRET.trim() !== '';
-        const keyIdPreview = hasKeyId ? AppConfig.RAZOR_PAY.KEY_ID.substring(0, 8) + '...' : 'NOT SET';
-        const keyIdPrefix = hasKeyId ? AppConfig.RAZOR_PAY.KEY_ID.substring(0, 4) : '';
-        const isTestKey = keyIdPrefix === 'rzp_';
-        const isLiveKey = keyIdPrefix === 'rzp_';
+        const keyId = AppConfig.RAZOR_PAY.KEY_ID?.trim() || '';
+        const keySecret = AppConfig.RAZOR_PAY.KEY_SECRET?.trim() || '';
+        const hasKeyId = keyId !== '';
+        const hasKeySecret = keySecret !== '';
+        const keyIdPreview = hasKeyId ? keyId.substring(0, 8) + '...' : 'NOT SET';
+        const keyIdPrefix = hasKeyId ? keyId.substring(0, 4) : '';
+        const isTestKey = keyId.includes('test');
+        const isLiveKey = keyId.includes('live');
+        
+        // Check if key lengths are valid
+        const keyIdLengthValid = hasKeyId && keyId.length >= 20 && keyId.length <= 30;
+        const keySecretLengthValid = hasKeySecret && keySecret.length >= 32;
         
         return {
             isInitialized: !!this.instance,
             hasKeyId,
             hasKeySecret,
             keyIdPreview,
-            keyIdLength: AppConfig.RAZOR_PAY.KEY_ID?.length || 0,
-            keySecretLength: AppConfig.RAZOR_PAY.KEY_SECRET?.length || 0,
-            environment: keyIdPrefix === 'rzp_' ? (AppConfig.RAZOR_PAY.KEY_ID.includes('test') ? 'TEST' : 'LIVE') : 'UNKNOWN'
+            keyIdLength: keyId.length,
+            keySecretLength: keySecret.length,
+            keyIdLengthValid,
+            keySecretLengthValid,
+            environment: isTestKey ? 'TEST' : (isLiveKey ? 'LIVE' : 'UNKNOWN'),
+            warning: !keySecretLengthValid ? 'KEY_SECRET is too short (expected >= 32 chars)' : 
+                    !keyIdLengthValid ? 'KEY_ID length seems unusual' : null
         };
     }
 
@@ -135,12 +162,19 @@ class RazorPayService {
             
             // Provide more helpful error message for 401 errors
             if (error.statusCode === 401) {
-                const helpfulMessage = `Razorpay authentication failed. Please verify:
-1. Your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correct
-2. The keys match each other (same key pair)
-3. You're using the correct environment (test vs live keys)
-4. The keys haven't been revoked in your Razorpay dashboard
-Current Key ID: ${diagnostics.keyIdPreview}, Environment: ${diagnostics.environment}`;
+                let helpfulMessage = `Razorpay authentication failed. Please verify:\n`;
+                helpfulMessage += `1. Your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are correct\n`;
+                helpfulMessage += `2. The keys match each other (same key pair)\n`;
+                helpfulMessage += `3. You're using the correct environment (test vs live keys)\n`;
+                helpfulMessage += `4. The keys haven't been revoked in your Razorpay dashboard\n`;
+                helpfulMessage += `Current Key ID: ${diagnostics.keyIdPreview}, Environment: ${diagnostics.environment}\n`;
+                helpfulMessage += `Key lengths - ID: ${diagnostics.keyIdLength}, Secret: ${diagnostics.keySecretLength}`;
+                
+                if (diagnostics.warning) {
+                    helpfulMessage += `\n⚠️  WARNING: ${diagnostics.warning}`;
+                    helpfulMessage += `\nThis is likely the cause of the authentication failure!`;
+                }
+                
                 console.error('[RazorPayService]', helpfulMessage);
             }
             
