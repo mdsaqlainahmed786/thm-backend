@@ -167,12 +167,12 @@ const store = (request, response, next) => __awaiter(void 0, void 0, void 0, fun
             const receivedFields = Array.from(new Set(allFiles.map((f) => f.fieldname))).filter(Boolean);
             return response.send((0, response_1.httpBadRequest)(error_1.ErrorMessage.invalidRequest(`Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`), `Room images field must be 'images'. Received: ${receivedFields.join(', ') || 'none'}`));
         }
-        // Enforce max count of 5 images
-        const MAX_IMAGES = 5;
+        // Enforce max count of 20 images
+        const MAX_IMAGES = 20;
         if (mediaFiles.length > MAX_IMAGES) {
             const extraFiles = mediaFiles.slice(MAX_IMAGES);
             yield (0, MediaController_1.deleteUnwantedFiles)(extraFiles);
-            // Continue with only the first 5 images
+            // Continue with only the first 20 images
         }
         const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
         let businessProfile = businessProfileID || ((_c = request === null || request === void 0 ? void 0 : request.body) === null || _c === void 0 ? void 0 : _c.businessProfileID);
@@ -367,12 +367,12 @@ const update = (request, response, next) => __awaiter(void 0, void 0, void 0, fu
         if (unexpectedFiles.length > 0) {
             yield (0, MediaController_1.deleteUnwantedFiles)(unexpectedFiles);
         }
-        // Enforce max count of 5 images for updates
-        const MAX_IMAGES = 5;
+        // Enforce max count of 20 images for updates
+        const MAX_IMAGES = 20;
         if (mediaFiles.length > MAX_IMAGES) {
             const extraFiles = mediaFiles.slice(MAX_IMAGES);
             yield (0, MediaController_1.deleteUnwantedFiles)(extraFiles);
-            // Continue with only the first 5 images
+            // Continue with only the first 20 images
         }
         const validMediaFiles = mediaFiles.slice(0, MAX_IMAGES);
         const query = { _id: ID };
